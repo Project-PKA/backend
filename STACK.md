@@ -172,3 +172,18 @@ Receita e rollback em [`DEPLOY.md`](DEPLOY.md).
 | --- | --- | --- |
 | `SEED_CMD` pendente (não é `skip`) | Ainda não há tabelas; entra com o schema na Etapa 1 do backlog | Etapa 1 do backlog |
 | Deploy (`scripts/deploy.sh` e passo `Publicar` do `deploy.yml` em `skip`) | A VPS ainda não existe (decisão do usuário em 2026-10-17) | A VPS for contratada |
+
+## 10. Dependências e escolhas ainda abertas
+
+Aprovadas na Etapa 2 (2026-10-17): `jose` (JWT), `@fastify/cookie`,
+`@fastify/helmet`, `@fastify/cors` e `@fastify/rate-limit`. Hash e comparação
+em tempo constante saem do `node:crypto`, sem pacote.
+
+Ainda sem decisão (detalhes em [`docs/roadmap.md`](docs/roadmap.md)):
+
+| Tema | Por que importa |
+| --- | --- |
+| Provedor de e-mail | Convites e OTP; hoje só existe a interface e o log em desenvolvimento |
+| Armazenamento de arquivos | Fotos de carta, avatar e comprovante de pagamento |
+| Cobrança da assinatura da plataforma | O adendo mostra "forma de pagamento e faturas" |
+| Segundo fator do administrador | Conta mais valiosa do sistema |

@@ -17,7 +17,9 @@ O que **não** está aqui:
   abertura e fechamento no horário): é o `Project-PKA/whatsapp_microservice`.
   Ele usa este mesmo banco, com role própria.
 - A interface web: `Project-PKA/frontend_web` (ainda não iniciada).
-- Pagamento e envio: fora do MVP (ADR 0002).
+- Pagamento e envio: fora do MVP (ADR 0002). A plataforma **não vende nem
+  garante pagamento ou entrega** (ADR 0013): nenhuma tela, e-mail ou
+  mensagem pode usar linguagem de garantia ("anti-calote", "compra segura").
 
 **docs/shared do projeto:** `Project-PKA/shared`. Antes de decisão de
 arquitetura ou de contrato de API, leia o `ARCHITECTURE.md`, as ADRs
@@ -26,9 +28,16 @@ repositório (`../shared`). Se não estiver clonado, peça para clonar. O
 contrato publicado lá é **gerado daqui** (`make openapi`): não o edite no
 shared. Use os termos do `GLOSSARY.md` ao nomear campos e endpoints.
 
+**Escopo de produto:** `shared/docs/produto.md` (papéis, regras e mapa de
+telas). O acesso é **somente por convite**, existe uma área `/admin` para o
+administrador da plataforma, e há **páginas públicas** por link (vitrine,
+acerto do cliente, acompanhamento do consignador). O que falta e em que
+ordem está em [`docs/roadmap.md`](docs/roadmap.md).
+
 **Estado atual:** scaffold pronto (health, ready, metrics, erros em
 `problem+json`, runner de migrations) e schema completo com seed. Faltam
-autenticação, CRUDs e o motor de leilões (Etapas 2 a 6 do backlog). A VPS
+autenticação por convite, administração, CRUDs e o motor de leilões (Etapas
+2 a 8 do roteiro). A VPS
 ainda não existe, então não há deploy.
 
 ## 2. Comandos
@@ -89,6 +98,12 @@ Todos passam pelo contrato do `Makefile`; os comandos reais ficam em
   `tcgdex_catalog`. Além do filtro, vale o **RLS do Postgres** (ADR 0011, a
   partir da Etapa 2): query de negócio roda em transação com
   `app.store_id` definido, e o filtro no código não é dispensado por isso.
+
+**Áreas da API:** `/v1/auth`, `/v1/me`, rotas da loja (com `x-store-id`),
+`/v1/admin` (só administrador da plataforma) e `/v1/public` (sem login, por
+token). O administrador **não** lê nem altera dados internos das lojas, e
+isso vale no banco (RLS), não só na rota. Rota pública nunca consulta tabela
+direto: usa função `SECURITY DEFINER` auditada (ADR 0014).
 
 **Banco** (`docs/database.md`)
 
@@ -174,6 +189,9 @@ Propor o diff e explicar o motivo está liberado; aplicar sem confirmação, nã
 - Apagar teste, ou marcá-lo como `skip` para fazer o CI passar
 - Rodar o seed fora de ambiente de desenvolvimento
 - Qualquer coisa que envolva dado real de usuário (CPF, telefone, endereço)
+- Mudar regras de convite, o papel de administrador da plataforma, a
+  fronteira do administrador no RLS ou qualquer função `SECURITY DEFINER`
+  usada por rota pública
 - Criar ou alterar papéis de banco (`owner`, `app_runtime`, `bot`), políticas de RLS ou dar `BYPASSRLS` a qualquer papel
 
 **Regra geral:** se o erro sai caro, sai em produção ou é difícil de

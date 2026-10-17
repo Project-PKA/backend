@@ -16,10 +16,12 @@ Só a última versão publicada (tag `vX.Y.Z` mais recente) recebe correção.
 
 ## Por que segurança pesa neste projeto
 
-O sistema guarda **dado pessoal de terceiros** (nome, telefone, CPF, e-mail e
+O sistema tem **páginas públicas** (vitrine, acerto do cliente, acompanhamento do
+consignador) e uma **área de administração** acima das lojas. Além disso,
+guarda **dado pessoal de terceiros** (nome, telefone, CPF, e-mail e
 endereço de compradores e consignadores), é **multi-tenant** (uma falha de
 isolamento expõe a base de outra loja) e guarda a **credencial da sessão de
-WhatsApp** de cada loja. As três coisas definem a lista abaixo.
+WhatsApp** de cada loja. Essas coisas definem a lista abaixo.
 
 ## O que a fundação já cobre
 
@@ -54,7 +56,8 @@ tarefa que o toca não está pronta sem ele.
 | --- | --- |
 | OTP e refresh token guardados só como **hash** (colunas `otp_hash`, `token_hash`) | **feito** (schema); hash HMAC com segredo próprio na Etapa 2 |
 | OTP gerado com gerador criptográfico, 6 dígitos, **expira em minutos**, **limite de tentativas** (`otp_attempts`) e comparação em tempo constante | Etapa 2 |
-| Resposta de login **idêntica** exista a conta ou não (sem enumeração de e-mail) | Etapa 2 |
+| Resposta de login **idêntica** exista a conta ou não (sem enumeração de e-mail); e-mail sem conta **não recebe código e não cria usuário** (acesso só por convite, ADR 0012) | Etapa 2 |
+| Usuário `SUSPENDED` não loga e tem as sessões revogadas na hora; `INVITED` só entra pelo convite | Etapa 2 |
 | Rate limit por e-mail e por IP no pedido e na verificação do OTP | Etapa 2 |
 | JWT de acesso curto (≤ 15 min), algoritmo fixo no servidor (nunca `none`), `exp`, `iss` e `aud` verificados | Etapa 2 |
 | Refresh token rotacionado a cada uso; **reuso de token já trocado revoga a família inteira**; logout revoga | Etapa 2 |
@@ -104,12 +107,43 @@ tarefa que o toca não está pronta sem ele.
 | Backup do banco automático, criptografado e com **restauração testada** | infra |
 | Secrets só nos GitHub Environments, rotação documentada (`docs/secrets.md`) | **feito** (documento); valores a criar |
 
+### Convites, administração e contas (ADR 0012)
+
+| Requisito | Status |
+| --- | --- |
+| Token de convite aleatório de alta entropia, guardado só como hash, com **expiração**, uso único e revogação | Etapa 2 |
+| `is_platform_admin` só por comando de linha, **nunca** por API ou tela; sem "primeiro usuário vira admin" | Etapa 2 |
+| Fronteira do administrador no banco: lê `stores` e `store_members`, cria loja, e **não acessa** estoque, clientes, leilões, lances e acertos (teste de contrato com o papel real) | Etapa 2 |
+| Toda ação do administrador e toda transferência de propriedade vai para o log de atividades, que o proprietário não consegue editar | Etapa 2 |
+| Nunca deixar uma loja sem proprietário; remover o último `OWNER` é recusado | Etapa 2 |
+| Criar loja só com `can_create_stores` e abaixo do `store_limit`, verificado no servidor e dentro de transação (sem corrida) | Etapa 2 |
+| Formulário público "Solicitar acesso": limite por IP, campo-isca, validação e tamanho máximo; não cria usuário nem loja | Etapa 2 |
+| Conta de administrador com proteção reforçada: sessão curta e avaliação de segundo fator | pendente |
+
+### Páginas públicas (ADR 0014)
+
+| Requisito | Status |
+| --- | --- |
+| Token do link com 128 bits ou mais, guardado só como hash, com expiração e revogação; resposta **igual** para inválido, expirado e revogado | Etapa 6 |
+| Limite de tentativas e **bloqueio temporário** em qualquer segredo digitado (chave do consignador), por link e por IP, **desde o primeiro dia** | Etapa 6 |
+| Chave de 4 dígitos do CPF só como **segundo fator** sobre o token; link por consignador e loja; sem CPF cadastrado, sem link | Etapa 6 |
+| Acesso público por papel de banco próprio, executando só funções `SECURITY DEFINER` auditadas; nenhuma política de RLS afrouxada | Etapa 6 e 8 |
+| Dado mínimo na resposta: telefone sempre parcial; nunca CPF, e-mail ou endereço de terceiros | Etapa 6 e 8 |
+| `Referrer-Policy: no-referrer` e `noindex` nas páginas com token | Etapa 6 |
+| Vitrine só com lojas que optaram; limite de leitura contra coleta em massa; o link do grupo de WhatsApp fica público e a loja é avisada | Etapa 8 |
+| Consentimento LGPD registrado (quem, quando, versão do texto, IP); CPF validado no servidor | Etapa 6 |
+| Upload do comprovante: tipo e tamanho validados, nome gerado pelo servidor, fora da raiz pública, entrega só a quem tem permissão na loja | Etapa 6 |
+| "Já paguei" só notifica; **nunca** marca o acerto como pago (ADR 0013) | Etapa 6 |
+| Texto de interface sem linguagem de garantia ("anti-calote", "compra segura") | Etapa 6 em diante |
+
 ### Decisões de segurança em aberto
 
 1. **Criptografia de CPF e telefone em repouso** (além do disco da VPS):
    protege contra vazamento de backup, ao custo de não poder buscar por ele
    direto. Decidir com a revisão de LGPD.
-2. **Provedor de e-mail do OTP** (entregabilidade e, por ser porta de entrada,
+2. **Segundo fator para o administrador da plataforma:** a conta mais
+   valiosa do sistema. Avaliar antes de produção.
+3. **Provedor de e-mail do OTP** (entregabilidade e, por ser porta de entrada,
    também segurança).
 
 ## Checklist OWASP Top 10

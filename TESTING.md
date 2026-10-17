@@ -56,6 +56,13 @@ fila, API externa) e poucos testes de ponta a ponta pela API.
   limite do adaptador.
 - **Rota nova tem teste de acesso cruzado entre lojas**: uma loja não lê nem
   altera dado de outra, nem por `x-store-id` trocado nem por ID na URL.
+- **Fronteira do administrador e superfícies públicas têm teste de abuso**:
+  o papel do administrador não lê estoque, clientes, leilões, lances nem
+  acertos; link público inválido, expirado e revogado respondem igual;
+  chave errada repetida bloqueia; e-mail sem conta não recebe código.
+- **Teste de RLS usa papel sem `BYPASSRLS`**: o usuário padrão do
+  Testcontainers é superusuário e ignora as políticas, então os testes criam
+  e usam o papel `app_runtime` (ADR 0011).
 - **Bug corrigido ganha teste** que falhava antes da correção.
 - **Regra de segurança tem teste** (ver [`SECURITY.md`](SECURITY.md)): OTP
   expirado, tentativas esgotadas, refresh reutilizado, permissão negada.

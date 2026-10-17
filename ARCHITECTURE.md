@@ -25,6 +25,11 @@ lojistas de Trading Card Games fazerem leilões de cartas em grupos de WhatsApp.
   a RAM da VPS: cada loja conectada custa 150 a 300MB no bot (ADR 0010).
   Gatilho para revisitar: RAM da VPS como limite de lojas.
 - **SLA:** nenhum contratado ainda.
+- **Escopo ampliado pelo design (2026-10-17):** acesso somente por convite, área
+  `/admin`, páginas públicas por link (vitrine, acerto, consignador), envios,
+  planos, notificações e log de atividades. Veja
+  [`https://github.com/Project-PKA/shared/blob/main/docs/produto.md`](https://github.com/Project-PKA/shared/blob/main/docs/produto.md) e o roteiro
+  revisado em [`docs/roadmap.md`](docs/roadmap.md).
 
 ## 2. Diagramas C4
 
@@ -129,6 +134,11 @@ sequenceDiagram
   `x-store-id` (§4.1) com `/api/stores/:storeId/...` (§4.4). Vale só o header
   `x-store-id`, para todas as rotas de negócio terem a mesma forma (seção 6),
   sob `/v1/` e sem o prefixo `/api`. Ex.: `GET /v1/dashboard/operational?period=7`.
+- **Áreas de rotas** (todas sob `/v1`, exceto infraestrutura):
+  `/v1/auth` (login, refresh, logout, aceitar convite), `/v1/me` (perfil e
+  sessões), `/v1/stores` e rotas de negócio da loja (exigem `x-store-id`),
+  `/v1/admin` (só administrador da plataforma) e `/v1/public` (sem login,
+  por token no link; vitrine, acerto, consignador, solicitação de acesso).
 - Ferramenta de geração: `@fastify/swagger` (ver [`STACK.md`](STACK.md)).
   `make openapi` roda `scripts/openapi.ts`, que monta o app sem banco e grava
   `docs/api/openapi.yaml`.
@@ -276,6 +286,12 @@ filtrar por loja ([ADR 0009](https://github.com/Project-PKA/shared/blob/main/doc
 **Status: decidido** (cross-repo: [ADR 0008](https://github.com/Project-PKA/shared/blob/main/docs/adr/0008-autenticacao-passwordless-e-multi-tenant.md)).
 
 - **Quem autentica:** este serviço, sem identity provider externo.
+- **Acesso por convite** ([ADR 0012](https://github.com/Project-PKA/shared/blob/main/docs/adr/0012-acesso-somente-por-convite-e-administracao-da-plataforma.md)):
+  não há cadastro aberto. O pedido de OTP para e-mail sem conta devolve a
+  mesma resposta e não envia código nem cria usuário. Usuário tem estado
+  (`INVITED`, `ACTIVE`, `SUSPENDED`); suspender impede o login e revoga as
+  sessões. Criar loja exige a permissão global `can_create_stores`, dentro
+  do `store_limit`.
 - **Login:** e-mail + OTP numérico por e-mail. O OTP é guardado como hash,
   com expiração curta e limite de tentativas. Provedor de e-mail: A DECIDIR.
 - **Sessão:** access JWT de vida curta no header `Authorization`, mais refresh
@@ -295,6 +311,15 @@ filtrar por loja ([ADR 0009](https://github.com/Project-PKA/shared/blob/main/doc
   LEVEL SECURITY`, e o Backend conecta com o papel `app_runtime` (sem
   `BYPASSRLS`, sem `SUPERUSER`); migrations e seed usam o papel `owner`. O
   filtro por `store_id` no código **continua obrigatório**.
+- **Administrador da plataforma:** marca `is_platform_admin`, concedida só por
+  comando de linha (`db:create-admin`), nunca por API. As políticas de RLS dão
+  a esse papel leitura de `stores` e `store_members` e criação de loja, e
+  **nenhum acesso** a estoque, clientes, leilões, lances e acertos: a
+  fronteira do administrador é garantida no banco, não só na rota.
+- **Acesso público** (`/v1/public`): não usa sessão de usuário. Roda com um
+  papel de banco próprio que só executa funções `SECURITY DEFINER`
+  auditadas, que recebem o token do link e devolvem os campos permitidos
+  ([ADR 0014](https://github.com/Project-PKA/shared/blob/main/docs/adr/0014-paginas-publicas-por-link-e-vitrine.md)).
 - **Mudança aqui exige aprovação humana** (`AGENTS.md`, seção 6).
 
 ## 7. Gestão de secrets em produção
@@ -345,6 +370,9 @@ ADRs do [`shared`](https://github.com/Project-PKA/shared/tree/main/docs/adr)
 | 2026-10-17 | BullMQ + Redis para jobs | Retry e reexecução do sync do TCGdex | `node-cron` |
 | 2026-10-17 | `short_code` sem `#` no banco | O `#` é só o prefixo da mensagem no grupo | Guardar com `#` |
 | 2026-10-17 | Lock da linha do leilão para decidir lances | Regra no código, simples de testar; o banco garante unicidade do valor | Trigger em PL/pgSQL |
+| 2026-10-17 | Acesso por convite e administrador da plataforma limitado pelo RLS | O adendo do design proíbe cadastro aberto; a fronteira do admin precisa valer no banco | Admin com acesso total às lojas |
+| 2026-10-17 | Páginas públicas só por funções `SECURITY DEFINER` e token de alta entropia | Não afrouxar o RLS para o público; dado mínimo | Rotas públicas lendo as tabelas direto |
+| 2026-10-17 | Link do consignador por consignador e loja, chave de 4 dígitos do CPF só como 2º fator | A chave sozinha tem 10 mil combinações | Chave de 4 dígitos como única proteção (desenho original) |
 | 2026-10-17 | Row-Level Security como segunda barreira de isolamento | Esquecer um filtro por `store_id` deixa de vazar dado entre lojas | Só filtro no código e FK composta |
 | 2026-10-17 | FK composta `(id, store_id)` entre tabelas de loja | Isolamento garantido pelo banco, não só pelo código | FK simples por `id` |
 | 2026-10-17 | UUID, enums nativos e `numeric(12,2)` | Sem ID previsível, estados fechados no banco, dinheiro sem ponto flutuante | `serial`, texto livre, `float` |

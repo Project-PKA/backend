@@ -6,7 +6,8 @@
 Plataforma web multi-tenant (várias lojas, dados 100% isolados) integrada a um
 bot de WhatsApp. O lojista cadastra a carta física no estoque (própria ou
 consignada), agenda o leilão, acompanha os lances que chegam no grupo e fecha
-o acerto com o comprador. O contexto de negócio e as decisões estão no
+o acerto com o comprador. O acesso é **somente por convite**. O escopo de produto
+(`docs/produto.md`), o contexto de negócio e as decisões estão no
 repositório [`Project-PKA/shared`](https://github.com/Project-PKA/shared).
 
 ## Repositórios do projeto
@@ -52,19 +53,21 @@ rodando).
 
 ## Estado do projeto
 
-| Pronto | Falta |
+| Pronto | Falta (ver [`docs/roadmap.md`](docs/roadmap.md)) |
 | --- | --- |
-| Health, ready, metrics, erros `problem+json` | Autenticação por e-mail + OTP e sessão |
-| Schema completo (12 tabelas) com migrations `up`/`down` e seed | CRUD de lojas, equipe, estoque e clientes |
-| Contrato OpenAPI gerado do código | Sync do catálogo TCGdex e autocomplete |
-| Testes com Postgres real, 70% de cobertura mínima | Motor de leilões e acertos |
-| | Dockerfile, deploy (a VPS ainda não existe) |
+| Health, ready, metrics, erros `problem+json` | Login por convite (e-mail + OTP), sessões e RLS (Etapa 2, em andamento) |
+| Schema base (12 tabelas) com migrations `up`/`down` e seed | Área `/admin`, convites e solicitações de acesso |
+| Contrato OpenAPI gerado do código | Lojas, equipe, estoque, clientes |
+| Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
+| | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |
+| | Dockerfile e deploy (a VPS ainda não existe) |
 
 ## Documentação
 
 | Arquivo | Para que serve |
 | --- | --- |
 | [`AGENTS.md`](AGENTS.md) | Contexto para pessoas e agentes de IA. **Comece por aqui.** |
+| [`docs/roadmap.md`](docs/roadmap.md) | Roteiro de entrega revisado, mudanças de schema previstas e decisões em aberto |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Camadas, diagramas, banco, autenticação, secrets, observabilidade |
 | [`STACK.md`](STACK.md) | Por que cada ferramenta foi escolhida |
 | [`SECURITY.md`](SECURITY.md) | Reporte de vulnerabilidade e requisitos de segurança do projeto |
