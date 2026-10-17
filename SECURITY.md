@@ -92,7 +92,7 @@ tarefa que o toca não está pronta sem ele.
 | Erro 5xx nunca devolve mensagem interna nem stack | **feito** (`src/http/problem.ts`, com teste) |
 | SQL só parametrizado (Drizzle ou `pg` com `$1`); nunca concatenar entrada | **feito** até aqui; vale para todo código novo |
 | Cabeçalhos de segurança (`@fastify/helmet`), CORS com **lista explícita de origens** (nunca `*`) e rate limit global | **feito** (com teste) |
-| Limite de corpo e timeouts de requisição configurados de propósito (hoje valem os padrões do Fastify: 1 MB e sem timeout de handler) | pendente |
+| Limite de corpo (256 KB) e timeouts de requisição (30 s) e de handler (20 s) explícitos e configuráveis; corpo grande dá 413 em `problem+json` | **feito** |
 | `/metrics` **não** exposto na internet: só rede interna ou autenticado | infra |
 | Upload de foto: tipo e tamanho validados, nome gerado pelo servidor, sem caminho vindo do usuário | Etapa 3 |
 | Sync do TCGdex busca **só** a URL fixa do repositório oficial (sem SSRF) e valida o formato antes do `INSERT` | Etapa 3 |
@@ -112,12 +112,13 @@ tarefa que o toca não está pronta sem ele.
 
 | Requisito | Status |
 | --- | --- |
+| Reenvio de convite com intervalo mínimo (anti-spam) e token novo; revogar derruba o link na hora; convite de outra loja responde 404 | **feito** |
 | Token de convite aleatório de alta entropia (256 bits), guardado só como hash, com **expiração**, uso único e revogação; vai no fragmento do link (`#token=`), que não chega ao log do servidor nem ao `Referer` | **feito** |
 | `is_platform_admin` só por comando de linha (`npm run db:create-admin`), **nunca** por API ou tela; sem "primeiro usuário vira admin" | **feito** |
 | Fronteira do administrador no banco: lê `stores` e `store_members`, cria loja, e **não acessa** estoque, clientes, leilões, lances, acertos nem a sessão do WhatsApp (teste com o papel real) | **feito** |
-| Toda ação do administrador e toda transferência de propriedade vai para o log de atividades, que o proprietário não consegue editar | Etapa 2b e 2c |
-| Nunca deixar uma loja sem proprietário; remover o último `OWNER` é recusado | Etapa 2b |
-| Criar loja só com `can_create_stores` e abaixo do `store_limit`, verificado no servidor e dentro de transação (sem corrida) | Etapa 2b (colunas já existem) |
+| Ações sensíveis de uma loja vão para o log de atividades, **imutável** para a aplicação (só `INSERT` e `SELECT`) e **legível só pelo proprietário** (o banco confere o papel na política), gravado na mesma transação da ação, sem e-mail nem dado pessoal | **feito** (`activity_log`, com teste). O log das ações do administrador da plataforma fica na Etapa 2c |
+| Nunca deixar uma loja sem proprietário; remover o último `OWNER` é recusado, inclusive com dois proprietários se removendo ao mesmo tempo | **feito** para remoção de membro (lock dos proprietários, com teste de corrida). A transferência de propriedade vem na 2c |
+| Criar loja só com `can_create_stores` e abaixo do `store_limit`, verificado no servidor e dentro de transação (a linha do usuário fica travada: criações simultâneas no limite não passam) | **feito** (teste com 4 criações simultâneas). O limite conta lojas em que a pessoa é **proprietária** |
 | Formulário público "Solicitar acesso": limite por IP, campo-isca, validação e tamanho máximo; não cria usuário nem loja | Etapa 2c |
 | Conta de administrador com proteção reforçada: sessão curta e avaliação de segundo fator | pendente |
 

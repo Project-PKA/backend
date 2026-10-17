@@ -60,10 +60,11 @@ rodando).
 
 | Pronto | Falta (ver [`docs/roadmap.md`](docs/roadmap.md)) |
 | --- | --- |
-| Health, ready, metrics, erros `problem+json` | Convites e equipe por rota, criar loja (Etapa 2b) |
-| Schema (14 tabelas) com migrations `up`/`down`, RLS e seed | API `/v1/admin` e solicitações de acesso (Etapa 2c) |
-| Login por código, sessão com refresh rotacionado, convites, tenant e RBAC | Estoque, clientes |
-| Contrato OpenAPI gerado do código (13 rotas) | |
+| Health, ready, metrics, erros `problem+json`, limites de corpo e timeouts | API `/v1/admin` e solicitações de acesso (Etapa 2c) |
+| Schema (15 tabelas) com migrations `up`/`down`, RLS e seed | Estoque e catálogo (Etapa 3), clientes (4) |
+| Login por código, sessão com refresh rotacionado, convites, tenant e RBAC | Leilões e bot (5), acertos e páginas públicas (6) |
+| Criar e editar loja, equipe, convites, log de atividades | Painéis (7), vitrine, planos e perfil (8) |
+| Contrato OpenAPI gerado do código (23 operações) | |
 | Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
 | | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |
 | | Dockerfile e deploy (a VPS ainda não existe) |

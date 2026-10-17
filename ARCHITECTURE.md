@@ -136,7 +136,8 @@ sequenceDiagram
   sob `/v1/` e sem o prefixo `/api`. Ex.: `GET /v1/dashboard/operational?period=7`.
 - **Áreas de rotas** (todas sob `/v1`, exceto infraestrutura):
   `/v1/auth` (login, refresh, logout, aceitar convite), `/v1/me` (perfil e
-  sessões), `/v1/stores` e rotas de negócio da loja (exigem `x-store-id`),
+  sessões), `POST /v1/stores` (criar loja), e as rotas de uma loja (exigem
+  `x-store-id`): `/v1/store`, `/v1/team*` e `/v1/activity-log`,
   `/v1/admin` (só administrador da plataforma) e `/v1/public` (sem login,
   por token no link; vitrine, acerto, consignador, solicitação de acesso).
 - Ferramenta de geração: `@fastify/swagger` (ver [`STACK.md`](STACK.md)).
@@ -155,6 +156,7 @@ erDiagram
     users ||--o{ refresh_tokens : "sessões"
     users ||--o{ store_members : "pertence a"
     users ||--o{ invitations : "convida"
+    stores ||--o{ activity_log : "registra"
     stores ||--o{ invitations : "convites da loja"
     stores ||--o| whatsapp_sessions : "credencial"
     users ||--o{ invitations : "convida"
@@ -216,6 +218,14 @@ erDiagram
     whatsapp_sessions {
         uuid store_id PK
         text session_data "criptografado, só o contexto da loja lê"
+    }
+    activity_log {
+        uuid id PK
+        uuid store_id FK
+        uuid actor_user_id FK
+        text action "objeto.acao"
+        uuid target_id
+        jsonb details "sem dado pessoal"
     }
     stores {
         uuid id PK
@@ -440,6 +450,8 @@ ADRs do [`shared`](https://github.com/Project-PKA/shared/tree/main/docs/adr)
 | 2026-10-17 | Acesso por convite e administrador da plataforma limitado pelo RLS | O adendo do design proíbe cadastro aberto; a fronteira do admin precisa valer no banco | Admin com acesso total às lojas |
 | 2026-10-17 | Páginas públicas só por funções `SECURITY DEFINER` e token de alta entropia | Não afrouxar o RLS para o público; dado mínimo | Rotas públicas lendo as tabelas direto |
 | 2026-10-17 | Link do consignador por consignador e loja, chave de 4 dígitos do CPF só como 2º fator | A chave sozinha tem 10 mil combinações | Chave de 4 dígitos como única proteção (desenho original) |
+| 2026-10-17 | Log de atividades imutável, legível só pelo proprietário (a política confere o papel) e gravado na transação da ação | Auditoria que a aplicação não reescreve e que não some se a ação for desfeita | Log por middleware, fora da transação |
+| 2026-10-17 | Limite de lojas conta lojas em que a pessoa é proprietária; criação trava a linha do usuário | Sem corrida; regra simples de explicar | Contar lojas criadas pela pessoa |
 | 2026-10-17 | Row-Level Security como segunda barreira de isolamento | Esquecer um filtro por `store_id` deixa de vazar dado entre lojas | Só filtro no código e FK composta |
 | 2026-10-17 | FK composta `(id, store_id)` entre tabelas de loja | Isolamento garantido pelo banco, não só pelo código | FK simples por `id` |
 | 2026-10-17 | UUID, enums nativos e `numeric(12,2)` | Sem ID previsível, estados fechados no banco, dinheiro sem ponto flutuante | `serial`, texto livre, `float` |

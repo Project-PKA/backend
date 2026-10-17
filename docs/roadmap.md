@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | 1 | Scaffold, schema base (12 tabelas), migrations `up`/`down`, seed | **Feita** |
 | 2a | Identidade, login por convite, RLS, tenant e RBAC | **Feita** |
-| 2b | Convites e equipe por rota, criar loja, log de atividades | Pendente |
+| 2b | Convites e equipe por rota, criar loja, editar loja, log de atividades, limites de HTTP | **Feita** |
 | 2c | API `/v1/admin` e solicitações de acesso | Pendente |
 | 3 | Catálogo TCGdex, estoque e cadastro de carta | Pendente |
 | 4 | Clientes, visitantes, blacklist e carteira de consignação | Pendente |
@@ -42,7 +42,7 @@ A etapa fica em três entregas, nesta ordem:
   redação de log).
 - Comando de linha para criar o primeiro administrador (`db:create-admin`).
 
-**2b. Convites, lojas e equipe**
+**2b. Convites, lojas e equipe** (feita em 2026-10-17: migration 0010, `POST /v1/stores`, `PATCH /v1/store`, `/v1/team*` e `/v1/activity-log`, 187 testes)
 
 - Convites por rota (o serviço de criar, mostrar e aceitar já existe; faltam as rotas de
   equipe, reenviar e revogar).
@@ -101,7 +101,7 @@ Tudo por migration `up`/`down`, com `schema.ts` e seed no mesmo PR.
 | Etapa | Mudança |
 | --- | --- |
 | 2a | `users`: nome, `status`, `is_platform_admin`, `can_create_stores`, `store_limit`, `last_login_at`. `refresh_tokens`: agente de usuário e IP (sessões ativas). Papéis de banco, grants e políticas de RLS |
-| 2b | `invitations`; `activity_log`; `stores`: cidade, plano, limite de membros |
+| 2b | `activity_log` (feito, migration 0010). Ficam para a 2c: `stores`: cidade, plano, limite de membros |
 | 2c | `access_requests` |
 | 3 | `cards_inventory`: `notes` |
 | 5 | `auctions`: início imediato, estado de extensão; relação com o estado do WhatsApp da loja |
