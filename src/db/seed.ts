@@ -35,6 +35,7 @@ export const KIND = {
   settlement: 8,
   item: 9,
   token: 10,
+  invitation: 11,
 } as const;
 
 const money = (value: number): string => value.toFixed(2);
@@ -45,12 +46,17 @@ export const SEED_IDS = {
   userStaff: uid(KIND.user, 2),
   userOtherOwner: uid(KIND.user, 3),
   userOtpExpired: uid(KIND.user, 4),
+  userAdmin: uid(KIND.user, 5),
+  userInvited: uid(KIND.user, 6),
+  userSuspended: uid(KIND.user, 7),
   storeA: uid(KIND.store, 1),
   storeB: uid(KIND.store, 2),
   storeC: uid(KIND.store, 3),
 } as const;
 
 const TABLES_TO_CLEAR = [
+  'invitations',
+  'whatsapp_sessions',
   'settlement_items',
   'settlements',
   'bids',
@@ -201,6 +207,7 @@ const SEED_TIME = '2026-10-01T00:00:00Z';
 async function normalizeTimestamps(db: Tx): Promise<void> {
   const created = [
     'users',
+    'invitations',
     'refresh_tokens',
     'stores',
     'store_members',
@@ -212,7 +219,7 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
   for (const table of created) {
     await db.execute(sql.raw(`UPDATE ${table} SET created_at = '${SEED_TIME}'`));
   }
-  for (const table of ['customers', 'cards_inventory', 'tcgdex_catalog']) {
+  for (const table of ['customers', 'cards_inventory', 'tcgdex_catalog', 'whatsapp_sessions']) {
     await db.execute(sql.raw(`UPDATE ${table} SET updated_at = '${SEED_TIME}'`));
   }
 }
@@ -220,16 +227,51 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
 async function insertAll(db: Tx): Promise<void> {
   // --- Identidade -------------------------------------------------------------
   await db.insert(schema.users).values([
-    { id: SEED_IDS.userOwner, email: 'dono@example.com' },
-    { id: SEED_IDS.userStaff, email: 'funcionario@example.com' },
-    { id: SEED_IDS.userOtherOwner, email: 'outro-dono@example.com' },
+    {
+      // Dono de duas lojas; pode criar até 3 lojas por conta própria.
+      id: SEED_IDS.userOwner,
+      email: 'dono@example.com',
+      name: 'Dono Demo',
+      status: 'ACTIVE',
+      canCreateStores: true,
+      storeLimit: 3,
+      lastLoginAt: at('2026-10-15T12:00:00Z'),
+    },
+    {
+      id: SEED_IDS.userStaff,
+      email: 'funcionario@example.com',
+      name: 'Funcionária Demo',
+      status: 'ACTIVE',
+    },
+    {
+      id: SEED_IDS.userOtherOwner,
+      email: 'outro-dono@example.com',
+      name: 'Outro Dono',
+      status: 'ACTIVE',
+    },
     {
       // Código pedido e já expirado, com tentativas gastas.
       id: SEED_IDS.userOtpExpired,
       email: 'otp-expirado@example.com',
+      status: 'ACTIVE',
       otpHash: 'seed-hash-nao-e-um-hash-real',
       otpExpiresAt: at('2026-01-01T00:00:00Z'),
       otpAttempts: 3,
+    },
+    {
+      // Administrador da plataforma: não é membro de nenhuma loja.
+      id: SEED_IDS.userAdmin,
+      email: 'admin@example.com',
+      name: 'Admin Demo',
+      status: 'ACTIVE',
+      isPlatformAdmin: true,
+    },
+    { id: SEED_IDS.userInvited, email: 'convidado@example.com', status: 'INVITED' },
+    {
+      id: SEED_IDS.userSuspended,
+      email: 'suspenso@example.com',
+      name: 'Usuário Suspenso',
+      status: 'SUSPENDED',
     },
   ]);
   await db.insert(schema.refreshTokens).values([
@@ -252,13 +294,69 @@ async function insertAll(db: Tx): Promise<void> {
     {
       id: SEED_IDS.storeA,
       name: 'Cartas do Zé 🔥',
-      whatsappSessionData: 'seed-sessao-criptografada-placeholder',
       whatsappGroupId: '120363000000000001@g.us',
       whatsappStatus: 'ONLINE',
       inactivityDaysLimit: 30,
     },
     { id: SEED_IDS.storeB, name: 'Pokémon Açaí', whatsappStatus: 'QR_READY' },
     { id: SEED_IDS.storeC, name: 'Loja Isolada', whatsappStatus: 'OFFLINE' },
+  ]);
+  await db.insert(schema.whatsappSessions).values({
+    storeId: SEED_IDS.storeA,
+    sessionData: 'seed-sessao-criptografada-placeholder',
+  });
+  await db.insert(schema.invitations).values([
+    {
+      // Convite de funcionário ainda pendente para o usuário `convidado`.
+      id: uid(KIND.invitation, 1),
+      tokenHash: 'seed-convite-pendente',
+      email: 'convidado@example.com',
+      storeId: SEED_IDS.storeA,
+      role: 'STAFF',
+      permissions: { can_delete: false },
+      invitedBy: SEED_IDS.userOwner,
+      expiresAt: at('2099-01-01T00:00:00Z'),
+    },
+    {
+      id: uid(KIND.invitation, 2),
+      tokenHash: 'seed-convite-aceito',
+      email: 'funcionario@example.com',
+      storeId: SEED_IDS.storeA,
+      role: 'STAFF',
+      permissions: { can_delete: false },
+      invitedBy: SEED_IDS.userOwner,
+      status: 'ACCEPTED',
+      acceptedAt: at('2026-09-01T10:00:00Z'),
+      expiresAt: at('2099-01-01T00:00:00Z'),
+    },
+    {
+      id: uid(KIND.invitation, 3),
+      tokenHash: 'seed-convite-revogado',
+      email: 'revogado@example.com',
+      storeId: SEED_IDS.storeB,
+      role: 'STAFF',
+      invitedBy: SEED_IDS.userOwner,
+      status: 'REVOKED',
+      expiresAt: at('2099-01-01T00:00:00Z'),
+    },
+    {
+      // Pendente, mas vencido pelo relógio.
+      id: uid(KIND.invitation, 4),
+      tokenHash: 'seed-convite-expirado',
+      email: 'expirado@example.com',
+      storeId: SEED_IDS.storeA,
+      role: 'STAFF',
+      invitedBy: SEED_IDS.userOwner,
+      expiresAt: at('2026-01-01T00:00:00Z'),
+    },
+    {
+      // Convite só de conta (administrador cadastrando usuário, sem loja).
+      id: uid(KIND.invitation, 5),
+      tokenHash: 'seed-convite-so-conta',
+      email: 'novo-lojista@example.com',
+      invitedBy: SEED_IDS.userAdmin,
+      expiresAt: at('2099-01-01T00:00:00Z'),
+    },
   ]);
   await db.insert(schema.storeMembers).values([
     // O mesmo e-mail é dono de duas lojas (dados isolados entre elas).

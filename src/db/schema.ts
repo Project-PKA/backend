@@ -42,19 +42,34 @@ export const auctionStatus = pgEnum('auction_status', [
   'CANCELLED',
 ]);
 export const settlementStatus = pgEnum('settlement_status', ['PENDING', 'PAID']);
+export const userStatus = pgEnum('user_status', ['INVITED', 'ACTIVE', 'SUSPENDED']);
+export const invitationStatus = pgEnum('invitation_status', ['PENDING', 'ACCEPTED', 'REVOKED']);
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 const money = (name: string) => numeric(name, { precision: 12, scale: 2 });
 
 // --- Identidade (0002) -------------------------------------------------------
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  email: text('email').notNull().unique('users_email_key'),
-  otpHash: text('otp_hash'),
-  otpExpiresAt: timestamp('otp_expires_at', { withTimezone: true }),
-  otpAttempts: integer('otp_attempts').notNull().default(0),
-  createdAt: createdAt(),
-});
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull().unique('users_email_key'),
+    name: text('name'),
+    /** Conta nasce `INVITED` e vira `ACTIVE` ao aceitar o convite (ADR 0012). */
+    status: userStatus('status').notNull().default('INVITED'),
+    /** Concedido só por comando de linha, nunca por API. */
+    isPlatformAdmin: boolean('is_platform_admin').notNull().default(false),
+    canCreateStores: boolean('can_create_stores').notNull().default(false),
+    storeLimit: integer('store_limit').notNull().default(0),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    /** Hash HMAC do OTP; o código nunca é guardado. */
+    otpHash: text('otp_hash'),
+    otpExpiresAt: timestamp('otp_expires_at', { withTimezone: true }),
+    otpAttempts: integer('otp_attempts').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index('users_status_idx').on(t.status)],
+);
 
 export const refreshTokens = pgTable(
   'refresh_tokens',
@@ -66,6 +81,8 @@ export const refreshTokens = pgTable(
     tokenHash: text('token_hash').notNull().unique('refresh_tokens_token_hash_key'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    userAgent: text('user_agent'),
+    ip: text('ip'),
     createdAt: createdAt(),
   },
   (t) => [index('refresh_tokens_user_id_idx').on(t.userId)],
@@ -74,13 +91,40 @@ export const refreshTokens = pgTable(
 export const stores = pgTable('stores', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  /** Credencial da sessão do WhatsApp, guardada CRIPTOGRAFADA (ADR 0007). */
-  whatsappSessionData: text('whatsapp_session_data'),
   whatsappGroupId: text('whatsapp_group_id'),
   whatsappStatus: whatsappStatus('whatsapp_status').notNull().default('OFFLINE'),
   inactivityDaysLimit: integer('inactivity_days_limit'),
   createdAt: createdAt(),
 });
+
+/** Credencial da sessão do WhatsApp, CRIPTOGRAFADA (ADR 0007). Só o contexto da própria loja a enxerga. */
+export const whatsappSessions = pgTable('whatsapp_sessions', {
+  storeId: uuid('store_id')
+    .primaryKey()
+    .references(() => stores.id, { onDelete: 'cascade' }),
+  sessionData: text('session_data').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Convite de proprietário ou do administrador. Guarda só o hash do token (ADR 0012). */
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tokenHash: text('token_hash').notNull().unique('invitations_token_hash_key'),
+    email: text('email').notNull(),
+    /** Vazio, junto com `role`, = convite só de conta. */
+    storeId: uuid('store_id').references(() => stores.id, { onDelete: 'cascade' }),
+    role: storeRole('role'),
+    permissions: jsonb('permissions').$type<StorePermissions>().notNull().default({}),
+    invitedBy: uuid('invited_by').references(() => users.id, { onDelete: 'set null' }),
+    status: invitationStatus('status').notNull().default('PENDING'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('invitations_email_idx').on(t.email)],
+);
 
 /** Ex.: { can_delete: false, can_view_finance: true, can_manage_auctions: true }. */
 export type StorePermissions = Record<string, boolean>;

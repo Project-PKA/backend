@@ -16,7 +16,9 @@
     "db:rollback": "tsx src/db/cli.ts down",
     "db:status": "tsx src/db/cli.ts status",
     "db:new": "tsx src/db/cli.ts new",
-    "db:seed": "tsx src/db/seed-cli.ts"
+    "db:seed": "tsx src/db/seed-cli.ts",
+    "db:provision-dev": "tsx src/db/provision-dev.ts",
+    "db:create-admin": "tsx src/db/create-admin.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.3",

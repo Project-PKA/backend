@@ -144,6 +144,11 @@ describe('seed', () => {
     expect(await distinct('auctions', 'type')).toEqual(['FREE_BID', 'POLL']);
     expect(await distinct('settlements', 'status')).toEqual(['PAID', 'PENDING']);
     expect(await distinct('store_members', 'role')).toEqual(['OWNER', 'STAFF']);
+    expect(await distinct('users', 'status')).toEqual(['ACTIVE', 'INVITED', 'SUSPENDED']);
+    expect(await distinct('invitations', 'status')).toEqual(['ACCEPTED', 'PENDING', 'REVOKED']);
+    expect(await count('users', 'is_platform_admin')).toBe(1);
+    expect(await count('users', 'can_create_stores AND store_limit > 0')).toBeGreaterThan(0);
+    expect(await count('invitations', 'store_id IS NULL')).toBeGreaterThan(0);
     expect(await distinct('stores', 'whatsapp_status')).toEqual(['OFFLINE', 'ONLINE', 'QR_READY']);
     expect(await count('customers', 'is_visitor')).toBeGreaterThan(0);
     expect(await count('customers', 'is_blacklisted')).toBeGreaterThan(0);
@@ -280,6 +285,35 @@ describe('regras de integridade do banco', () => {
       [SEED_IDS.storeA, uid(KIND.settlement, 2), uid(KIND.auction, 5), cardA(6)],
       'settlement_items_auction_key',
     );
+  });
+
+  it('recusa limite de lojas sem a permissão de criar lojas', async () => {
+    await expect(
+      database.pool.query(
+        "INSERT INTO users (email, store_limit) VALUES ('limite@example.com', 2)",
+      ),
+    ).rejects.toMatchObject({ constraint: 'users_store_limit_requires_permission' });
+  });
+
+  it('recusa convite com loja sem papel e convite aceito sem data', async () => {
+    const insert = (
+      storeId: string | null,
+      role: string | null,
+      status: string,
+      acceptedAt: string | null,
+    ) =>
+      database.pool.query(
+        `INSERT INTO invitations (token_hash, email, store_id, role, status, accepted_at, expires_at)
+         VALUES (gen_random_uuid()::text, 'x@example.com', $1, $2, $3, $4, '2099-01-01')`,
+        [storeId, role, status, acceptedAt],
+      );
+
+    await expect(insert(SEED_IDS.storeA, null, 'PENDING', null)).rejects.toMatchObject({
+      constraint: 'invitations_store_requires_role',
+    });
+    await expect(insert(null, null, 'ACCEPTED', null)).rejects.toMatchObject({
+      constraint: 'invitations_accepted_at_matches_status',
+    });
   });
 
   it('recusa email de usuário fora de minúsculas e OTP com tentativas negativas', async () => {

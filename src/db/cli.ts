@@ -12,9 +12,9 @@ function usage(): never {
 }
 
 async function withPool<T>(work: (pool: ReturnType<typeof createPool>) => Promise<T>): Promise<T> {
-  const url = process.env['DATABASE_URL'];
+  const url = process.env['MIGRATION_DATABASE_URL'] ?? process.env['DATABASE_URL'];
   if (url === undefined || url === '') {
-    throw new Error('Variável de ambiente obrigatória ausente: DATABASE_URL');
+    throw new Error('Defina MIGRATION_DATABASE_URL (ou DATABASE_URL) com o usuário dono do schema');
   }
   const pool = createPool(url);
   try {
