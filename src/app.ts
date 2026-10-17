@@ -18,8 +18,12 @@ import type { Db } from './db/context.js';
 import { errorHandler, notFoundHandler } from './http/problem.js';
 import { authRoutes } from './routes/auth.js';
 import { infraRoutes } from './routes/infra.js';
+import { activityRoutes } from './routes/activity.js';
 import { meRoutes } from './routes/me.js';
 import { storeRoutes } from './routes/store.js';
+import { teamRoutes } from './routes/team.js';
+import { StoreService } from './stores/service.js';
+import { TeamService } from './team/service.js';
 
 export interface AppDeps {
   env: Env;
@@ -35,6 +39,8 @@ export interface BuiltApp {
   app: FastifyInstance;
   auth: AuthService;
   invitations: InvitationService;
+  stores: StoreService;
+  team: TeamService;
 }
 
 const TRACEPARENT = /^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/;
@@ -69,6 +75,10 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
     logController: new LogController({ requestIdLogLabel: 'trace_id' }),
     genReqId: (req) => traceIdFrom(req.headers['traceparent']),
     trustProxy: env.trustProxy,
+    // Limites explícitos (SECURITY.md): corpo pequeno e nada fica pendurado.
+    bodyLimit: env.http.bodyLimitBytes,
+    requestTimeout: env.http.requestTimeoutMs,
+    handlerTimeout: env.http.handlerTimeoutMs,
     // Descarta campo que o schema não declara (os corpos usam additionalProperties: false).
     ajv: { customOptions: { removeAdditional: true } },
   });
@@ -120,7 +130,11 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
           description: 'Login por código (acesso só por convite), sessão e convites',
         },
         { name: 'me', description: 'Perfil, lojas e sessões de quem está logado' },
-        { name: 'store', description: 'Rotas de uma loja (exigem o header x-store-id)' },
+        {
+          name: 'store',
+          description: 'Criar loja e rotas de uma loja (exigem o header x-store-id)',
+        },
+        { name: 'team', description: 'Equipe e convites da loja (só o proprietário altera)' },
       ],
       components: {
         securitySchemes: {
@@ -155,7 +169,11 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   infraRoutes(app, { checkDatabase: deps.checkDatabase, registry });
   authRoutes(app, { env, auth, invitations });
   meRoutes(app, { db: deps.db, auth, hooks });
-  storeRoutes(app, { db: deps.db, hooks });
+  const storesService = new StoreService(deps.db);
+  const team = new TeamService(deps.db);
+  storeRoutes(app, { db: deps.db, hooks, storesService });
+  teamRoutes(app, { hooks, team, invitations });
+  activityRoutes(app, { db: deps.db, hooks });
 
-  return { app, auth, invitations };
+  return { app, auth, invitations, stores: storesService, team };
 }
