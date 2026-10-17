@@ -130,14 +130,27 @@ em `sonar-project.properties`.
 
 | Sinal | Biblioteca |
 | --- | --- |
-| Logs JSON | <!-- --> |
-| Métricas Prometheus | <!-- --> |
-| Tracing OpenTelemetry | <!-- SDK + exporter --> |
+| Logs JSON | `pino` (integrado ao Fastify), com `trace_id` |
+| Métricas Prometheus | `/metrics` (lib a confirmar no scaffold, ex.: `prom-client`) |
+| Tracing OpenTelemetry | SDK OpenTelemetry para Node + exporter OTLP (variáveis `OTEL_*` do `.env.example`) |
+
+**Destino:** Prometheus e Grafana no mesmo `compose` da VPS. Custo aceito:
+mais RAM, que disputa com as sessões de WhatsApp (revisitar se a RAM virar
+limite). Backend e microservice seguem o mesmo padrão.
 
 ## 7. Plataforma de deploy
 
-**Escolha:** <!-- Kubernetes / Cloud Run / ECS / VPS / ... -->
-**Critério / Por quê / Descartado / Quando reabrir:** <!-- -->
+**Escolha:** VPS Linux ([ADR 0010](https://github.com/Project-PKA/shared/blob/main/docs/adr/0010-infraestrutura-inicial-em-vps.md)).
+**Fluxo decidido:** o CI builda a imagem uma única vez e publica no GHCR; o
+deploy faz SSH na VPS, roda as migrations com a mesma imagem e sobe via
+`docker compose`. A mesma imagem é promovida entre `dev`, `homolog` e `prod`.
+**Descartado:** build direto na VPS, porque quebra o build único e gasta
+CPU e RAM da máquina.
+**Status:** **a VPS ainda não foi contratada.** O fluxo está decidido, mas
+nada foi implementado nem configurado. Provedor, domínio, usuário de SSH e
+secrets ficam para quando o produto estiver mais avançado.
+**Quando reabrir:** na contratação da VPS, ou se o número de lojas
+conectadas passar do que a RAM comporta.
 Receita e rollback em [`DEPLOY.md`](DEPLOY.md).
 
 ## 8. Dispensas conscientes
@@ -147,4 +160,4 @@ Receita e rollback em [`DEPLOY.md`](DEPLOY.md).
 
 | O que foi dispensado | Motivo | Revisitar quando |
 | --- | --- | --- |
-| <!-- --> | <!-- --> | <!-- --> |
+| Deploy (`scripts/deploy.sh` e passo `Publicar` do `deploy.yml` em `skip`) | A VPS ainda não existe (decisão do usuário em 2026-10-17) | A VPS for contratada |
