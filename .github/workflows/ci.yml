@@ -1,0 +1,75 @@
+# =============================================================================
+# CI — roda em todo PR e em todo push para main.
+#
+# Este workflow e o portao de merge: ele FALHA e bloqueia. O feedback humano
+# (comentarios, labels, sugestao de reviewer) fica em github-agent.yml, que
+# nunca bloqueia.
+#
+# A logica mora em IgorOCosta/workflows (workflows reutilizaveis @v1): corrigir la
+# corrige o CI de todos os projetos. Aqui so fica o que e deste repositorio —
+# quais etapas ligar.
+#
+# AGNOSTICO DE STACK: tudo passa pelo contrato do `Makefile`, cujos comandos
+# reais vivem em `project.mk`. Trocar de ferramenta nao muda este arquivo.
+#
+# Marque `ci-success` como o UNICO required status check na branch protection
+# (convencoes, qualidade, testes, build, contrato, imagem e SonarCloud).
+# =============================================================================
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Nome de branch, commits e titulo do PR (regras centrais de IgorOCosta/workflows).
+  conventions:
+    if: github.event_name == 'pull_request'
+    uses: IgorOCosta/workflows/.github/workflows/conventions.yml@v1
+
+  # Formato, lint, tipos, testes com cobertura, build, contrato de API em dia
+  # com o codigo, build da imagem Docker e SonarCloud — tudo via `make`.
+  pipeline:
+    uses: IgorOCosta/workflows/.github/workflows/ci-make.yml@v1
+    permissions:
+      contents: read
+      pull-requests: read
+    with:
+      contract-path: docs/api/openapi.yaml
+      docker: true
+      # Java/Kotlin: o scanner do Sonar exige os binarios compilados.
+      sonar-needs-build: false
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Portao unico para a branch protection.
+  # ---------------------------------------------------------------------------
+  ci-success:
+    name: ci-success
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [conventions, pipeline]
+    steps:
+      - name: Falha se qualquer job obrigatorio nao passou
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Resultados: $RESULTS"
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *) echo "::error::Um job obrigatorio terminou como '$result'."; exit 1 ;;
+            esac
+          done
+          echo "Todos os jobs obrigatorios passaram."

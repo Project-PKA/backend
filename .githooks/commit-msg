@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Valida a mensagem de commit contra as convencoes compartilhadas com o CI.
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+exec sh "$repo_root/scripts/check-commit-message.sh" "$1"
