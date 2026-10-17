@@ -1,0 +1,82 @@
+# =============================================================================
+# Publica o contrato de API no docs/shared.
+#
+# Fluxo do contrato (CONVENCOES.md do codex-base, secao 6):
+#
+#   1. Este backend GERA docs/api/openapi.yaml a partir do codigo (make openapi).
+#      O CI (job "contrato") falha se o arquivo commitado divergir do codigo —
+#      assim toda mudanca de contrato aparece no diff do PR daqui.
+#   2. No merge em main, ESTE workflow copia o arquivo para o docs/shared e abre
+#      (ou atualiza) um PR `chore(contract): ...` la.
+#   3. O docs/shared valida, os CODEOWNERS de backend e frontend revisam, e o
+#      merge dispara a notificacao para os consumidores regenerarem os tipos.
+#
+# Requisitos (SETUP-GITHUB.md):
+#   - variable CONTRACT_REPO    (org/repo do docs/shared; nivel da organizacao)
+#   - secret   AUTOMATION_TOKEN (escreve no shared e faz o PR disparar o CI de la)
+# Sem CONTRACT_REPO o workflow e pulado: nem todo projeto tem docs/shared.
+# =============================================================================
+name: Publish contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/api/openapi.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-contract
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Abrir PR no docs/shared
+    if: github.event.repository.is_template != true && vars.CONTRACT_REPO != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar token
+        env:
+          AUTOMATION_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          if [ -z "$AUTOMATION_TOKEN" ]; then
+            echo "::error title=AUTOMATION_TOKEN ausente::O GITHUB_TOKEN nao escreve em outro repositorio. Configure AUTOMATION_TOKEN (SETUP-GITHUB.md)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          path: backend
+
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ vars.CONTRACT_REPO }}
+          token: ${{ secrets.AUTOMATION_TOKEN }}
+          path: shared
+
+      - name: Copiar o contrato gerado
+        run: cp backend/docs/api/openapi.yaml shared/openapi.yaml
+
+      - name: Abrir ou atualizar o PR no docs/shared
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: shared
+          token: ${{ secrets.AUTOMATION_TOKEN }}
+          branch: chore/sync-openapi-contract
+          delete-branch: true
+          commit-message: |
+            chore(contract): sincroniza openapi.yaml do backend
+
+            Origem: ${{ github.repository }}@${{ github.sha }}
+          title: 'chore(contract): sincroniza openapi.yaml do backend'
+          body: |
+            Contrato gerado a partir do codigo de `${{ github.repository }}` no commit ${{ github.sha }}.
+
+            **Revisao:** backend confirma que a mudanca e intencional; frontend (e demais consumidores) avaliam o impacto.
+
+            - Mudanca **incompativel**? Troque o titulo para `feat(contract)!: ...` e descreva a migracao no corpo.
+            - Nao edite este arquivo a mao aqui: a fonte e o codigo do backend.
+          labels: contrato-api

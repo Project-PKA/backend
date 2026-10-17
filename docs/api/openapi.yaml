@@ -1,0 +1,83 @@
+# =============================================================================
+# ARQUIVO GERADO — nao edite a mao depois do bootstrap.
+#
+# A fonte do contrato e o CODIGO. `make openapi` (OPENAPI_CMD em project.mk)
+# reescreve este arquivo; o CI falha se o commitado divergir do codigo, e no
+# merge em main o publish-contract.yml o publica no docs/shared.
+#
+# TODO(bootstrap): configure a geracao na stack escolhida (ex.: @nestjs/swagger
+# ou zod-openapi em Node, FastAPI/drf-spectacular em Python, swaggo em Go,
+# springdoc em Java/Kotlin, Swashbuckle em .NET). Ate la, este stub descreve
+# so o contrato minimo que todo backend expoe desde o dia 1.
+#
+# Convencoes (CONVENCOES.md do codex-base, secao 6):
+#   - Endpoints de negocio nascem sob /v1/.
+#   - Health check fica FORA da versao e sem autenticacao: e contrato de
+#     infraestrutura (orquestrador, smoke test), nao de produto.
+# =============================================================================
+openapi: 3.0.3
+info:
+  title: API
+  version: 0.0.0
+  description: >
+    Contrato minimo do template. Substituido pela geracao automatica a partir
+    do codigo assim que a stack estiver definida.
+
+servers:
+  - url: /
+
+tags:
+  - name: observability
+    description: Liveness e readiness
+
+paths:
+  /health:
+    get:
+      summary: Liveness — o processo esta de pe
+      operationId: getHealth
+      tags: [observability]
+      security: []
+      responses:
+        '200':
+          description: Processo de pe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /ready:
+    get:
+      summary: Readiness — pronto para receber trafego (dependencias ok)
+      operationId: getReady
+      tags: [observability]
+      security: []
+      responses:
+        '200':
+          description: Pronto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Nao pronto, por exemplo com o banco indisponivel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, unavailable]
+          example: ok
+        checks:
+          type: object
+          description: Estado de cada dependencia (so em /ready)
+          additionalProperties:
+            type: string
+            enum: [ok, fail]

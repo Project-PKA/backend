@@ -1,0 +1,28 @@
+# Tudo que não precisa (ou não pode) entrar na imagem.
+# Sem este arquivo, `COPY . .` leva o .env local para dentro da imagem.
+.git
+.github
+.githooks
+.env
+.env.*
+!.env.example
+coverage
+dist
+build
+out
+target
+bin
+obj
+node_modules
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.gradle
+.idea
+.vscode
+*.log
+docker
+docs
+*.md

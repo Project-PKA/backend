@@ -1,0 +1,53 @@
+# Segredos e configuracao local — nunca commitar
+.env
+.env.*
+!.env.example
+
+# Artefatos de build genericos (cubra o BUILD_DIR do project.mk)
+/dist/
+/build/
+/out/
+/bin/
+/target/
+/obj/
+
+# Testes e relatorios
+coverage/
+.nyc_output/
+test-results/
+
+# Ao escolher a stack, descomente o bloco dela.
+
+# --- Node/TypeScript ---
+# node_modules/
+# *.tsbuildinfo
+
+# --- Python ---
+# __pycache__/
+# *.pyc
+# .venv/
+# .pytest_cache/
+# .mypy_cache/
+# .ruff_cache/
+
+# --- Go ---
+# vendor/
+
+# --- Java/Kotlin ---
+# *.class
+# .gradle/
+
+# --- C#/.NET ---
+# *.user
+
+# Editores e SO
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

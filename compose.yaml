@@ -1,0 +1,40 @@
+# Ambiente local.
+#
+#   docker compose up -d db                 # só o banco (funciona desde o dia 1)
+#   docker compose --profile app up --build # banco + API (exige ./Dockerfile — ver docker/README.md)
+
+services:
+  # TODO(bootstrap): troque a imagem se o banco escolhido em STACK.md não for
+  # Postgres (ex.: mysql:8.4, mongo:8).
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
+      POSTGRES_DB: ${DB_NAME:-app}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-app}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    profiles: [app]
+    build: .
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      # Dentro da rede do compose o banco é "db", não "localhost".
+      DATABASE_URL: postgresql://${DB_USER:-app}:${DB_PASSWORD:-app}@db:5432/${DB_NAME:-app}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:

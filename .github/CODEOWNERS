@@ -1,0 +1,53 @@
+# =============================================================================
+# CODEOWNERS
+#
+# Owners sao adicionados automaticamente como reviewers dos PRs que tocam
+# seus arquivos. Combinado com "Require review from Code Owners" na branch
+# protection, vira regra de merge (SETUP-GITHUB.md, secao B3).
+#
+# SUBSTITUA os placeholders por times ou usuarios reais:
+#   times:    @minha-org/time-backend   (o time precisa ter acesso ao repo)
+#   pessoas:  @usuario
+#
+# Vale a ULTIMA regra que casa com o arquivo — as mais especificas ficam no
+# fim. Acrescente as pastas do codigo depois de definir a estrutura
+# (ARCHITECTURE.md).
+# =============================================================================
+
+# Padrao para tudo que nao casar com nenhuma regra abaixo.
+*                           @SUA-ORG/time-backend
+
+# ----------------------------------------------------------------------------
+# Infra do repositorio: CI/CD, seguranca e automacao.
+# ----------------------------------------------------------------------------
+/.github/                   @SUA-ORG/time-plataforma
+/scripts/deploy.sh          @SUA-ORG/time-plataforma
+/docker/                    @SUA-ORG/time-plataforma
+/Dockerfile                 @SUA-ORG/time-plataforma
+/compose.yaml               @SUA-ORG/time-plataforma
+/sonar-project.properties   @SUA-ORG/time-plataforma
+
+# ----------------------------------------------------------------------------
+# Contrato de comandos e convencoes: mudar aqui afeta todo mundo.
+# ----------------------------------------------------------------------------
+/Makefile                   @SUA-ORG/time-plataforma
+/project.mk                 @SUA-ORG/time-backend
+/.tool-versions             @SUA-ORG/time-backend
+/.githooks/                 @SUA-ORG/time-plataforma
+/scripts/conventions.sh     @SUA-ORG/time-plataforma
+
+# ----------------------------------------------------------------------------
+# Areas sensiveis: schema, contrato publico e autenticacao.
+# ----------------------------------------------------------------------------
+/migrations/                @SUA-ORG/time-backend
+/docs/api/openapi.yaml      @SUA-ORG/time-backend @SUA-ORG/time-frontend
+
+# ----------------------------------------------------------------------------
+# Documentacao viva e contrato com agentes de IA.
+# ----------------------------------------------------------------------------
+/AGENTS.md                  @SUA-ORG/time-backend
+/ARCHITECTURE.md            @SUA-ORG/time-backend
+/STACK.md                   @SUA-ORG/time-backend
+/TESTING.md                 @SUA-ORG/time-backend
+/DEPLOY.md                  @SUA-ORG/time-plataforma
+/SECURITY.md                @SUA-ORG/time-plataforma

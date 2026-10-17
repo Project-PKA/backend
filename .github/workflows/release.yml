@@ -1,0 +1,37 @@
+# =============================================================================
+# Release — versao e CHANGELOG a partir dos Conventional Commits de main.
+#
+# O release-please mantem aberto um PR "chore(main): release X.Y.Z". Mergear
+# esse PR cria a tag vX.Y.Z e a GitHub Release; a release publicada dispara o
+# deploy para `prod` (deploy.yml), que ainda para na aprovacao do Environment.
+#
+# Configuracao: release-please-config.json (troque `release-type` pelo da
+# stack no bootstrap, ex.: `node`) e .release-please-manifest.json.
+#
+# Use o AUTOMATION_TOKEN: com o GITHUB_TOKEN o PR de release nao dispara o CI
+# e a release nao dispara o deploy (ver SETUP-GITHUB.md).
+#
+# Pulado no repositorio template. Logica em IgorOCosta/workflows (release.yml@v1).
+# =============================================================================
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: IgorOCosta/workflows/.github/workflows/release.yml@v1
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    secrets:
+      AUTOMATION_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}

@@ -1,0 +1,12 @@
+# Issues sem template ficam desabilitadas: forca a escolha de bug ou feature.
+# Troque para `true` se o time preferir permitir issues em branco.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Duvida ou discussao
+    url: https://github.com/SUA-ORG/SEU-REPOSITORIO/discussions
+    about: Para perguntas e ideias que ainda nao viraram bug ou feature.
+
+  - name: Vulnerabilidade de seguranca
+    url: https://github.com/SUA-ORG/SEU-REPOSITORIO/security/advisories/new
+    about: Reporte em privado. Nunca abra issue publica para falha de seguranca.

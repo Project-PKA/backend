@@ -1,0 +1,320 @@
+# =============================================================================
+# Deploy — build once, deploy many, parametrizado por GitHub Environment.
+#
+# A imagem e construida UMA vez, no push em main, com tag = SHA do commit, e
+# publicada no registry do projeto. Promover para test/homolog/prod e implantar a MESMA
+# imagem daquele SHA — o workflow se recusa a promover um SHA sem imagem.
+# O que passou no teste e literalmente o que vai para producao, e rollback e
+# reimplantar o SHA anterior.
+#
+# Ambientes (CONVENCOES.md do codex-base, secao 4):
+#   - dev      : automatico a cada push em main
+#   - test     : manual (workflow_dispatch)
+#   - homolog  : manual, com aprovacao obrigatoria (required reviewers)
+#   - prod     : release publicada (release-please) ou manual, com aprovacao
+#
+# REGISTRY (variable IMAGE_REPOSITORY, sem a tag; ver DEPLOY.md):
+#   vazio                                   -> ghcr.io/<org>/<repo> (GITHUB_TOKEN)
+#   <conta>.dkr.ecr.<regiao>.amazonaws.com/x -> ECR, via OIDC (secret AWS_ECR_ROLE_ARN)
+#   outro (Docker Hub, Artifact Registry...) -> REGISTRY_USERNAME + REGISTRY_PASSWORD
+#
+# A aprovacao NAO fica neste arquivo: e protection rule do Environment
+# (SETUP-GITHUB.md). A configuracao de cada ambiente chega em RUNTIME, via
+# secrets/variables do Environment — nunca embutida na imagem.
+#
+# AGNOSTICO DE PLATAFORMA: a publicacao em si e `scripts/deploy.sh`
+# (receitas em DEPLOY.md). Trocar Kubernetes por Cloud Run ou por uma VPS nao
+# muda este arquivo.
+# =============================================================================
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente de destino
+        type: choice
+        required: true
+        default: dev
+        options: [dev, test, homolog, prod]
+      ref:
+        description: 'SHA, tag ou branch ja construido em main (padrao: a ref atual)'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Traduz o gatilho em ambiente + SHA + imagem. Um unico lugar decide isso.
+  # ---------------------------------------------------------------------------
+  resolve:
+    name: Resolver ambiente e imagem
+    # O repositorio template nao tem o que publicar.
+    if: github.event.repository.is_template != true
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.pick.outputs.environment }}
+      sha: ${{ steps.pick.outputs.sha }}
+      image: ${{ steps.pick.outputs.image }}
+      registry-kind: ${{ steps.pick.outputs.registry-kind }}
+      registry-host: ${{ steps.pick.outputs.registry-host }}
+      registry-region: ${{ steps.pick.outputs.registry-region }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_ENV: ${{ inputs.environment }}
+          INPUT_REF: ${{ inputs.ref }}
+          REPOSITORY: ${{ github.repository }}
+          IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY }}
+        run: |
+          case "$EVENT" in
+            workflow_dispatch) environment="$INPUT_ENV" ;;
+            release)           environment="prod" ;;
+            push)              environment="dev" ;;
+            *)                 echo "::error::Gatilho nao suportado: $EVENT"; exit 1 ;;
+          esac
+
+          ref="${INPUT_REF:-$GITHUB_SHA}"
+          if ! sha=$(git rev-parse --verify --quiet "${ref}^{commit}"); then
+            echo "::error title=Ref invalida::'$ref' nao existe neste repositorio."
+            exit 1
+          fi
+
+          # Padrao: GHCR, que exige nome em minusculas (github.repository pode
+          # ter maiusculas).
+          default_repo="ghcr.io/$(printf '%s' "$REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          image_repo="${IMAGE_REPOSITORY:-$default_repo}"
+          host="${image_repo%%/*}"
+          region=''
+          case "$image_repo" in
+            ghcr.io/*)                    kind=ghcr ;;
+            *.dkr.ecr.*.amazonaws.com/*)  kind=ecr; region=$(printf '%s' "$host" | cut -d. -f4) ;;
+            */*)                          kind=other ;;
+            *) echo "::error title=IMAGE_REPOSITORY invalido::'$image_repo' precisa ser <registry>/<caminho>."; exit 1 ;;
+          esac
+          image="$image_repo:$sha"
+
+          {
+            echo "environment=$environment"
+            echo "sha=$sha"
+            echo "image=$image"
+            echo "registry-kind=$kind"
+            echo "registry-host=$host"
+            echo "registry-region=$region"
+          } >> "$GITHUB_OUTPUT"
+          echo "### Deploy para \`$environment\` — \`$image\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Build once: so no push em main. Promocoes reusam a imagem deste SHA.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build e publicacao da imagem
+    needs: resolve
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      # Login no ECR via OIDC. Inofensivo com GHCR.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Dockerfile presente
+        run: |
+          if [ ! -f Dockerfile ]; then
+            echo "::error title=Dockerfile ausente::Copie docker/Dockerfile.example para a raiz e preencha (ver docker/README.md)."
+            exit 1
+          fi
+
+      # Login no registry da imagem (IMAGE_REPOSITORY; padrao: GHCR).
+      - name: Login no GHCR
+        if: needs.resolve.outputs.registry-kind == 'ghcr'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Credenciais AWS para o ECR (OIDC)
+        if: needs.resolve.outputs.registry-kind == 'ecr'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ECR_ROLE_ARN }}
+          aws-region: ${{ needs.resolve.outputs.registry-region }}
+
+      - name: Login no ECR
+        if: needs.resolve.outputs.registry-kind == 'ecr'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Login em outro registry
+        if: needs.resolve.outputs.registry-kind == 'other'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ needs.resolve.outputs.registry-host }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build e push
+        env:
+          IMAGE: ${{ needs.resolve.outputs.image }}
+          SHA: ${{ needs.resolve.outputs.sha }}
+        run: |
+          docker build --pull \
+            --label "org.opencontainers.image.revision=$SHA" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            -t "$IMAGE" .
+          docker push "$IMAGE"
+
+  # ---------------------------------------------------------------------------
+  # Deploy da imagem ja existente no ambiente resolvido.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy (${{ needs.resolve.outputs.environment }})
+    needs: [resolve, build]
+    if: >-
+      always() &&
+      needs.resolve.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    environment:
+      name: ${{ needs.resolve.outputs.environment }}
+      url: ${{ vars.APP_BASE_URL }}
+
+    permissions:
+      contents: read
+      packages: read
+      # Exigido por OIDC (AWS, GCP, Azure). Inofensivo se a plataforma usar token.
+      id-token: write
+
+    # Dois deploys simultaneos no mesmo ambiente se sobrescrevem; nao
+    # cancelamos o que ja esta em andamento para nao deixar estado parcial.
+    concurrency:
+      group: deploy-${{ needs.resolve.outputs.environment }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      # Login no registry da imagem (IMAGE_REPOSITORY; padrao: GHCR).
+      - name: Login no GHCR
+        if: needs.resolve.outputs.registry-kind == 'ghcr'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Credenciais AWS para o ECR (OIDC)
+        if: needs.resolve.outputs.registry-kind == 'ecr'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ECR_ROLE_ARN }}
+          aws-region: ${{ needs.resolve.outputs.registry-region }}
+
+      - name: Login no ECR
+        if: needs.resolve.outputs.registry-kind == 'ecr'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Login em outro registry
+        if: needs.resolve.outputs.registry-kind == 'other'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ needs.resolve.outputs.registry-host }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      # A release e criada pelo release-please no MESMO push que dispara o
+      # build: espera a imagem aparecer em vez de reconstruir.
+      - name: Garantir que a imagem existe (build once)
+        env:
+          IMAGE: ${{ needs.resolve.outputs.image }}
+        run: |
+          for attempt in $(seq 1 20); do
+            if docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
+              echo "Imagem encontrada: $IMAGE"
+              exit 0
+            fi
+            echo "Aguardando a imagem ($attempt/20)..."
+            sleep 30
+          done
+          echo "::error title=Imagem inexistente::$IMAGE nao existe. So se promove um SHA que foi construido por push em main."
+          exit 1
+
+      # -----------------------------------------------------------------------
+      # Credenciais da plataforma. Descomente o bloco correspondente e
+      # configure os secrets do Environment. Prefira sempre OIDC.
+      # Receitas completas em DEPLOY.md.
+      # -----------------------------------------------------------------------
+      # - name: Credenciais AWS (OIDC)
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      #     aws-region: ${{ vars.AWS_REGION }}
+      #
+      # - name: Credenciais Google Cloud (OIDC)
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      #     service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      #
+      # - name: Credenciais Azure (OIDC)
+      #   uses: azure/login@v2
+      #   with:
+      #     client-id: ${{ vars.AZURE_CLIENT_ID }}
+      #     tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      #     subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publicar
+        env:
+          DEPLOY_ENV: ${{ needs.resolve.outputs.environment }}
+          IMAGE: ${{ needs.resolve.outputs.image }}
+          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+          # Repasse aqui os secrets/variables que scripts/deploy.sh usa.
+          # Ex.: KUBE_CONFIG, CLOUD_RUN_SERVICE, SSH_HOST, SSH_PRIVATE_KEY.
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: make deploy
+
+      - name: Smoke test (GET /health)
+        if: ${{ vars.APP_BASE_URL != '' }}
+        env:
+          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+        run: |
+          status=$(curl -sS -o /dev/null -w '%{http_code}' --retry 10 --retry-delay 6 \
+            --retry-all-errors "$APP_BASE_URL/health")
+          echo "GET $APP_BASE_URL/health -> $status"
+          [ "$status" = "200" ] || { echo "::error::Smoke test falhou (HTTP $status)"; exit 1; }
+
+      - name: Resumo
+        if: always()
+        env:
+          DEPLOY_ENV: ${{ needs.resolve.outputs.environment }}
+          IMAGE: ${{ needs.resolve.outputs.image }}
+          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "### Deploy $DEPLOY_ENV"
+            echo ""
+            echo "| Campo | Valor |"
+            echo "| --- | --- |"
+            echo "| Ambiente | \`$DEPLOY_ENV\` |"
+            echo "| Imagem | \`$IMAGE\` |"
+            echo "| URL | $APP_BASE_URL |"
+            echo "| Resultado | $JOB_STATUS |"
+          } >> "$GITHUB_STEP_SUMMARY"
