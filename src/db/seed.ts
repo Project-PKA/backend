@@ -36,6 +36,7 @@ export const KIND = {
   item: 9,
   token: 10,
   invitation: 11,
+  activity: 12,
 } as const;
 
 const money = (value: number): string => value.toFixed(2);
@@ -55,6 +56,7 @@ export const SEED_IDS = {
 } as const;
 
 const TABLES_TO_CLEAR = [
+  'activity_log',
   'invitations',
   'whatsapp_sessions',
   'settlement_items',
@@ -208,6 +210,7 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
   const created = [
     'users',
     'invitations',
+    'activity_log',
     'refresh_tokens',
     'stores',
     'store_members',
@@ -356,6 +359,35 @@ async function insertAll(db: Tx): Promise<void> {
       email: 'novo-lojista@example.com',
       invitedBy: SEED_IDS.userAdmin,
       expiresAt: at('2099-01-01T00:00:00Z'),
+    },
+  ]);
+  await db.insert(schema.activityLog).values([
+    {
+      id: uid(KIND.activity, 1),
+      storeId: SEED_IDS.storeA,
+      actorUserId: SEED_IDS.userOwner,
+      action: 'invitation.sent',
+      targetType: 'invitation',
+      targetId: uid(KIND.invitation, 1),
+      details: { role: 'STAFF' },
+    },
+    {
+      id: uid(KIND.activity, 2),
+      storeId: SEED_IDS.storeA,
+      actorUserId: SEED_IDS.userOwner,
+      action: 'member.permissions_updated',
+      targetType: 'member',
+      targetId: uid(KIND.member, 3),
+      details: { changed: ['can_manage_auctions'] },
+    },
+    {
+      id: uid(KIND.activity, 3),
+      storeId: SEED_IDS.storeB,
+      actorUserId: SEED_IDS.userOwner,
+      action: 'store.updated',
+      targetType: 'store',
+      targetId: SEED_IDS.storeB,
+      details: { fields: ['name'] },
     },
   ]);
   await db.insert(schema.storeMembers).values([

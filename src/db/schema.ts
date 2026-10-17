@@ -363,3 +363,24 @@ export const settlementItems = pgTable(
     index('settlement_items_settlement_idx').on(t.settlementId),
   ],
 );
+
+// --- Log de atividades (0010) ---------------------------------------------------
+/** Imutável para a aplicação (só INSERT e SELECT) e legível só pelo proprietário. */
+export const activityLog = pgTable(
+  'activity_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    storeId: uuid('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Ex.: `store.updated`, `member.removed`, `invitation.sent`. */
+    action: text('action').notNull(),
+    targetType: text('target_type'),
+    targetId: uuid('target_id'),
+    /** Só identificadores e valores técnicos: sem e-mail, telefone ou CPF. */
+    details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (t) => [index('activity_log_store_created_idx').on(t.storeId, t.createdAt, t.id)],
+);

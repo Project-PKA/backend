@@ -145,6 +145,7 @@ describe('seed', () => {
     expect(await distinct('settlements', 'status')).toEqual(['PAID', 'PENDING']);
     expect(await distinct('store_members', 'role')).toEqual(['OWNER', 'STAFF']);
     expect(await distinct('users', 'status')).toEqual(['ACTIVE', 'INVITED', 'SUSPENDED']);
+    expect(await count('activity_log')).toBeGreaterThan(0);
     expect(await distinct('invitations', 'status')).toEqual(['ACCEPTED', 'PENDING', 'REVOKED']);
     expect(await count('users', 'is_platform_admin')).toBe(1);
     expect(await count('users', 'can_create_stores AND store_limit > 0')).toBeGreaterThan(0);
