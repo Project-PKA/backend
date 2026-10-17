@@ -29,6 +29,7 @@ const TITLES: Record<number, string> = {
   403: 'Forbidden',
   404: 'Not Found',
   409: 'Conflict',
+  413: 'Content Too Large',
   422: 'Unprocessable Content',
   429: 'Too Many Requests',
   500: 'Internal Server Error',

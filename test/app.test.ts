@@ -103,6 +103,35 @@ describe('cabeçalhos de segurança', () => {
   });
 });
 
+describe('limites de requisição', () => {
+  it('recusa corpo acima do limite com 413 em problem+json', async () => {
+    current = await buildTestApp({ env: { BODY_LIMIT_BYTES: '1024' } });
+
+    const response = await current.app.inject({
+      method: 'POST',
+      url: '/v1/auth/otp/request',
+      payload: { email: `${'a'.repeat(2000)}@example.com` },
+    });
+
+    expect(response.statusCode).toBe(413);
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.json()).toMatchObject({ status: 413 });
+  });
+
+  it('não barra corpo dentro do limite', async () => {
+    current = await buildTestApp({ env: { BODY_LIMIT_BYTES: '1024' } });
+
+    const response = await current.app.inject({
+      method: 'POST',
+      url: '/v1/auth/otp/request',
+      payload: { email: 'pessoa@example.com' },
+    });
+
+    // Este app não tem banco, então a rota falha adiante; o que importa é não ser 413.
+    expect(response.statusCode).not.toBe(413);
+  });
+});
+
 describe('trace_id', () => {
   it('reaproveita o trace id do header traceparent', async () => {
     current = await buildTestApp({ ready: false });

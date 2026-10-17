@@ -21,6 +21,8 @@ export interface AuthConfig {
   otpMaxAttempts: number;
   otpResendSeconds: number;
   invitationTtlDays: number;
+  /** Intervalo mínimo entre reenvios do mesmo convite. */
+  invitationResendSeconds: number;
 }
 
 export interface RateLimitConfig {
@@ -28,6 +30,15 @@ export interface RateLimitConfig {
   global: number;
   otpRequest: number;
   otpVerify: number;
+}
+
+export interface HttpLimits {
+  /** Tamanho máximo do corpo de uma requisição. */
+  bodyLimitBytes: number;
+  /** Tempo máximo para receber a requisição inteira. */
+  requestTimeoutMs: number;
+  /** Tempo máximo para o handler responder. */
+  handlerTimeoutMs: number;
 }
 
 export interface Env {
@@ -46,6 +57,7 @@ export interface Env {
   /** Cookie `Secure` em tudo que não é desenvolvimento local. */
   secureCookies: boolean;
   rateLimit: RateLimitConfig;
+  http: HttpLimits;
   auth: AuthConfig;
 }
 
@@ -125,6 +137,7 @@ function parseAuth(source: Source): AuthConfig {
     otpMaxAttempts: integer(source, 'OTP_MAX_ATTEMPTS', 5, 1, 10),
     otpResendSeconds: integer(source, 'OTP_RESEND_SECONDS', 60, 0, 600),
     invitationTtlDays: integer(source, 'INVITATION_TTL_DAYS', 7, 1, 30),
+    invitationResendSeconds: integer(source, 'INVITATION_RESEND_SECONDS', 60, 0, 3600),
   };
 }
 
@@ -154,6 +167,11 @@ export function loadEnv(source: Source = process.env): Env {
       global: integer(source, 'RATE_LIMIT_PER_MINUTE', 120, 1, 100_000),
       otpRequest: integer(source, 'RATE_LIMIT_OTP_REQUEST_PER_MINUTE', 5, 1, 1000),
       otpVerify: integer(source, 'RATE_LIMIT_OTP_VERIFY_PER_MINUTE', 10, 1, 1000),
+    },
+    http: {
+      bodyLimitBytes: integer(source, 'BODY_LIMIT_BYTES', 262_144, 1024, 10_485_760),
+      requestTimeoutMs: integer(source, 'REQUEST_TIMEOUT_MS', 30_000, 1000, 300_000),
+      handlerTimeoutMs: integer(source, 'HANDLER_TIMEOUT_MS', 20_000, 1000, 300_000),
     },
     auth: parseAuth(source),
   };
