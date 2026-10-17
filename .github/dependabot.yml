@@ -1,0 +1,64 @@
+# =============================================================================
+# Dependabot.
+#
+# Ativos: `github-actions` e `docker`, que valem para qualquer stack.
+# O ecossistema de pacotes da stack esta comentado — descomente o escolhido
+# (SETUP-GITHUB.md, secao B8).
+#
+# Os prefixos de commit-message seguem Conventional Commits, senao o CI
+# reprova os proprios PRs do Dependabot. A branch `dependabot/...` e isenta
+# da regra de nome (CONVENCOES.md do codex-base).
+# =============================================================================
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    labels: ['ci-cd', 'dependencias']
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      # Um PR por grupo em vez de um por action: menos ruido, mesma seguranca.
+      actions:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+
+  # Imagem base do Dockerfile (e do compose.yaml). Sem Dockerfile na raiz, o
+  # Dependabot so avisa que nao encontrou nada.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    labels: ['dependencias']
+    commit-message:
+      prefix: build
+      include: scope
+
+  # ---- Descomente o da stack escolhida ---------------------------------------
+  # Pacotes de producao com `chore`, e agrupados por tipo para reduzir ruido.
+  #
+  # - package-ecosystem: npm          # ou: pip, uv, gomod, maven, gradle, nuget
+  #   directory: /
+  #   schedule:
+  #     interval: weekly
+  #     day: monday
+  #   open-pull-requests-limit: 5
+  #   labels: ['dependencias']
+  #   commit-message:
+  #     prefix: chore
+  #     prefix-development: chore
+  #     include: scope
+  #   groups:
+  #     dev-tooling:
+  #       dependency-type: development
+  #       update-types: ['minor', 'patch']
+  #     runtime:
+  #       dependency-type: production
+  #       update-types: ['minor', 'patch']

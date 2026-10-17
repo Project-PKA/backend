@@ -1,0 +1,20 @@
+# Runtimes e ferramentas deste projeto, no formato do asdf/mise.
+#
+# O CI instala o que estiver listado aqui automaticamente
+# (jdx/mise-action nos workflows centrais, IgorOCosta/workflows). Localmente:
+#
+#   mise install       # https://mise.jdx.dev
+#   asdf install       # https://asdf-vm.com
+#
+# Fixar a versao aqui e o que garante que a sua maquina, a do colega e o CI
+# rodem a mesma coisa. Enquanto este arquivo estiver vazio, o CI pula a
+# instalacao e `make setup` precisa se virar sozinho.
+#
+# Exemplos — descomente e ajuste ao decidir a stack:
+#
+# nodejs 22.14.0
+# python 3.13.2
+# uv 0.6.5
+# golang 1.24.1
+# java temurin-21.0.6+7.0.LTS
+# dotnet 9.0.200
