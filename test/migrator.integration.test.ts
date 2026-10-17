@@ -4,7 +4,6 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildApp } from '../src/app.js';
 import { checkDatabase, createPool } from '../src/db/client.js';
 import {
   createMigration,
@@ -13,6 +12,7 @@ import {
   migrateUp,
   migrationStatus,
 } from '../src/db/migrator.js';
+import { buildTestApp } from './helpers/app.js';
 import { resetDatabase, startDatabase, type TestDatabase } from './helpers/database.js';
 
 const realDir = path.resolve('migrations');
@@ -116,10 +116,11 @@ describe('migrator com Postgres real', () => {
 describe('GET /ready contra o banco real', () => {
   it('responde 200 com o banco no ar e 503 depois de fechar o pool', async () => {
     const ownPool = createPool(database.uri);
-    const app = await buildApp({
-      env: { logLevel: 'silent', serviceName: 'test' },
+    const built = await buildTestApp({
+      pool: ownPool,
       checkDatabase: () => checkDatabase(ownPool),
     });
+    const app = built.app;
 
     expect((await app.inject({ method: 'GET', url: '/ready' })).statusCode).toBe(200);
 

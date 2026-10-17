@@ -49,6 +49,13 @@ export function sendProblem(reply: FastifyReply, problem: Problem): FastifyReply
   return reply.status(problem.status).type('application/problem+json').send(problem);
 }
 
+/** Código de negócio estável para os erros que o framework gera sozinho. */
+function codeFor(status: number, error: FastifyError): string | undefined {
+  if (status === 429) return 'RATE_LIMITED';
+  if (status === 400 && error.validation !== undefined) return 'VALIDATION_ERROR';
+  return undefined;
+}
+
 export function errorHandler(
   error: FastifyError,
   request: FastifyRequest,
@@ -60,7 +67,10 @@ export function errorHandler(
   }
   // Nunca vaza detalhe interno em erro 5xx.
   const detail = status >= 500 ? undefined : error.message;
-  return sendProblem(reply, { ...buildProblem(status, detail), instance: request.url });
+  return sendProblem(reply, {
+    ...buildProblem(status, detail, codeFor(status, error)),
+    instance: request.url,
+  });
 }
 
 export function notFoundHandler(request: FastifyRequest, reply: FastifyReply): FastifyReply {

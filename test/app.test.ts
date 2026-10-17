@@ -1,19 +1,17 @@
-import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { buildApp } from '../src/app.js';
+import { buildTestApp, type TestApp } from './helpers/app.js';
 
-let app: FastifyInstance | undefined;
+let current: TestApp | undefined;
 
 async function start(checkDatabase: () => Promise<void> = () => Promise.resolve()) {
-  app = await buildApp({ env: { logLevel: 'silent', serviceName: 'test' }, checkDatabase });
-  await app.ready();
-  return app;
+  current = await buildTestApp({ checkDatabase });
+  return current.app;
 }
 
 afterEach(async () => {
-  await app?.close();
-  app = undefined;
+  await current?.close();
+  current = undefined;
 });
 
 describe('GET /health', () => {
@@ -74,14 +72,41 @@ describe('rota inexistente', () => {
   });
 });
 
+describe('cabeçalhos de segurança', () => {
+  it('envia os cabeçalhos do helmet', async () => {
+    const server = await start();
+
+    const response = await server.inject({ method: 'GET', url: '/health' });
+
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['strict-transport-security']).toBeDefined();
+    expect(response.headers['x-powered-by']).toBeUndefined();
+  });
+
+  it('só autoriza CORS para as origens configuradas', async () => {
+    const server = await start();
+
+    const allowed = await server.inject({
+      method: 'OPTIONS',
+      url: '/v1/me',
+      headers: { origin: 'http://localhost:3000', 'access-control-request-method': 'GET' },
+    });
+    const denied = await server.inject({
+      method: 'OPTIONS',
+      url: '/v1/me',
+      headers: { origin: 'https://site-malicioso.example', 'access-control-request-method': 'GET' },
+    });
+
+    expect(allowed.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+    expect(allowed.headers['access-control-allow-credentials']).toBe('true');
+    expect(denied.headers['access-control-allow-origin']).toBeUndefined();
+  });
+});
+
 describe('trace_id', () => {
   it('reaproveita o trace id do header traceparent', async () => {
-    // Sem `start()`: o hook precisa entrar antes de o servidor ficar pronto.
-    app = await buildApp({
-      env: { logLevel: 'silent', serviceName: 'test' },
-      checkDatabase: () => Promise.resolve(),
-    });
-    const server = app;
+    current = await buildTestApp({ ready: false });
+    const server = current.app;
     const traceId = '4bf92f3577b34da6a3ce929d0e0e4736';
     let seen = '';
     server.addHook('onRequest', (request, _reply, done) => {
