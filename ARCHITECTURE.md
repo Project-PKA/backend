@@ -1,68 +1,105 @@
 # Arquitetura
 
-> **Esqueleto do template.** Preenchido pelo [`BOOTSTRAP.md`](BOOTSTRAP.md).
-> O que depende de decisão do projeto está marcado como `A DECIDIR` ou com
-> `<!-- -->`. Um agente de IA deve tratar um `A DECIDIR` remanescente como
-> sinal de que a decisão ainda não foi tomada: **pergunte, não escolha**.
->
 > Este documento cobre só **este repositório**. A visão de sistema (como os
-> repositórios se conectam) e as decisões cross-repo ficam no docs/shared.
+> repositórios se conectam) e as decisões cross-repo ficam no
+> [`Project-PKA/shared`](https://github.com/Project-PKA/shared).
 
-**Última revisão:** <!-- AAAA-MM-DD --> · **Responsável:** <!-- time/pessoa -->
+**Última revisão:** 2026-10-17 · **Responsável:** dono do projeto
 
 ---
 
 ## 1. Visão geral
 
-<!--
-Em até 10 linhas: o que este serviço faz, quem consome a API, com quem ele
-conversa, o que NÃO faz. Volume esperado e SLA (BOOTSTRAP etapa 2).
--->
+API do **pokemonAuction** (nome provisório), um SaaS B2B multi-tenant para
+lojistas de Trading Card Games fazerem leilões de cartas em grupos de WhatsApp.
 
-`A DECIDIR`
+- **Quem consome:** o painel web do lojista (`frontend_web`). O bot de WhatsApp
+  (`whatsapp_microservice`) **não** usa a API: acessa o banco com role própria.
+- **O que faz:** login passwordless (e-mail + OTP), lojas e equipe com RBAC,
+  estoque próprio e consignado, catálogo TCGdex local com autocomplete,
+  clientes e visitantes, leilões, acertos pós-leilão e dashboards.
+- **O que NÃO faz:** falar com o WhatsApp, processar pagamento, gerir envio
+  (ADR 0002).
+- **Estágio:** MVP, produto novo. Volume inicial pequeno (algumas lojas,
+  centenas de mensagens por leilão). O que limita a escala não é a API e sim
+  a RAM da VPS: cada loja conectada custa 150 a 300MB no bot (ADR 0010).
+  Gatilho para revisitar: RAM da VPS como limite de lojas.
+- **SLA:** nenhum contratado ainda.
 
 ## 2. Diagramas C4
 
 ```mermaid
 C4Context
-    title Contexto (placeholder: preencher no bootstrap)
+    title Contexto: pokemonAuction
 
-    Person(user, "Usuário", "A DECIDIR")
-    System(system, "Este backend", "A DECIDIR: o que ele faz")
-    System_Ext(ext, "Sistema externo", "A DECIDIR: dependência externa, se houver")
+    Person(lojista, "Lojista / Funcionário", "Gerencia estoque, leilões e acertos")
+    Person(participante, "Participante do grupo", "Dá lances no WhatsApp, sem cadastro")
+    System(system, "Backend (este repositório)", "API, autenticação, regras de negócio, dono do schema")
+    System(bot, "WhatsApp Microservice", "Lê lances, abre e fecha leilões no grupo")
+    System_Ext(whatsapp, "WhatsApp", "Grupo do leilão, via WhatsApp Web")
+    System_Ext(tcgdex, "TCGdex", "Catálogo oficial de cartas")
+    System_Ext(email, "Provedor de e-mail", "Envio do OTP (a decidir)")
 
-    Rel(user, system, "Usa", "HTTPS")
-    Rel(system, ext, "Integra com", "A DECIDIR")
+    Rel(lojista, system, "Usa pelo painel web", "HTTPS")
+    Rel(participante, whatsapp, "Envia lances", "Mensagem")
+    Rel(bot, whatsapp, "Lê e posta no grupo", "WhatsApp Web")
+    Rel(bot, system, "Compartilha o banco", "SQL, role própria")
+    Rel(system, tcgdex, "Sync noturno às 03:00", "HTTPS")
+    Rel(system, email, "Envia OTP", "A decidir")
 ```
 
 ```mermaid
 C4Container
-    title Contêineres (placeholder: preencher no bootstrap)
+    title Contêineres: Backend
 
-    Person(user, "Usuário")
-    System_Boundary(s1, "Este backend") {
-        Container(api, "API", "A DECIDIR: linguagem/framework", "Endpoints de negócio sob /v1")
-        ContainerDb(db, "Banco de dados", "A DECIDIR", "Estado da aplicação")
+    Person(lojista, "Lojista / Funcionário")
+    Container_Ext(web, "frontend_web", "A decidir", "Painel do lojista")
+    Container_Ext(bot, "whatsapp_microservice", "Node.js + Baileys", "Sessões de WhatsApp")
+    System_Boundary(s1, "Backend") {
+        Container(api, "API", "Node.js 22, TypeScript, Fastify 5", "Rotas /v1, /health, /ready, /metrics")
+        Container(worker, "Jobs", "BullMQ", "Sync TCGdex (03:00), limpeza de inativos (ainda não ligado)")
+        ContainerDb(db, "PostgreSQL 17", "pg_trgm, JSONB", "Estado da aplicação e catálogo TCGdex")
+        ContainerDb(redis, "Redis", "BullMQ", "Fila dos jobs (ainda não ligado)")
     }
 
-    Rel(user, api, "HTTPS/JSON")
-    Rel(api, db, "A DECIDIR: driver/protocolo")
+    Rel(lojista, web, "Usa", "HTTPS")
+    Rel(web, api, "Consome", "HTTPS/JSON")
+    Rel(api, db, "Lê e escreve", "SQL (pg + Drizzle)")
+    Rel(worker, redis, "Fila", "Redis")
+    Rel(worker, db, "Escreve", "SQL")
+    Rel(bot, db, "Tabelas restritas", "SQL, role própria")
 ```
 
 ## 3. Camadas
 
-<!-- Padrão escolhido (hexagonal, camadas, MVC) e o que mora em cada camada.
-     Regra de dependência: domínio não conhece infraestrutura. Transforme em
-     regra de lint/arquitetura quando a stack permitir. -->
+Estrutura atual de `src/`:
+
+```
+src/
+  config/env.ts      leitura e validação do ambiente (falha no boot)
+  http/problem.ts    erros RFC 9457 e handlers globais
+  routes/            rotas HTTP (infra hoje; /v1 a partir da Etapa 2)
+  db/                client, schema (Drizzle), migrator, seed
+  app.ts             monta o Fastify (logger, swagger, rotas)
+  server.ts          ponto de entrada (porta, encerramento limpo)
+```
+
+À medida que as rotas de negócio entrarem, cada módulo (`auth`, `stores`,
+`inventory`, `customers`, `auctions`, `settlements`) segue as camadas abaixo.
+A regra de dependência é de cima para baixo e não se inverte.
 
 | Camada | Responsabilidade | Pode depender de |
 | --- | --- | --- |
-| **API (entrada)** | HTTP, validação de entrada, serialização | Aplicação |
-| **Aplicação** | Casos de uso, transações, orquestração | Domínio |
-| **Domínio** | Regras de negócio, sem I/O | — |
-| **Infraestrutura** | Banco, filas, APIs externas | Domínio (implementa as portas) |
+| **Rotas** | HTTP, schema de entrada e saída, autenticação, `x-store-id` | Serviços |
+| **Serviços** | Casos de uso, transações, regra de negócio (ex.: validar um lance) | Repositórios |
+| **Repositórios** | Queries Drizzle, **sempre** filtradas por `store_id` | Banco |
+| **Banco** | Schema, constraints e FKs compostas como última barreira | — |
 
-**Fluxo de uma requisição típica:** <!-- do cliente à persistência e de volta -->
+**Fluxo de uma requisição de negócio:** cliente → `/v1/...` com
+`Authorization` e `x-store-id` → autenticação (JWT) → middleware confere
+`store_members` → rota valida o schema → serviço aplica a regra dentro de uma
+transação → repositório consulta com `store_id` → resposta serializada pelo
+schema de saída, ou erro `problem+json`.
 
 ## 4. Contrato de API
 
@@ -88,13 +125,13 @@ sequenceDiagram
   extra `code` para o código de erro de negócio.
 - **Paginação:** por cursor. Parâmetros `cursor` e `limit` (limite máximo a
   definir no primeiro endpoint de lista); a resposta devolve `next_cursor`.
-- **Rotas (PROPOSTA, confirmar):** o doc 02 mistura o header `x-store-id`
-  (§4.1) com `/api/stores/:storeId/...` (§4.4). Proposta: usar só o header
+- **Rotas (decidido em 2026-10-17):** o doc 02 misturava o header
+  `x-store-id` (§4.1) com `/api/stores/:storeId/...` (§4.4). Vale só o header
   `x-store-id`, para todas as rotas de negócio terem a mesma forma (seção 6),
-  sob `/v1/` e sem o prefixo `/api`.
+  sob `/v1/` e sem o prefixo `/api`. Ex.: `GET /v1/dashboard/operational?period=7`.
 - Ferramenta de geração: `@fastify/swagger` (ver [`STACK.md`](STACK.md)).
-  `OPENAPI_CMD` em `project.mk` **ainda não está configurado**: depende do
-  scaffold do projeto (Etapa 1 do backlog).
+  `make openapi` roda `scripts/openapi.ts`, que monta o app sem banco e grava
+  `docs/api/openapi.yaml`.
 - docs/shared do projeto: `Project-PKA/shared`. Falta configurar a variable
   `CONTRACT_REPO=Project-PKA/shared` e o `AUTOMATION_TOKEN` (ver
   [`docs/secrets.md`](docs/secrets.md)).
@@ -105,15 +142,121 @@ Regras de ORM, migrations e seeds em [`docs/database.md`](docs/database.md).
 
 ```mermaid
 erDiagram
-    ENTIDADE_EXEMPLO {
+    users ||--o{ refresh_tokens : "sessões"
+    users ||--o{ store_members : "pertence a"
+    stores ||--o{ store_members : "equipe"
+    stores ||--o{ customers : "clientes e visitantes"
+    stores ||--o{ cards_inventory : "estoque"
+    stores ||--o{ auctions : "leilões"
+    stores ||--o{ bids : ""
+    stores ||--o{ settlements : "acertos"
+    tcgdex_catalog ||--o{ cards_inventory : "descreve"
+    customers ||--o{ cards_inventory : "consigna"
+    cards_inventory ||--o{ auctions : "é leiloada"
+    auctions ||--o{ bids : "recebe"
+    customers ||--o{ bids : "dá"
+    bids ||--o| auctions : "vence"
+    customers ||--o{ settlements : "paga"
+    settlements ||--|{ settlement_items : "compõe"
+    auctions ||--o| settlement_items : "entra em"
+    cards_inventory ||--o{ settlement_items : ""
+
+    users {
         uuid id PK
-        string status
-        timestamp created_at
-        timestamp updated_at
+        text email UK
+        text otp_hash
+        timestamptz otp_expires_at
+        int otp_attempts
+    }
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        text token_hash UK
+        timestamptz expires_at
+        timestamptz revoked_at
+    }
+    stores {
+        uuid id PK
+        text name
+        text whatsapp_session_data "criptografado"
+        text whatsapp_group_id
+        enum whatsapp_status "ONLINE OFFLINE QR_READY"
+        int inactivity_days_limit
+    }
+    store_members {
+        uuid id PK
+        uuid store_id FK
+        uuid user_id FK
+        enum role "OWNER STAFF"
+        jsonb permissions
+    }
+    tcgdex_catalog {
+        text id PK
+        text name "GIN trigram"
+        text card_number "GIN trigram"
+        text set_name
+        jsonb raw_data
+    }
+    customers {
+        uuid id PK
+        uuid store_id FK
+        text phone "único por loja"
+        text name
+        bool is_visitor
+        bool is_blacklisted
+        text cpf
+    }
+    cards_inventory {
+        uuid id PK
+        uuid store_id FK
+        text short_code "único por loja, sem #"
+        text tcgdex_id FK
+        enum condition "MINT NM SP MP HP DMG"
+        enum ownership_type "OWN CONSIGNED"
+        uuid consignor_id FK
+        enum status "AVAILABLE SCHEDULED AWAITING_CONFIRMATION SOLD"
+    }
+    auctions {
+        uuid id PK
+        uuid store_id FK
+        uuid card_id FK
+        enum type "FREE_BID POLL"
+        numeric initial_bid
+        numeric min_increment
+        numeric max_poll_value
+        uuid winning_bid_id FK
+        enum status "PENDING ACTIVE PAUSED_FOR_VALIDATION FINISHED CANCELLED"
+    }
+    bids {
+        uuid id PK
+        uuid store_id FK
+        uuid auction_id FK
+        uuid customer_id FK
+        numeric amount "único por leilão"
+        text raw_whatsapp_message
+    }
+    settlements {
+        uuid id PK
+        uuid store_id FK
+        uuid customer_id FK
+        numeric shipping_cost
+        numeric total_amount
+        enum status "PENDING PAID"
+    }
+    settlement_items {
+        uuid id PK
+        uuid settlement_id FK
+        uuid auction_id FK "único"
+        uuid card_id FK
+        numeric amount
     }
 ```
 
-> Placeholder: substituir pelas entidades reais assim que houver migrations.
+Integridade que o banco garante (além das FKs): FK composta `(id, store_id)`
+entre lojas, uma carta com no máximo um leilão em andamento, enquete com teto
+acima do lance inicial, carta consignada com dono e comissão, acerto `PAID`
+com data de pagamento e dois lances do mesmo valor no mesmo leilão não
+coexistem. Detalhes nas migrations `0002` a `0007`.
 
 ### Banco compartilhado
 
@@ -184,6 +327,19 @@ Coleta e visualização: Prometheus e Grafana no mesmo `compose` da VPS
      ADR em docs/adr/ e aponte para ele. Decisão que afeta mais de um
      repositório vai para o docs/adr/ do docs/shared. -->
 
+Decisões que afetam só este repositório. As que cruzam repositórios estão nas
+ADRs do [`shared`](https://github.com/Project-PKA/shared/tree/main/docs/adr)
+(0002 a 0010).
+
 | Data | Decisão | Motivo | Alternativa descartada |
 | --- | --- | --- | --- |
-| <!-- --> | <!-- --> | <!-- --> | <!-- --> |
+| 2026-10-17 | Fastify + `@fastify/swagger` | OpenAPI gerado do código, validação por schema | Express |
+| 2026-10-17 | Drizzle com migrations SQL à mão (`up`/`down`) | Tipos do schema e SQL real para `pg_trgm`/GIN; regra do template exige `down` | Prisma (sem `down`) |
+| 2026-10-17 | BullMQ + Redis para jobs | Retry e reexecução do sync do TCGdex | `node-cron` |
+| 2026-10-17 | `short_code` sem `#` no banco | O `#` é só o prefixo da mensagem no grupo | Guardar com `#` |
+| 2026-10-17 | Lock da linha do leilão para decidir lances | Regra no código, simples de testar; o banco garante unicidade do valor | Trigger em PL/pgSQL |
+| 2026-10-17 | FK composta `(id, store_id)` entre tabelas de loja | Isolamento garantido pelo banco, não só pelo código | FK simples por `id` |
+| 2026-10-17 | UUID, enums nativos e `numeric(12,2)` | Sem ID previsível, estados fechados no banco, dinheiro sem ponto flutuante | `serial`, texto livre, `float` |
+| 2026-10-17 | OTP e refresh só em hash; tabelas `refresh_tokens` e `settlement_items` | Segurança (ADR 0008) e rastreio de acerto por carta | OTP em texto puro (doc 02 original) |
+| 2026-10-17 | Rotas só com `x-store-id`, sob `/v1` | Uma forma única para as rotas de negócio | `/api/stores/:storeId/...` |
+| 2026-10-17 | Erros em RFC 9457; paginação por cursor | Padrão aberto; estável com lances novos entrando | Formato próprio; offset |

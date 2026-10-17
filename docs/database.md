@@ -1,9 +1,14 @@
 # Banco de dados: ORM, migrations e seeds
 
-> Regras que valem para qualquer stack. O ORM e a ferramenta de migration
-> reais são escolhidos no [`BOOTSTRAP.md`](../BOOTSTRAP.md) e registrados em
-> [`STACK.md`](../STACK.md). Os comandos ficam em `project.mk`:
+> Regras do banco deste projeto: PostgreSQL 17 com **Drizzle** e migrations SQL
+> escritas à mão (`up.sql` e `down.sql`). A justificativa está em
+> [`STACK.md`](../STACK.md), seção 3. Os comandos ficam em `project.mk`:
 > `MIGRATE_CMD`, `MIGRATION_CMD` e `SEED_CMD`.
+>
+> Específico do projeto: `src/db/schema.ts` dá os tipos e precisa acompanhar
+> cada migration (um teste compara os dois); `src/db/migrator.ts` aplica,
+> reverte e confere o checksum; `src/db/seed.ts` é determinístico e o
+> `seed-cli` recusa rodar fora de `local`/`dev`/`test`.
 
 ## 1. O que o ORM precisa entregar
 

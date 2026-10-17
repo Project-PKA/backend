@@ -72,8 +72,8 @@ Valide com `make check-branch`.
 `build`, `ci`, `chore`, `revert`.
 
 ```
-feat(pedidos): adiciona cancelamento parcial
-fix(auth): trata token expirado como 401
+feat(estoque): adiciona cadastro de carta consignada
+fix(auth): trata código OTP expirado como 401
 feat(api)!: remove o campo legado de resposta
 ```
 
@@ -91,13 +91,14 @@ Não use `--no-verify`: o CI aplica as mesmas regras.
 
 ### 4. Mudou o schema ou a API?
 
-- **Schema:** `make migration NAME=...` e **atualize o seed no mesmo PR**
+- **Schema:** `make migration NAME=...`, escreva `up.sql` **e** `down.sql`, e
+  **atualize `src/db/schema.ts` e o seed no mesmo PR**
   ([`docs/database.md`](docs/database.md)). Mudança destrutiva segue
   expandir → contrair, em PRs separados.
 - **API:** `make openapi` e commite `docs/api/openapi.yaml`. O CI falha se ele
   divergir do código. Mudança incompatível é `feat!:` e precisa de aprovação
-  humana. Se o projeto tem docs/shared, discuta antes na issue
-  "Mudança de contrato de API" de lá.
+  humana. Discuta antes na issue "Mudança de contrato de API" do
+  [`shared`](https://github.com/Project-PKA/shared).
 
 ### 5. Antes de abrir o PR
 
