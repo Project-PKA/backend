@@ -1,7 +1,7 @@
 # Ambiente local.
 #
 #   docker compose up -d db                 # só o banco (funciona desde o dia 1)
-#   docker compose --profile app up --build # banco + API (exige ./Dockerfile — ver docker/README.md)
+#   docker compose --profile app up --build # banco + API (constrói ./Dockerfile; rode antes `npm run db:provision-dev`)
 
 services:
   # TODO(bootstrap): troque a imagem se o banco escolhido em STACK.md não for
@@ -25,13 +25,15 @@ services:
   app:
     profiles: [app]
     build: .
+    init: true
     ports:
       - "${PORT:-8080}:8080"
     env_file:
       - .env
     environment:
-      # Dentro da rede do compose o banco é "db", não "localhost".
-      DATABASE_URL: postgresql://${DB_USER:-app}:${DB_PASSWORD:-app}@db:5432/${DB_NAME:-app}
+      # Dentro da rede do compose o banco é "db", não "localhost". A API usa o papel
+      # app_api (sem BYPASSRLS), para o RLS valer. Crie-o antes: `npm run db:provision-dev`.
+      DATABASE_URL: postgresql://${DB_APP_USER:-app_api}:${DB_APP_PASSWORD:-app_api}@db:5432/${DB_NAME:-app}
     depends_on:
       db:
         condition: service_healthy
