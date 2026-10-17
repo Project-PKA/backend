@@ -1,0 +1,43 @@
+{
+  "name": "pokemon-auction-backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "API do pokemonAuction (nome provisório)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "openapi:generate": "tsx scripts/openapi.ts",
+    "db:migrate": "tsx src/db/cli.ts up",
+    "db:rollback": "tsx src/db/cli.ts down",
+    "db:status": "tsx src/db/cli.ts status",
+    "db:new": "tsx src/db/cli.ts new"
+  },
+  "dependencies": {
+    "@fastify/swagger": "^9.9.2",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.7",
+    "pg": "^8.23.1",
+    "prom-client": "^15.1.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@testcontainers/postgresql": "^12.2.1",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "@vitest/coverage-v8": "^5.0.5",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "eslint-plugin-sonarjs": "^4.2.2",
+    "prettier": "^3.9.10",
+    "testcontainers": "^12.2.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
+  }
+}

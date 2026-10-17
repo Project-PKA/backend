@@ -10,11 +10,4 @@
 # rodem a mesma coisa. Enquanto este arquivo estiver vazio, o CI pula a
 # instalacao e `make setup` precisa se virar sozinho.
 #
-# Exemplos — descomente e ajuste ao decidir a stack:
-#
-# nodejs 22.14.0
-# python 3.13.2
-# uv 0.6.5
-# golang 1.24.1
-# java temurin-21.0.6+7.0.LTS
-# dotnet 9.0.200
+nodejs 22.23.3
