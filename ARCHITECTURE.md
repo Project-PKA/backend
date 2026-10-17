@@ -112,19 +112,30 @@ erDiagram
 
 | Serviço | Tabelas | Leitura/escrita | Usuário/role |
 | --- | --- | --- | --- |
-| <!-- --> | <!-- --> | <!-- --> | <!-- --> |
+| `whatsapp_microservice` | `stores`, `customers`, `cards_inventory`, `auctions`, `bids` (campos exatos a detalhar com o schema) | Leitura e escrita só onde o fluxo do bot exige | Role própria, a criar na migration inicial |
+
+Referência: [ADR 0007](https://github.com/Project-PKA/shared/blob/main/docs/adr/0007-banco-compartilhado-e-sessao-whatsapp-por-qr-code.md).
+`tcgdex_catalog` é global (sem `store_id`), exceção consciente à regra de
+filtrar por loja ([ADR 0009](https://github.com/Project-PKA/shared/blob/main/docs/adr/0009-postgresql-hibrido-e-sync-do-tcgdex.md)).
 
 ## 6. Autenticação e autorização
 
-**Status: A DECIDIR** (BOOTSTRAP etapa 7).
+**Status: decidido** (cross-repo: [ADR 0008](https://github.com/Project-PKA/shared/blob/main/docs/adr/0008-autenticacao-passwordless-e-multi-tenant.md)).
 
-<!--
-  - Quem autentica: este serviço ou um identity provider/gateway
-  - Sessão: JWT stateless ou sessão em banco/Redis; onde fica o refresh token
-  - Modelo de permissão: RBAC ou ABAC; onde a autorização é verificada
-  - Entre serviços: token repassado, token de serviço, mTLS
-  - Decisão cross-repo? então é ADR no docs/shared, referenciado aqui
--->
+- **Quem autentica:** este serviço, sem identity provider externo.
+- **Login:** e-mail + OTP numérico por e-mail. O OTP é guardado como hash,
+  com expiração curta e limite de tentativas. Provedor de e-mail: A DECIDIR.
+- **Sessão:** access JWT de vida curta no header `Authorization`, mais refresh
+  token em cookie `httpOnly`. O refresh é rotacionado a cada uso e guardado
+  como hash no banco, para permitir revogar a sessão.
+- **Autorização:** RBAC por loja (`store_members`: `OWNER` ou `STAFF`, com
+  `permissions` em JSONB). Toda rota autenticada, exceto a de seleção de
+  loja, exige `x-store-id`; o middleware valida o acesso e toda query de
+  negócio filtra por `store_id`.
+- **Entre serviços:** não há chamada HTTP entre Backend e microservice por
+  enquanto; ambos usam o banco, cada um com sua role. Se surgir chamada
+  direta, vira ADR.
+- **Mudança aqui exige aprovação humana** (`AGENTS.md`, seção 6).
 
 ## 7. Gestão de secrets em produção
 
@@ -146,7 +157,8 @@ erDiagram
 Campos mínimos de log: `timestamp`, `level`, `service`, `trace_id`,
 `message`, `context`. Nunca segredo, token ou PII.
 
-<!-- Onde é coletado e visualizado (Grafana, Datadog, nuvem). -->
+Coleta e visualização: Prometheus e Grafana no mesmo `compose` da VPS
+(ver `STACK.md`, seção 6).
 
 ## 9. Decisões arquiteturais
 
