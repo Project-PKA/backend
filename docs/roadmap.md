@@ -13,7 +13,9 @@
 | Etapa | Conteúdo | Situação |
 | --- | --- | --- |
 | 1 | Scaffold, schema base (12 tabelas), migrations `up`/`down`, seed | **Feita** |
-| 2 | Identidade, convites, administração, multi-tenant, RBAC e RLS | **Em andamento** (dependências instaladas, nada de rota ainda) |
+| 2a | Identidade, login por convite, RLS, tenant e RBAC | **Feita** |
+| 2b | Convites e equipe por rota, criar loja, log de atividades | Pendente |
+| 2c | API `/v1/admin` e solicitações de acesso | Pendente |
 | 3 | Catálogo TCGdex, estoque e cadastro de carta | Pendente |
 | 4 | Clientes, visitantes, blacklist e carteira de consignação | Pendente |
 | 5 | Leilões e integração com o bot | Pendente |
@@ -26,7 +28,8 @@
 O adendo mudou o desenho que estava planejado (login aberto + `POST /stores`).
 A etapa fica em três entregas, nesta ordem:
 
-**2a. Base de identidade e isolamento**
+**2a. Base de identidade e isolamento** (feita em 2026-10-17: migrations 0008 e 0009,
+`src/auth/`, rotas `/v1/auth`, `/v1/me` e `/v1/store`, 137 testes)
 
 - Papéis de banco (`owner`, `app_runtime`) e **RLS** nas tabelas de loja, com
   contexto por transação ([ADR 0011](https://github.com/Project-PKA/shared/blob/main/docs/adr/0011-row-level-security-como-segunda-barreira.md)).
@@ -41,7 +44,8 @@ A etapa fica em três entregas, nesta ordem:
 
 **2b. Convites, lojas e equipe**
 
-- Convites (criar, reenviar, revogar, aceitar, expirar).
+- Convites por rota (o serviço de criar, mostrar e aceitar já existe; faltam as rotas de
+  equipe, reenviar e revogar).
 - Lojas: listar as minhas, criar (só com permissão global e dentro do limite),
   ler e editar. Equipe: convidar, ajustar permissões, remover.
 - Log de atividades (base) para ações sensíveis.

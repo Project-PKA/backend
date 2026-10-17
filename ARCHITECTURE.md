@@ -154,6 +154,15 @@ Regras de ORM, migrations e seeds em [`docs/database.md`](docs/database.md).
 erDiagram
     users ||--o{ refresh_tokens : "sessões"
     users ||--o{ store_members : "pertence a"
+    users ||--o{ invitations : "convida"
+    stores ||--o{ invitations : "convites da loja"
+    stores ||--o| whatsapp_sessions : "credencial"
+    users ||--o{ invitations : "convida"
+    stores ||--o{ invitations : "convites da loja"
+    stores ||--o| whatsapp_sessions : "credencial"
+    users ||--o{ invitations : "convida"
+    stores ||--o{ invitations : "convites da loja"
+    stores ||--o| whatsapp_sessions : "credencial"
     stores ||--o{ store_members : "equipe"
     stores ||--o{ customers : "clientes e visitantes"
     stores ||--o{ cards_inventory : "estoque"
@@ -174,7 +183,13 @@ erDiagram
     users {
         uuid id PK
         text email UK
-        text otp_hash
+        text name
+        enum status "INVITED ACTIVE SUSPENDED"
+        bool is_platform_admin
+        bool can_create_stores
+        int store_limit
+        timestamptz last_login_at
+        text otp_hash "HMAC, nunca o código"
         timestamptz otp_expires_at
         int otp_attempts
     }
@@ -184,11 +199,27 @@ erDiagram
         text token_hash UK
         timestamptz expires_at
         timestamptz revoked_at
+        text user_agent
+        text ip
+    }
+    invitations {
+        uuid id PK
+        text token_hash UK
+        text email
+        uuid store_id FK "vazio = só conta"
+        enum role "OWNER STAFF"
+        jsonb permissions
+        uuid invited_by FK
+        enum status "PENDING ACCEPTED REVOKED"
+        timestamptz expires_at
+    }
+    whatsapp_sessions {
+        uuid store_id PK
+        text session_data "criptografado, só o contexto da loja lê"
     }
     stores {
         uuid id PK
         text name
-        text whatsapp_session_data "criptografado"
         text whatsapp_group_id
         enum whatsapp_status "ONLINE OFFLINE QR_READY"
         int inactivity_days_limit
@@ -304,6 +335,42 @@ filtrar por loja ([ADR 0009](https://github.com/Project-PKA/shared/blob/main/doc
 - **Entre serviços:** não há chamada HTTP entre Backend e microservice por
   enquanto; ambos usam o banco, cada um com sua role. Se surgir chamada
   direta, vira ADR.
+- **Implementação** (`src/auth/`, `src/db/context.ts`): `AuthService` (OTP, JWT,
+  refresh, sessões), `InvitationService` (criar, mostrar, aceitar), hooks
+  `authenticate`, `requireStore`, `requirePermission`, `requireOwner` e
+  `requirePlatformAdmin`. As rotas usam `preValidation`, então quem não está
+  autenticado recebe 401 antes de qualquer erro de formato. O e-mail passa pela
+  interface `EmailSender`; o provedor real ainda não foi escolhido.
+- **Papéis do banco:** `owner` (migrations, seed e `db:create-admin`, com
+  `BYPASSRLS`) usa `MIGRATION_DATABASE_URL`; a API em execução usa
+  `DATABASE_URL`, o papel `app_api` do grupo `app_runtime`, **sem** `BYPASSRLS`.
+  `users`, `refresh_tokens` e `invitations` ficam fora do RLS (o login e o
+  convite acontecem antes de haver loja no contexto) e são protegidas por
+  código e teste.
+- **Implementação** (`src/auth/`, `src/db/context.ts`): `AuthService` (OTP, JWT,
+  refresh, sessões), `InvitationService` (criar, mostrar, aceitar), hooks
+  `authenticate`, `requireStore`, `requirePermission`, `requireOwner` e
+  `requirePlatformAdmin`. As rotas usam `preValidation`, então quem não está
+  autenticado recebe 401 antes de qualquer erro de formato. O e-mail passa pela
+  interface `EmailSender`; o provedor real ainda não foi escolhido.
+- **Papéis do banco:** `owner` (migrations, seed e `db:create-admin`, com
+  `BYPASSRLS`) usa `MIGRATION_DATABASE_URL`; a API em execução usa
+  `DATABASE_URL`, o papel `app_api` do grupo `app_runtime`, **sem** `BYPASSRLS`.
+  `users`, `refresh_tokens` e `invitations` ficam fora do RLS (o login e o
+  convite acontecem antes de haver loja no contexto) e são protegidas por
+  código e teste.
+- **Implementação** (`src/auth/`, `src/db/context.ts`): `AuthService` (OTP, JWT,
+  refresh, sessões), `InvitationService` (criar, mostrar, aceitar), hooks
+  `authenticate`, `requireStore`, `requirePermission`, `requireOwner` e
+  `requirePlatformAdmin`. As rotas usam `preValidation`, então quem não está
+  autenticado recebe 401 antes de qualquer erro de formato. O e-mail passa pela
+  interface `EmailSender`; o provedor real ainda não foi escolhido.
+- **Papéis do banco:** `owner` (migrations, seed e `db:create-admin`, com
+  `BYPASSRLS`) usa `MIGRATION_DATABASE_URL`; a API em execução usa
+  `DATABASE_URL`, o papel `app_api` do grupo `app_runtime`, **sem** `BYPASSRLS`.
+  `users`, `refresh_tokens` e `invitations` ficam fora do RLS (o login e o
+  convite acontecem antes de haver loja no contexto) e são protegidas por
+  código e teste.
 - **Segunda barreira: Row-Level Security** ([ADR 0011](https://github.com/Project-PKA/shared/blob/main/docs/adr/0011-row-level-security-como-segunda-barreira.md)),
   entregue na Etapa 2. Toda query de negócio roda em transação que define
   `app.store_id` (e `app.user_id` no login) com `set_config(..., true)`; sem

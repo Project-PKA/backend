@@ -33,6 +33,20 @@ escolha precisa de justificativa em `STACK.md`.
 Prisma, Drizzle e sqlc já nascem gerando tipos do schema. Com JPA ou GORM
 puro, esse cuidado vira item de revisão de PR.
 
+## 1.1. Tabela nova de loja
+
+Toda tabela de negócio nova (com `store_id`) exige, **na mesma migration**:
+
+- `GRANT` mínimo ao `app_runtime` (as tabelas não herdam privilégio);
+- `ENABLE` e `FORCE ROW LEVEL SECURITY` e a política `store_isolation`, como
+  nas migrations `0009_rls-e-papeis`;
+- FK composta `(id, store_id)` para tudo que ela referencia de outra tabela de loja;
+- teste de acesso cruzado em `test/rls.integration.test.ts`, com o papel real.
+
+O acesso passa por `withContext` (`src/db/context.ts`). Tabela global (como
+`tcgdex_catalog`) ou de autenticação (`users`, `refresh_tokens`, `invitations`)
+fica fora do RLS e precisa dizer isso na migration.
+
 ## 2. Migrations
 
 - `make migration NAME=descricao-curta` cria, `make migrate` aplica.

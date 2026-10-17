@@ -80,7 +80,7 @@ printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/known_hosts"
 ssh -i "$key" -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o StrictHostKeyChecking=yes \
   "$SSH_USER@$SSH_HOST" \
   "export IMAGE='$IMAGE' \
-   && docker compose -f /srv/app/compose.yaml run --rm api node dist/db/cli.js up \
+   && docker compose -f /srv/app/compose.yaml run --rm -e DATABASE_URL="$MIGRATION_DATABASE_URL" api node dist/db/cli.js up \
    && docker compose -f /srv/app/compose.yaml up -d api"
 ```
 
@@ -100,15 +100,21 @@ Obrigatórios antes do primeiro deploy em `homolog` ou `prod` (lista completa em
   produção não.
 - HTTPS por reverse proxy (a decidir: Caddy ou Nginx) com renovação automática
   de certificado. `/metrics` só na rede interna.
-- O app conecta ao Postgres com usuário **sem** `SUPERUSER`. A credencial que
-  roda migrations é separada e só existe durante o deploy.
+- O app conecta ao Postgres como `app_api` (grupo `app_runtime`), **sem**
+  `SUPERUSER` e **sem** `BYPASSRLS`: é isso que faz o RLS valer (ADR 0011). O
+  dono do schema (`MIGRATION_DATABASE_URL`, com `BYPASSRLS`) roda migrations e
+  `db:create-admin` e só existe durante o deploy. A criação do `app_api`, com
+  a senha do secret, está em `docs/secrets.md`.
+- O primeiro administrador da plataforma é criado na VPS com
+  `node dist/db/create-admin.js <email>`, nunca por tela ou API.
 - Backup do banco automático, criptografado e com **restauração testada**.
 
 ## Checklist ao implementar o deploy
 
 - [ ] `Dockerfile` multi-stage que copia `dist/` e `migrations/` e roda como usuário não root
 - [ ] `scripts/deploy.sh` implanta de verdade e falha com código diferente de 0 no erro
-- [ ] Migrations rodam antes da troca de versão, com a mesma imagem
+- [ ] Migrations rodam antes da troca de versão, com a mesma imagem e com o papel dono
+- [ ] O papel `app_api` existe e a API sobe com ele (confirme que `rolbypassrls` é falso)
 - [ ] Nenhum segredo no código nem em log (use secrets do Environment)
 - [ ] Os quatro Environments existem, com aprovação em `homolog` e `prod`
 - [ ] `APP_BASE_URL` configurada (sem ela o smoke test é pulado em silêncio)

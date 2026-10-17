@@ -35,10 +35,15 @@ Requisitos: Node 22 (`mise install` lê o `.tool-versions`), Docker e `make`
 cp .env.example .env
 make setup                   # instala dependências e ativa os hooks de git
 docker compose up -d db      # Postgres local
-make migrate                 # cria o schema
+make migrate                 # cria o schema (usa MIGRATION_DATABASE_URL)
+npm run db:provision-dev     # cria o papel app_api, que sofre o RLS
 make seed                    # dados de desenvolvimento (apaga o banco!)
-make run                     # API em http://localhost:8080
+make run                     # API em http://localhost:8080 (usa DATABASE_URL)
 ```
+
+O provedor de e-mail local imprime o código de login no log da API (só em
+desenvolvimento). Contas do seed: `dono@example.com` (proprietário de duas
+lojas), `funcionario@example.com` e `admin@example.com`.
 
 Conferindo:
 
@@ -55,9 +60,10 @@ rodando).
 
 | Pronto | Falta (ver [`docs/roadmap.md`](docs/roadmap.md)) |
 | --- | --- |
-| Health, ready, metrics, erros `problem+json` | Login por convite (e-mail + OTP), sessões e RLS (Etapa 2, em andamento) |
-| Schema base (12 tabelas) com migrations `up`/`down` e seed | Área `/admin`, convites e solicitações de acesso |
-| Contrato OpenAPI gerado do código | Lojas, equipe, estoque, clientes |
+| Health, ready, metrics, erros `problem+json` | Convites e equipe por rota, criar loja (Etapa 2b) |
+| Schema (14 tabelas) com migrations `up`/`down`, RLS e seed | API `/v1/admin` e solicitações de acesso (Etapa 2c) |
+| Login por código, sessão com refresh rotacionado, convites, tenant e RBAC | Estoque, clientes |
+| Contrato OpenAPI gerado do código (13 rotas) | |
 | Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
 | | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |
 | | Dockerfile e deploy (a VPS ainda não existe) |

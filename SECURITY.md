@@ -46,29 +46,29 @@ tarefa que o toca não está pronta sem ele.
 | Requisito | Status |
 | --- | --- |
 | Toda tabela de negócio tem `store_id`; FK composta `(id, store_id)` impede lance, leilão, acerto ou carta apontar para outra loja | **feito** (migrations 0004 a 0007, com teste) |
-| Middleware valida `x-store-id` contra `store_members` em toda rota autenticada, **negando por padrão** | Etapa 2 |
+| Middleware valida `x-store-id` contra `store_members` em toda rota autenticada, **negando por padrão** (header ausente, malformado ou de loja alheia dão a mesma resposta 403) | **feito** (`requireStore`, com teste) |
 | Toda query de negócio filtra por `store_id`; teste de acesso cruzado entre lojas em cada rota nova (IDOR) | Etapa 2 em diante |
-| **Row-Level Security** do Postgres como segunda barreira, com `FORCE`, contexto `app.store_id` por transação e papéis `owner`, `app_runtime` e `bot` ([ADR 0011](https://github.com/Project-PKA/shared/blob/main/docs/adr/0011-row-level-security-como-segunda-barreira.md)); teste de acesso cruzado rodando com papel **sem** `BYPASSRLS` | Etapa 2 (decidido) |
+| **Row-Level Security** do Postgres como segunda barreira, com `FORCE`, contexto por transação (`withContext`) e papéis `owner` e `app_runtime` ([ADR 0011](https://github.com/Project-PKA/shared/blob/main/docs/adr/0011-row-level-security-como-segunda-barreira.md)); teste de acesso cruzado com o papel real, **sem** `BYPASSRLS` | **feito** (migration 0009 e `test/rls.integration.test.ts`); o papel `bot` entra na Etapa 5 |
 
 ### Autenticação e sessão (ADR 0008)
 
 | Requisito | Status |
 | --- | --- |
-| OTP e refresh token guardados só como **hash** (colunas `otp_hash`, `token_hash`) | **feito** (schema); hash HMAC com segredo próprio na Etapa 2 |
-| OTP gerado com gerador criptográfico, 6 dígitos, **expira em minutos**, **limite de tentativas** (`otp_attempts`) e comparação em tempo constante | Etapa 2 |
-| Resposta de login **idêntica** exista a conta ou não (sem enumeração de e-mail); e-mail sem conta **não recebe código e não cria usuário** (acesso só por convite, ADR 0012) | Etapa 2 |
-| Usuário `SUSPENDED` não loga e tem as sessões revogadas na hora; `INVITED` só entra pelo convite | Etapa 2 |
-| Rate limit por e-mail e por IP no pedido e na verificação do OTP | Etapa 2 |
-| JWT de acesso curto (≤ 15 min), algoritmo fixo no servidor (nunca `none`), `exp`, `iss` e `aud` verificados | Etapa 2 |
-| Refresh token rotacionado a cada uso; **reuso de token já trocado revoga a família inteira**; logout revoga | Etapa 2 |
-| Cookie do refresh: `HttpOnly`, `Secure`, `SameSite` restrito | Etapa 2 |
-| RBAC verificado **no servidor** em cada ação (`can_delete`, `can_view_finance`...); nunca confiar no que o frontend esconde | Etapa 2 |
+| OTP e refresh token guardados só como **hash** HMAC com segredo próprio, amarrado ao e-mail (OTP) e a um domínio (`refresh`, `invitation`) | **feito** (`src/auth/crypto.ts`, com teste) |
+| OTP gerado com `crypto.randomInt`, 6 dígitos, **expira em 10 min**, **5 tentativas** e comparação em tempo constante (custo igual com ou sem conta) | **feito** |
+| Resposta de login **idêntica** exista a conta ou não (sem enumeração de e-mail); e-mail sem conta **não recebe código e não cria usuário** (acesso só por convite, ADR 0012). O envio do e-mail não é aguardado, para o tempo de resposta não revelar a conta | **feito** (limite residual: pequena diferença de tempo no acesso ao banco, contida pelo rate limit) |
+| Usuário `SUSPENDED` não loga e perde o acesso na hora (o estado é conferido a cada requisição); `INVITED` só entra pelo convite | **feito**; a rota que suspende e revoga as sessões vem na Etapa 2c (`revokeAllSessions` já existe) |
+| Rate limit por IP no pedido e na verificação do OTP, mais intervalo mínimo por e-mail e contagem de tentativas | **feito** (429 em `problem+json`); depende de `TRUST_PROXY=true` atrás do proxy |
+| JWT de acesso curto (15 min), algoritmo fixo no servidor (HS256, nunca `none`), `exp`, `iss` e `aud` verificados | **feito** (teste com `alg: none`, assinatura alheia e token vencido) |
+| Refresh token rotacionado a cada uso; **reuso de token já trocado revoga todas as sessões da pessoa**; logout revoga | **feito** (duas abas renovando ao mesmo tempo podem disparar a revogação: o usuário só precisa entrar de novo) |
+| Cookie do refresh: `HttpOnly`, `Secure` (fora de desenvolvimento), `SameSite=Strict`, restrito a `/v1/auth` | **feito** |
+| RBAC verificado **no servidor** em cada ação (`requirePermission`, `requireOwner`); nunca confiar no que o frontend esconde | **feito** (hooks); cada rota nova precisa aplicá-los |
 
 ### Dados pessoais e LGPD
 
 | Requisito | Status |
 | --- | --- |
-| Nenhum telefone, e-mail, CPF, token, cookie, header `Authorization` ou texto de lance em log (redação de campos no logger) | Etapa 2 |
+| Nenhum telefone, e-mail, CPF, token, cookie, header `Authorization` ou texto de lance em log | **parcial**: `Authorization`, `Cookie` e `Set-Cookie` são redigidos e um teste manual confirmou que o token não aparece. O provedor `log` de e-mail imprime o código (só em desenvolvimento; recusado em homolog e prod). Falta revisar os logs de cada rota nova |
 | `bids.raw_whatsapp_message` e dados de visitante tratados como pessoais: política de retenção e exclusão | pendente (decisão de negócio) |
 | Base legal do tratamento, atendimento a direitos do titular (acesso, correção, exclusão) e papel de controlador/operador entre SaaS e loja | pendente (decisão de negócio) |
 | Validação de CPF, telefone e CEP na entrada | Etapa 4 |
@@ -78,7 +78,7 @@ tarefa que o toca não está pronta sem ele.
 
 | Requisito | Status |
 | --- | --- |
-| `stores.whatsapp_session_data` guardado **criptografado** (AES-256-GCM, chave `WHATSAPP_SESSION_ENCRYPTION_KEY` fora do banco) | Etapa 5 (coluna já existe) |
+| `whatsapp_sessions.session_data` (tabela própria, só visível com o contexto da própria loja, nem o administrador a lê) guardado **criptografado** (AES-256-GCM, chave `WHATSAPP_SESSION_ENCRYPTION_KEY` fora do banco) | tabela e isolamento **feitos**; a criptografia entra na Etapa 5 |
 | Role do banco do bot com **privilégio mínimo**: só as tabelas e colunas que o fluxo exige, sem DDL, sem `SUPERUSER` | Etapa 5 |
 | Decisão de lance dentro de transação com lock da linha do leilão; valor, incremento e blacklist validados no servidor | Etapa 5 |
 | O ID da carta e o texto da mensagem são tratados como entrada não confiável (regex estrita, tamanho máximo, sem eval/SQL concatenado) | Etapa 5 |
@@ -91,7 +91,8 @@ tarefa que o toca não está pronta sem ele.
 | Entrada validada por schema; campo extra descartado | **feito** (Ajv `removeAdditional`) |
 | Erro 5xx nunca devolve mensagem interna nem stack | **feito** (`src/http/problem.ts`, com teste) |
 | SQL só parametrizado (Drizzle ou `pg` com `$1`); nunca concatenar entrada | **feito** até aqui; vale para todo código novo |
-| Cabeçalhos de segurança (`@fastify/helmet`), CORS com **lista explícita de origens**, limite de corpo e timeouts, rate limit global | Etapa 2 (exige aprovar dependências) |
+| Cabeçalhos de segurança (`@fastify/helmet`), CORS com **lista explícita de origens** (nunca `*`) e rate limit global | **feito** (com teste) |
+| Limite de corpo e timeouts de requisição configurados de propósito (hoje valem os padrões do Fastify: 1 MB e sem timeout de handler) | pendente |
 | `/metrics` **não** exposto na internet: só rede interna ou autenticado | infra |
 | Upload de foto: tipo e tamanho validados, nome gerado pelo servidor, sem caminho vindo do usuário | Etapa 3 |
 | Sync do TCGdex busca **só** a URL fixa do repositório oficial (sem SSRF) e valida o formato antes do `INSERT` | Etapa 3 |
@@ -111,13 +112,13 @@ tarefa que o toca não está pronta sem ele.
 
 | Requisito | Status |
 | --- | --- |
-| Token de convite aleatório de alta entropia, guardado só como hash, com **expiração**, uso único e revogação | Etapa 2 |
-| `is_platform_admin` só por comando de linha, **nunca** por API ou tela; sem "primeiro usuário vira admin" | Etapa 2 |
-| Fronteira do administrador no banco: lê `stores` e `store_members`, cria loja, e **não acessa** estoque, clientes, leilões, lances e acertos (teste de contrato com o papel real) | Etapa 2 |
-| Toda ação do administrador e toda transferência de propriedade vai para o log de atividades, que o proprietário não consegue editar | Etapa 2 |
-| Nunca deixar uma loja sem proprietário; remover o último `OWNER` é recusado | Etapa 2 |
-| Criar loja só com `can_create_stores` e abaixo do `store_limit`, verificado no servidor e dentro de transação (sem corrida) | Etapa 2 |
-| Formulário público "Solicitar acesso": limite por IP, campo-isca, validação e tamanho máximo; não cria usuário nem loja | Etapa 2 |
+| Token de convite aleatório de alta entropia (256 bits), guardado só como hash, com **expiração**, uso único e revogação; vai no fragmento do link (`#token=`), que não chega ao log do servidor nem ao `Referer` | **feito** |
+| `is_platform_admin` só por comando de linha (`npm run db:create-admin`), **nunca** por API ou tela; sem "primeiro usuário vira admin" | **feito** |
+| Fronteira do administrador no banco: lê `stores` e `store_members`, cria loja, e **não acessa** estoque, clientes, leilões, lances, acertos nem a sessão do WhatsApp (teste com o papel real) | **feito** |
+| Toda ação do administrador e toda transferência de propriedade vai para o log de atividades, que o proprietário não consegue editar | Etapa 2b e 2c |
+| Nunca deixar uma loja sem proprietário; remover o último `OWNER` é recusado | Etapa 2b |
+| Criar loja só com `can_create_stores` e abaixo do `store_limit`, verificado no servidor e dentro de transação (sem corrida) | Etapa 2b (colunas já existem) |
+| Formulário público "Solicitar acesso": limite por IP, campo-isca, validação e tamanho máximo; não cria usuário nem loja | Etapa 2c |
 | Conta de administrador com proteção reforçada: sessão curta e avaliação de segundo fator | pendente |
 
 ### Páginas públicas (ADR 0014)

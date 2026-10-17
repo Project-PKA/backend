@@ -34,10 +34,11 @@ administrador da plataforma, e há **páginas públicas** por link (vitrine,
 acerto do cliente, acompanhamento do consignador). O que falta e em que
 ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 
-**Estado atual:** scaffold pronto (health, ready, metrics, erros em
-`problem+json`, runner de migrations) e schema completo com seed. Faltam
-autenticação por convite, administração, CRUDs e o motor de leilões (Etapas
-2 a 8 do roteiro). A VPS
+**Estado atual:** Etapas 1 e 2a prontas: scaffold, schema com seed, RLS e papéis
+de banco, login por código, sessão com refresh rotacionado, convites, middleware
+de loja e RBAC, e as rotas `/v1/auth`, `/v1/me` e `/v1/store`. Faltam convites
+e equipe por rota (2b), a API `/v1/admin` (2c), estoque, clientes, leilões,
+acertos e painéis (Etapas 3 a 8 do roteiro). A VPS
 ainda não existe, então não há deploy.
 
 ## 2. Comandos
@@ -51,6 +52,8 @@ Todos passam pelo contrato do `Makefile`; os comandos reais ficam em
 | `docker compose up -d db` | Sobe o Postgres local | Porta 5432 |
 | `make migrate` | Aplica as migrations pendentes | `npm run db:rollback` reverte a última |
 | `make seed` | Recria os dados de desenvolvimento | **Apaga o banco.** Recusa `APP_ENV` fora de `local`/`dev`/`test` |
+| `npm run db:provision-dev` | Cria o papel `app_api` (sem `BYPASSRLS`) para o `make run` | Só dev; roda uma vez depois do `make migrate` |
+| `npm run db:create-admin -- <email> [nome]` | Cria ou promove o administrador da plataforma | Único caminho para isso; usa `MIGRATION_DATABASE_URL` |
 | `make migration NAME=cria-x` | Cria `migrations/000N_cria-x/{up,down}.sql` | Atualize `src/db/schema.ts` e o seed no mesmo PR |
 | `make run` | API em modo watch | Porta 8080 |
 | `make build` | Compila para `dist/` | |
@@ -105,6 +108,20 @@ token). O administrador **não** lê nem altera dados internos das lojas, e
 isso vale no banco (RLS), não só na rota. Rota pública nunca consulta tabela
 direto: usa função `SECURITY DEFINER` auditada (ADR 0014).
 
+**Autenticação e acesso a dados**
+
+- Rota autenticada usa `preValidation: [hooks.authenticate]` e, se for de uma
+  loja, `hooks.requireStore` (depois `requirePermission(...)` ou `requireOwner`).
+  É `preValidation` de propósito: 401 e 403 vêm antes de erro de validação.
+- **Todo acesso a tabela de loja passa por `withContext(db, { storeId, userId }, fn)`**
+  (`src/db/context.ts`). Fora dele o RLS devolve zero linhas. Nunca use
+  `db` direto em `customers`, `cards_inventory`, `auctions`, `bids`,
+  `settlements`, `settlement_items`, `stores` ou `store_members`.
+- Acesso é só por convite: pedir OTP para e-mail sem conta ativa responde
+  igual e não envia nada. Não crie rota que cadastre usuário aberto.
+- Resposta de erro de autenticação é genérica e idêntica (nada de "e-mail não
+  existe"). Segredo e token só em hash no banco.
+
 **Banco** (`docs/database.md`)
 
 - Migration SQL à mão, numerada, com `up.sql` **e** `down.sql` testados.
@@ -118,7 +135,9 @@ direto: usa função `SECURITY DEFINER` auditada (ADR 0014).
 
 **Ambiente:** variável nova entra em três lugares: `.env.example`,
 `src/config/env.ts` (falha no boot se faltar) e nos Secrets/Variables do
-GitHub Environment (nomes em `docs/secrets.md`).
+GitHub Environment (nomes em `docs/secrets.md`). `DATABASE_URL` é o papel da API
+(sujeito ao RLS); `MIGRATION_DATABASE_URL` é o dono do schema (migrations, seed,
+`db:create-admin`) e **nunca** vai para a API em execução.
 
 **Segurança** (`SECURITY.md` tem a lista completa): nunca registre em log
 telefone, e-mail, CPF, token ou mensagem de lance; segredo nunca em código,
@@ -160,7 +179,8 @@ verdade. Rode os comandos; não suponha o resultado.
 
 - [ ] `make validate` passa
 - [ ] Teste novo cobrindo o comportamento adicionado ou o bug corrigido
-- [ ] Schema mudou: migration com `up` **e** `down`, `src/db/schema.ts` e seed atualizados
+- [ ] Schema mudou: migration com `up` **e** `down`, `src/db/schema.ts` e seed atualizados;
+      tabela nova: `GRANT` ao `app_runtime` e, se for de loja, RLS com `FORCE`
 - [ ] Rota nova: schema de entrada e saída, `store_id` filtrado, autorização
       checada no servidor e teste de acesso cruzado entre lojas
 - [ ] Contrato mudou: `make openapi` rodado e o arquivo commitado
@@ -210,6 +230,12 @@ reverter, pergunte primeiro.
 - **Arquivos `.sql` no Windows:** nunca regrave um `.sql` com `Set-Content`
   do PowerShell 5: ele grava ANSI ou BOM e o Postgres falha com "syntax error
   at or near" um caractere invisível. Um teste confere UTF-8 sem BOM.
+- **Dois papéis de banco:** o container de desenvolvimento cria `app` como
+  superusuário, que **ignora o RLS**. Para a API enxergar o RLS de verdade, rode
+  `npm run db:provision-dev` e use `DATABASE_URL` com `app_api`. Teste de RLS
+  só vale com papel sem `BYPASSRLS`.
+- **E-mail com espaço no começo ou no fim** é recusado pela validação (400); o
+  frontend deve fazer `trim`. Maiúsculas são aceitas e normalizadas.
 - **Testes de integração precisam do Docker** rodando (Testcontainers). Na
   primeira vez, baixar a imagem `postgres:17-alpine` leva alguns minutos.
 - **O Drizzle não gera `down`.** Escreva e teste o `down.sql` à mão; o teste
