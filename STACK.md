@@ -153,11 +153,22 @@ secrets ficam para quando o produto estiver mais avançado.
 conectadas passar do que a RAM comporta.
 Receita e rollback em [`DEPLOY.md`](DEPLOY.md).
 
-## 8. Dispensas conscientes
+## 8. Ressalvas de versão
+
+- **TypeScript 6.0, não 7:** o `typescript-eslint` só aceita TypeScript
+  `<6.1`. Reabrir quando ele suportar o 7.
+- **`prom-client` 15 está marcado como deprecado** pelo npm (substituído por
+  `@prometheus-io/client`). Mantido por ora; avaliar a troca na Etapa de
+  observabilidade, antes de produção.
+- **Node 22.23.3** fixado em `.tool-versions`. O `package-lock.json` foi gerado
+  com npm 12; confirmar que o `npm ci` do CI (Node 22) lê o lockfile.
+
+## 9. Dispensas conscientes
 
 <!-- Todo `skip` em project.mk e todo "não usamos X" da fundação (ex.:
      `sonar: false`) com o motivo e quando revisitar. -->
 
 | O que foi dispensado | Motivo | Revisitar quando |
 | --- | --- | --- |
+| `SEED_CMD` pendente (não é `skip`) | Ainda não há tabelas; entra com o schema na Etapa 1 do backlog | Etapa 1 do backlog |
 | Deploy (`scripts/deploy.sh` e passo `Publicar` do `deploy.yml` em `skip`) | A VPS ainda não existe (decisão do usuário em 2026-10-17) | A VPS for contratada |
