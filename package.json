@@ -15,7 +15,8 @@
     "db:migrate": "tsx src/db/cli.ts up",
     "db:rollback": "tsx src/db/cli.ts down",
     "db:status": "tsx src/db/cli.ts status",
-    "db:new": "tsx src/db/cli.ts new"
+    "db:new": "tsx src/db/cli.ts new",
+    "db:seed": "tsx src/db/seed-cli.ts"
   },
   "dependencies": {
     "@fastify/swagger": "^9.9.2",
@@ -30,7 +31,6 @@
     "@types/node": "^22.20.5",
     "@types/pg": "^8.23.1",
     "@vitest/coverage-v8": "^5.0.5",
-    "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.5",
     "eslint-plugin-sonarjs": "^4.2.2",
     "prettier": "^3.9.10",

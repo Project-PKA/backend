@@ -80,9 +80,8 @@ MIGRATE_CMD = npm run db:migrate
 MIGRATION_CMD = npm run db:new -- $(NAME)
 
 # Popula o banco com os dados de desenvolvimento (todos os estados relevantes).
-# PENDENTE de proposito: ainda nao ha tabelas. Entra na Etapa 1 do backlog,
-# junto com o schema (um `skip` aqui seria falsa seguranca).
-SEED_CMD =
+# Apaga e recria os dados: o seed-cli recusa APP_ENV fora de local, dev e test.
+SEED_CMD = npm run db:seed
 
 # -----------------------------------------------------------------------------
 # Contrato de API

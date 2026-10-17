@@ -12,7 +12,7 @@ export default defineConfig({
       reporter: ['text-summary', 'lcov', 'json-summary'],
       include: ['src/**/*.ts'],
       // Pontos de entrada finos: não têm lógica própria para testar.
-      exclude: ['src/server.ts', 'src/db/cli.ts'],
+      exclude: ['src/server.ts', 'src/db/cli.ts', 'src/db/seed-cli.ts'],
       thresholds: { lines: 70, statements: 70, functions: 70, branches: 70 },
     },
   },
