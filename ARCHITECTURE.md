@@ -288,6 +288,13 @@ filtrar por loja ([ADR 0009](https://github.com/Project-PKA/shared/blob/main/doc
 - **Entre serviços:** não há chamada HTTP entre Backend e microservice por
   enquanto; ambos usam o banco, cada um com sua role. Se surgir chamada
   direta, vira ADR.
+- **Segunda barreira: Row-Level Security** ([ADR 0011](https://github.com/Project-PKA/shared/blob/main/docs/adr/0011-row-level-security-como-segunda-barreira.md)),
+  entregue na Etapa 2. Toda query de negócio roda em transação que define
+  `app.store_id` (e `app.user_id` no login) com `set_config(..., true)`; sem
+  contexto o banco devolve zero linhas. As tabelas de loja usam `FORCE ROW
+  LEVEL SECURITY`, e o Backend conecta com o papel `app_runtime` (sem
+  `BYPASSRLS`, sem `SUPERUSER`); migrations e seed usam o papel `owner`. O
+  filtro por `store_id` no código **continua obrigatório**.
 - **Mudança aqui exige aprovação humana** (`AGENTS.md`, seção 6).
 
 ## 7. Gestão de secrets em produção
@@ -338,6 +345,7 @@ ADRs do [`shared`](https://github.com/Project-PKA/shared/tree/main/docs/adr)
 | 2026-10-17 | BullMQ + Redis para jobs | Retry e reexecução do sync do TCGdex | `node-cron` |
 | 2026-10-17 | `short_code` sem `#` no banco | O `#` é só o prefixo da mensagem no grupo | Guardar com `#` |
 | 2026-10-17 | Lock da linha do leilão para decidir lances | Regra no código, simples de testar; o banco garante unicidade do valor | Trigger em PL/pgSQL |
+| 2026-10-17 | Row-Level Security como segunda barreira de isolamento | Esquecer um filtro por `store_id` deixa de vazar dado entre lojas | Só filtro no código e FK composta |
 | 2026-10-17 | FK composta `(id, store_id)` entre tabelas de loja | Isolamento garantido pelo banco, não só pelo código | FK simples por `id` |
 | 2026-10-17 | UUID, enums nativos e `numeric(12,2)` | Sem ID previsível, estados fechados no banco, dinheiro sem ponto flutuante | `serial`, texto livre, `float` |
 | 2026-10-17 | OTP e refresh só em hash; tabelas `refresh_tokens` e `settlement_items` | Segurança (ADR 0008) e rastreio de acerto por carta | OTP em texto puro (doc 02 original) |

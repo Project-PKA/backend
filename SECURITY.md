@@ -46,7 +46,7 @@ tarefa que o toca não está pronta sem ele.
 | Toda tabela de negócio tem `store_id`; FK composta `(id, store_id)` impede lance, leilão, acerto ou carta apontar para outra loja | **feito** (migrations 0004 a 0007, com teste) |
 | Middleware valida `x-store-id` contra `store_members` em toda rota autenticada, **negando por padrão** | Etapa 2 |
 | Toda query de negócio filtra por `store_id`; teste de acesso cruzado entre lojas em cada rota nova (IDOR) | Etapa 2 em diante |
-| Avaliar **Row-Level Security** do Postgres como segunda barreira (decisão em aberto: ver abaixo) | Etapa 2 |
+| **Row-Level Security** do Postgres como segunda barreira, com `FORCE`, contexto `app.store_id` por transação e papéis `owner`, `app_runtime` e `bot` ([ADR 0011](https://github.com/Project-PKA/shared/blob/main/docs/adr/0011-row-level-security-como-segunda-barreira.md)); teste de acesso cruzado rodando com papel **sem** `BYPASSRLS` | Etapa 2 (decidido) |
 
 ### Autenticação e sessão (ADR 0008)
 
@@ -106,15 +106,10 @@ tarefa que o toca não está pronta sem ele.
 
 ### Decisões de segurança em aberto
 
-1. **Row-Level Security no Postgres:** hoje o isolamento depende de toda query
-   filtrar por `store_id` e da FK composta. RLS (`SET LOCAL app.store_id` por
-   transação) protegeria mesmo se um desenvolvedor esquecer o filtro, ao custo
-   de mais complexidade nos testes e no bot. Recomendação: decidir antes da
-   Etapa 2.
-2. **Criptografia de CPF e telefone em repouso** (além do disco da VPS):
+1. **Criptografia de CPF e telefone em repouso** (além do disco da VPS):
    protege contra vazamento de backup, ao custo de não poder buscar por ele
    direto. Decidir com a revisão de LGPD.
-3. **Provedor de e-mail do OTP** (entregabilidade e, por ser porta de entrada,
+2. **Provedor de e-mail do OTP** (entregabilidade e, por ser porta de entrada,
    também segurança).
 
 ## Checklist OWASP Top 10

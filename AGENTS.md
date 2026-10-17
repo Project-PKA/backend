@@ -86,7 +86,9 @@ Todos passam pelo contrato do `Makefile`; os comandos reais ficam em
 - **Isolamento por loja:** toda rota autenticada de negócio exige
   `x-store-id`, o middleware valida a participação em `store_members`, e
   **toda query filtra por `store_id`**. A única tabela global é
-  `tcgdex_catalog`.
+  `tcgdex_catalog`. Além do filtro, vale o **RLS do Postgres** (ADR 0011, a
+  partir da Etapa 2): query de negócio roda em transação com
+  `app.store_id` definido, e o filtro no código não é dispensado por isso.
 
 **Banco** (`docs/database.md`)
 
@@ -172,7 +174,7 @@ Propor o diff e explicar o motivo está liberado; aplicar sem confirmação, nã
 - Apagar teste, ou marcá-lo como `skip` para fazer o CI passar
 - Rodar o seed fora de ambiente de desenvolvimento
 - Qualquer coisa que envolva dado real de usuário (CPF, telefone, endereço)
-- Criar ou alterar a role do banco usada pelo `whatsapp_microservice`
+- Criar ou alterar papéis de banco (`owner`, `app_runtime`, `bot`), políticas de RLS ou dar `BYPASSRLS` a qualquer papel
 
 **Regra geral:** se o erro sai caro, sai em produção ou é difícil de
 reverter, pergunte primeiro.
