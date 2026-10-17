@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# Valida o nome da branch e roda a checagem de tipos antes do push.
+# Falhar aqui custa menos do que descobrir no CI depois de abrir o PR.
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+
+sh scripts/check-branch-name.sh
+
+command -v make >/dev/null 2>&1 || exit 0
+
+if [ -n "$(make -s print-TYPECHECK_CMD 2>/dev/null || true)" ]; then
+  make typecheck
+else
+  echo 'pre-push: TYPECHECK_CMD ainda nao configurado em project.mk; pulando.'
+fi

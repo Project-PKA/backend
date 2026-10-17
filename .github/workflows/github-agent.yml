@@ -1,0 +1,47 @@
+# =============================================================================
+# Agente de automacao do GitHub (Actions puro, sem IA).
+#
+#   ci.yml           -> ENFORCEMENT. Falha e bloqueia o merge.
+#   github-agent.yml -> FEEDBACK. Comenta, rotula, organiza. Nunca bloqueia.
+#
+# Rotula issues, adiciona issues/PRs ao GitHub Project, comenta o diagnostico
+# de convencoes e os reviewers sugeridos, publica resultado do CI e cobertura
+# como comentario fixo, e fecha issues vinculadas no merge.
+#
+# A logica mora em IgorOCosta/workflows (github-agent.yml@v1).
+#
+# Requisitos (SETUP-GITHUB.md): variable PROJECT_URL e secret AUTOMATION_TOKEN,
+# de preferencia no nivel da organizacao. Sem eles, so o passo do Project e
+# pulado.
+# =============================================================================
+name: GitHub Agent
+
+on:
+  issues:
+    types: [opened, reopened, edited]
+  pull_request:
+    types: [opened, reopened, edited, synchronize, closed]
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.id || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    uses: IgorOCosta/workflows/.github/workflows/github-agent.yml@v1
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+    with:
+      project-url: ${{ vars.PROJECT_URL }}
+      coverage-threshold: ${{ vars.COVERAGE_THRESHOLD || '70' }}
+    secrets:
+      AUTOMATION_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
