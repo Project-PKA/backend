@@ -4,6 +4,11 @@ info:
   description: API do SaaS de leilões de cartas TCG via WhatsApp (nome provisório).
   version: 0.0.0
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas: {}
 paths:
   /health:
@@ -69,6 +74,810 @@ paths:
                     type: string
                   code:
                     type: string
+  /v1/auth/otp/request:
+    post:
+      operationId: requestOtp
+      summary: Pede um código de login por e-mail
+      tags:
+        - auth
+      description: Resposta sempre igual, exista ou não conta ativa para o e-mail. O
+        acesso é somente por convite.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              additionalProperties: false
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+      responses:
+        "202":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - accepted
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auth/otp/verify:
+    post:
+      operationId: verifyOtp
+      summary: Troca o código por uma sessão
+      tags:
+        - auth
+      description: Devolve o access token e grava o refresh token em cookie httpOnly.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - code
+              additionalProperties: false
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                code:
+                  type: string
+                  pattern: ^[0-9]{6}$
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - access_token
+                  - token_type
+                  - expires_in
+                  - user
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    enum:
+                      - Bearer
+                  expires_in:
+                    type: integer
+                    description: Segundos até o access token vencer
+                  user:
+                    type: object
+                    required:
+                      - id
+                      - email
+                      - name
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      email:
+                        type: string
+                      name:
+                        type: string
+                        nullable: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auth/refresh:
+    post:
+      operationId: refreshSession
+      summary: Renova a sessão com o refresh token do cookie
+      tags:
+        - auth
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - access_token
+                  - token_type
+                  - expires_in
+                  - user
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    enum:
+                      - Bearer
+                  expires_in:
+                    type: integer
+                    description: Segundos até o access token vencer
+                  user:
+                    type: object
+                    required:
+                      - id
+                      - email
+                      - name
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      email:
+                        type: string
+                      name:
+                        type: string
+                        nullable: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      summary: Encerra a sessão atual
+      tags:
+        - auth
+      responses:
+        "204":
+          description: Default Response
+  /v1/auth/invitations/preview:
+    post:
+      operationId: previewInvitation
+      summary: Mostra loja, papel e permissões de um convite, sem aceitá-lo
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              additionalProperties: false
+              properties:
+                token:
+                  type: string
+                  minLength: 20
+                  maxLength: 200
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - email
+                  - store_name
+                  - role
+                  - permissions
+                  - expires_at
+                properties:
+                  email:
+                    type: string
+                  store_name:
+                    type: string
+                    nullable: true
+                  role:
+                    type: string
+                    enum:
+                      - OWNER
+                      - STAFF
+                    nullable: true
+                  permissions:
+                    type: object
+                    nullable: true
+                    additionalProperties:
+                      type: boolean
+                  expires_at:
+                    type: string
+                    format: date-time
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auth/invitations/accept:
+    post:
+      operationId: acceptInvitation
+      summary: Aceita o convite. Depois, o login é por código no e-mail
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              additionalProperties: false
+              properties:
+                token:
+                  type: string
+                  minLength: 20
+                  maxLength: 200
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - accepted
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/me:
+    get:
+      operationId: getMe
+      summary: Perfil de quem está logado
+      tags:
+        - me
+      security: &a1
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - email
+                  - name
+                  - is_platform_admin
+                  - can_create_stores
+                  - store_limit
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                  name:
+                    type: string
+                    nullable: true
+                  is_platform_admin:
+                    type: boolean
+                  can_create_stores:
+                    type: boolean
+                  store_limit:
+                    type: integer
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/me/stores:
+    get:
+      operationId: listMyStores
+      summary: Lojas de que a pessoa participa (para escolher uma)
+      tags:
+        - me
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - name
+                        - role
+                        - whatsapp_status
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        role:
+                          type: string
+                          enum:
+                            - OWNER
+                            - STAFF
+                        whatsapp_status:
+                          type: string
+                          enum:
+                            - ONLINE
+                            - OFFLINE
+                            - QR_READY
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/me/sessions:
+    get:
+      operationId: listMySessions
+      summary: Sessões ativas da pessoa
+      tags:
+        - me
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - created_at
+                        - user_agent
+                        - ip
+                        - current
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        created_at:
+                          type: string
+                          format: date-time
+                        user_agent:
+                          type: string
+                          nullable: true
+                        ip:
+                          type: string
+                          nullable: true
+                        current:
+                          type: boolean
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/me/sessions/{id}:
+    delete:
+      operationId: revokeMySession
+      summary: Encerra uma das próprias sessões
+      tags:
+        - me
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+      security: *a1
+      responses:
+        "204":
+          description: Default Response
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/store:
+    get:
+      operationId: getCurrentStore
+      summary: Loja do contexto (x-store-id) com o papel e as permissões de quem
+        pergunta
+      tags:
+        - store
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - name
+                  - whatsapp_status
+                  - role
+                  - permissions
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  whatsapp_status:
+                    type: string
+                    enum:
+                      - ONLINE
+                      - OFFLINE
+                      - QR_READY
+                  inactivity_days_limit:
+                    type: integer
+                    nullable: true
+                  role:
+                    type: string
+                    enum:
+                      - OWNER
+                      - STAFF
+                  permissions:
+                    type: object
+                    additionalProperties:
+                      type: boolean
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
 tags:
   - name: infra
     description: Health check, readiness e métricas
+  - name: auth
+    description: Login por código (acesso só por convite), sessão e convites
+  - name: me
+    description: Perfil, lojas e sessões de quem está logado
+  - name: store
+    description: Rotas de uma loja (exigem o header x-store-id)
