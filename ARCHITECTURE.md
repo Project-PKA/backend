@@ -84,10 +84,20 @@ sequenceDiagram
   com mudança incompatível que não pode ser feita de forma aditiva.
 - `GET /health` e `GET /ready` ficam **fora da versão e sem autenticação**:
   são contrato de infraestrutura.
-- **Formato de erro:** <!-- ex.: RFC 9457 (application/problem+json) -->
-- **Paginação:** <!-- cursor ou offset; parâmetros e limites -->
-- Ferramenta de geração: ver [`STACK.md`](STACK.md).
-- docs/shared do projeto: <!-- org/repo, ou "não há" -->
+- **Formato de erro:** RFC 9457 (`application/problem+json`), com um campo
+  extra `code` para o código de erro de negócio.
+- **Paginação:** por cursor. Parâmetros `cursor` e `limit` (limite máximo a
+  definir no primeiro endpoint de lista); a resposta devolve `next_cursor`.
+- **Rotas (PROPOSTA, confirmar):** o doc 02 mistura o header `x-store-id`
+  (§4.1) com `/api/stores/:storeId/...` (§4.4). Proposta: usar só o header
+  `x-store-id`, para todas as rotas de negócio terem a mesma forma (seção 6),
+  sob `/v1/` e sem o prefixo `/api`.
+- Ferramenta de geração: `@fastify/swagger` (ver [`STACK.md`](STACK.md)).
+  `OPENAPI_CMD` em `project.mk` **ainda não está configurado**: depende do
+  scaffold do projeto (Etapa 1 do backlog).
+- docs/shared do projeto: `Project-PKA/shared`. Falta configurar a variable
+  `CONTRACT_REPO=Project-PKA/shared` e o `AUTOMATION_TOKEN` (ver
+  [`docs/secrets.md`](docs/secrets.md)).
 
 ## 5. Banco de dados
 
