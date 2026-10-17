@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+# Roda checagem de formato e lint antes do commit.
+#
+# Alvos ainda nao configurados em project.mk sao pulados sem falhar: um
+# repositorio recem-criado a partir do template precisa conseguir commitar.
+# Depois de configurados, eles passam a valer aqui automaticamente.
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+
+command -v make >/dev/null 2>&1 || {
+  echo 'pre-commit: make nao encontrado; pulando verificacoes.'
+  exit 0
+}
+
+run_if_configured() {
+  variable=$1
+  target=$2
+
+  if [ -n "$(make -s "print-$variable" 2>/dev/null || true)" ]; then
+    make "$target"
+  else
+    echo "pre-commit: $variable ainda nao configurado em project.mk; pulando."
+  fi
+}
+
+run_if_configured FORMAT_CHECK_CMD format-check
+run_if_configured LINT_CMD         lint
