@@ -139,10 +139,18 @@ filtrar por loja ([ADR 0009](https://github.com/Project-PKA/shared/blob/main/doc
 
 ## 7. Gestão de secrets em produção
 
-**Status: A DECIDIR** (BOOTSTRAP etapa 8).
+**Status: decidido** (BOOTSTRAP etapa 8).
 
-<!-- Onde vivem (Environment secrets, cofre), quem acessa, como rotaciona,
-     como chegam ao processo em runtime. -->
+- **Onde vivem:** Secrets e Variables do **GitHub Environment** (`dev`,
+  `homolog`, `prod`), injetados no deploy via SSH. Sem cofre externo.
+- **Quem acessa:** quem tem permissão de admin no repositório. `homolog` e
+  `prod` exigem aprovação para o deploy.
+- **Rotação:** manual. Trocar o valor no Environment e refazer o deploy.
+  `WHATSAPP_SESSION_ENCRYPTION_KEY` é exceção: trocar invalida as sessões
+  salvas, então exige plano de migração.
+- **Lista de nomes e como gerar cada um:** [`docs/secrets.md`](docs/secrets.md).
+  Quem cria os secrets é a pessoa responsável, nunca o agente.
+- **Local:** valores em `.env.secrets.local` (ignorado pelo git).
 
 ## 8. Observabilidade
 
