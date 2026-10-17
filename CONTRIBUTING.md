@@ -41,6 +41,13 @@ vivem horas ou poucos dias.
 Toda mudança que não seja trivial nasce de uma issue. Ela é o lugar de
 discutir **o quê** e **por quê**; o PR discute o **como**.
 
+O trabalho é organizado em **sprints** (milestones do GitHub), com rótulos de tipo,
+area, prioridade e tamanho. O processo completo, o que o agente pode fazer sozinho
+e o ciclo de uma sprint estão em
+[`shared/docs/processo.md`](https://github.com/Project-PKA/shared/blob/main/docs/processo.md).
+Pegue issues da sprint aberta, na ordem de prioridade, e comece pelas
+`decisao-pendente`.
+
 ### 2. Crie a branch
 
 ```
@@ -117,6 +124,7 @@ Checklist completo em [`AGENTS.md`, seção 5](AGENTS.md#5-checklist-de-conclus�
   o checklist OWASP quando a mudança tocar autenticação, dado sensível ou
   entrada externa.
 - Vincule a issue com `Closes #N`.
+- Abra em **rascunho** e tire do rascunho quando o `ci-success` estiver verde.
 - PR pequeno.
 
 ### 7. Review e merge

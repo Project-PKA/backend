@@ -162,6 +162,13 @@ Tipos: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`,
 `ci`, `chore`, `revert`. As regras vivem em `scripts/conventions.sh` (hooks
 locais), cópia das regras centrais de `IgorOCosta/workflows` usadas pelo CI.
 
+**Issues e sprints:** o trabalho vem de issues organizadas em milestones
+("Sprint NN - ..."); veja [`shared/docs/processo.md`](https://github.com/Project-PKA/shared/blob/main/docs/processo.md). Antes de
+começar, leia a issue (critérios de aceite e segurança); ao terminar, comente o
+que foi feito e feche pela mensagem do PR (`Closes #N`). Issue com
+`decisao-pendente` ou `bloqueada` não se implementa: pergunte ou registre a
+decisão primeiro.
+
 **Pull requests**
 
 - O título também segue Conventional Commits, porque vira a mensagem do
@@ -205,7 +212,9 @@ Propor o diff e explicar o motivo está liberado; aplicar sem confirmação, nã
 - Mudar `.github/workflows/**`, permissão de token ou regra de deploy
 - Rodar deploy para `homolog` ou `prod`
 - Afrouxar regra de qualidade (lint, cobertura, `skip`)
-- `git push --force`, reescrita de histórico, mexer em branch protegida
+- `git push --force`, reescrita de histórico, `push` direto na branch padrão ou
+  em branch protegida, e **merge de PR** (o `push` de branch de trabalho e o PR em
+  rascunho estão autorizados desde 2026-10-17)
 - Apagar teste, ou marcá-lo como `skip` para fazer o CI passar
 - Rodar o seed fora de ambiente de desenvolvimento
 - Qualquer coisa que envolva dado real de usuário (CPF, telefone, endereço)
