@@ -356,6 +356,8 @@ export const settlements = pgTable(
     paidAt: timestamp('paid_at', { withTimezone: true }),
     /** O comprador avisou que pagou. Só avisa: o estado muda quando a loja marca como pago. */
     paymentClaimedAt: timestamp('payment_claimed_at', { withTimezone: true }),
+    /** Nome do comprovante (`<uuid>.<ext>`) no armazenamento; o arquivo fica em `receipts/`. */
+    receiptFile: text('receipt_file'),
     createdAt: createdAt(),
   },
   (t) => [

@@ -9378,6 +9378,7 @@ paths:
                   - total_amount
                   - paid_at
                   - payment_claimed_at
+                  - has_receipt
                   - created_at
                   - shipment
                   - items
@@ -9427,6 +9428,10 @@ paths:
                     nullable: true
                     description: O comprador avisou que pagou (a loja ainda precisa conferir e
                       marcar como pago)
+                  has_receipt:
+                    type: boolean
+                    description: O comprador enviou o comprovante (baixe em GET
+                      /v1/settlements/{id}/receipt)
                   created_at:
                     type: string
                     format: date-time
@@ -9682,6 +9687,7 @@ paths:
                         - total_amount
                         - paid_at
                         - payment_claimed_at
+                        - has_receipt
                         - created_at
                         - shipment
                         - items
@@ -9731,6 +9737,10 @@ paths:
                           nullable: true
                           description: O comprador avisou que pagou (a loja ainda precisa conferir e
                             marcar como pago)
+                        has_receipt:
+                          type: boolean
+                          description: O comprador enviou o comprovante (baixe em GET
+                            /v1/settlements/{id}/receipt)
                         created_at:
                           type: string
                           format: date-time
@@ -9960,6 +9970,7 @@ paths:
                   - total_amount
                   - paid_at
                   - payment_claimed_at
+                  - has_receipt
                   - created_at
                   - shipment
                   - items
@@ -10009,6 +10020,10 @@ paths:
                     nullable: true
                     description: O comprador avisou que pagou (a loja ainda precisa conferir e
                       marcar como pago)
+                  has_receipt:
+                    type: boolean
+                    description: O comprador enviou o comprovante (baixe em GET
+                      /v1/settlements/{id}/receipt)
                   created_at:
                     type: string
                     format: date-time
@@ -10248,6 +10263,7 @@ paths:
                   - total_amount
                   - paid_at
                   - payment_claimed_at
+                  - has_receipt
                   - created_at
                   - shipment
                   - items
@@ -10297,6 +10313,10 @@ paths:
                     nullable: true
                     description: O comprador avisou que pagou (a loja ainda precisa conferir e
                       marcar como pago)
+                  has_receipt:
+                    type: boolean
+                    description: O comprador enviou o comprovante (baixe em GET
+                      /v1/settlements/{id}/receipt)
                   created_at:
                     type: string
                     format: date-time
@@ -10647,6 +10667,97 @@ paths:
                     type: string
                   code:
                     type: string
+  /v1/settlements/{id}/receipt:
+    get:
+      operationId: getSettlementReceipt
+      summary: Baixa o comprovante que o comprador enviou (imagem)
+      tags:
+        - settlements
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a8
+      responses:
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
   /v1/settlements/{id}/paid:
     post:
       operationId: markSettlementPaid
@@ -10686,6 +10797,7 @@ paths:
                   - total_amount
                   - paid_at
                   - payment_claimed_at
+                  - has_receipt
                   - created_at
                   - shipment
                   - items
@@ -10735,6 +10847,10 @@ paths:
                     nullable: true
                     description: O comprador avisou que pagou (a loja ainda precisa conferir e
                       marcar como pago)
+                  has_receipt:
+                    type: boolean
+                    description: O comprador enviou o comprovante (baixe em GET
+                      /v1/settlements/{id}/receipt)
                   created_at:
                     type: string
                     format: date-time
@@ -19052,6 +19168,8 @@ paths:
                   payment_claimed_at:
                     type: string
                     nullable: true
+                  receipt_sent:
+                    type: boolean
                   shipping_cost:
                     type: string
                   total_amount:
@@ -19852,6 +19970,176 @@ paths:
                   code:
                     type: string
         "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/public/settlement/receipt:
+    put:
+      operationId: publicSettlementReceipt
+      summary: O comprador anexa o comprovante de pagamento (imagem)
+      tags:
+        - public
+      description: Corpo binário `image/jpeg`, `image/png` ou `image/webp`, até 5 MB;
+        o token vai no header `x-public-token`. Também vale como "já paguei". Um
+        comprovante por acerto. Nunca marca o acerto como pago.
+      parameters:
+        - schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{43}$
+          in: header
+          name: x-public-token
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - result
+                properties:
+                  result:
+                    type: string
+                    enum:
+                      - OK
+                      - ALREADY_PAID
+                      - RECEIPT_EXISTS
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "413":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "415":
           description: Default Response
           content:
             application/json:

@@ -47,6 +47,7 @@ import { meRoutes } from './routes/me.js';
 import { storeRoutes } from './routes/store.js';
 import { teamRoutes } from './routes/team.js';
 import { DiskStorage, type FileStorage } from './storage/disk.js';
+import { ReceiptService } from './settlements/receipt.js';
 import { StoreService } from './stores/service.js';
 import { TeamService } from './team/service.js';
 
@@ -239,7 +240,9 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   });
   catalogRoutes(app, { hooks, catalog });
   const inventory = new InventoryService(deps.db);
-  const photos = new PhotoService(deps.db, deps.storage ?? new DiskStorage(env.storageDir));
+  const storage = deps.storage ?? new DiskStorage(env.storageDir);
+  const photos = new PhotoService(deps.db, storage);
+  const receipts = new ReceiptService(deps.db, storage);
   inventoryRoutes(app, { hooks, inventory, photos });
   const auctions = new AuctionService(deps.db, deps.now);
   auctionRoutes(app, { hooks, auctions });
@@ -247,7 +250,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   customerRoutes(app, { hooks, customers });
   const settlements = new SettlementService(deps.db);
   const shipments = new ShipmentService(deps.db);
-  settlementRoutes(app, { hooks, settlements, shipments });
+  settlementRoutes(app, { hooks, settlements, shipments, receipts });
   const publicLinks = new PublicLinkService(deps.db);
   publicLinkRoutes(app, { hooks, links: publicLinks });
   const profile = new ProfileService(deps.db);
@@ -266,6 +269,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   dashboardRoutes(app, { hooks, dashboard });
   publicRoutes(app, {
     access: new PublicAccessService(deps.db),
+    receipts,
     rateLimitPerMinute: deps.env.rateLimit.publicAccess,
     accessRequestPerMinute: deps.env.rateLimit.accessRequest,
     showcasePerMinute: deps.env.rateLimit.showcase,

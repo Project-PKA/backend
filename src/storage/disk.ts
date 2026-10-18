@@ -14,10 +14,10 @@ export interface FileStorage {
 const UUID = '[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}';
 
 /**
- * Chaves têm forma fixa `<loja>/<carta>/<arquivo>`, com uuid e extensão conhecida. Nada que venha
+ * Chaves têm forma fixa (`<loja>/<carta>/<arquivo>` ou `receipts/<arquivo>`), com uuid e extensão conhecida. Nada que venha
  * do cliente vira caminho: o nome é gerado pelo servidor. A conferência abaixo é a segunda trava.
  */
-const KEY_PATTERN = new RegExp(`^${UUID}/${UUID}/${UUID}\\.(jpg|png|webp)$`);
+const KEY_PATTERN = new RegExp(`^(${UUID}/${UUID}/${UUID}|receipts/${UUID})\\.(jpg|png|webp)$`);
 
 export class DiskStorage implements FileStorage {
   private readonly root: string;
