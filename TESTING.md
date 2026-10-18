@@ -29,6 +29,8 @@ fila, API externa) e poucos testes de ponta a ponta pela API.
 
 ## O que já está coberto
 
+- **Painéis (Sprint 07):** Home com KPIs conferidos contra o banco, alerta de enquete, loja nova zerada e leilão que acabou saindo do ar na consulta; Financeiro com períodos (hoje, 7, 15, 30), lucro de cartas próprias e consignadas, série diária com zeros, histogramas, fatias, top compradores, repasses, frete fora da receita, permissão e isolamento entre lojas.
+
 - **Páginas públicas (Sprint 06):** o papel `public_runtime` não lê nenhuma tabela e só executa as 3 funções de entrada (com o papel real); acerto e consignador pelo token; chave do consignador; bloqueio por link e por IP; respostas idênticas para todo tipo de link inválido; enumeração; limite de requisições (429); entradas malformadas e injeção; consentimento gravado; token só em hash.
 
 - **Acertos e envios (Sprint 06):** fila por comprador, total = itens + frete, criação simultânea do mesmo leilão (só um acerto), leilão de outro comprador/outra loja/em andamento recusado, pagar só com `can_view_finance` (e uma vez só, mesmo ao mesmo tempo), desfazer pendente, envio que só avança e exige rastreio, acesso cruzado entre lojas. O seed ganhou três estados de envio.

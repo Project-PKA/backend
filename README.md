@@ -67,9 +67,10 @@ rodando).
 | Catálogo TCGdex (sync às 03:00 com BullMQ, busca sem acento) e estoque (cadastro, lista, detalhe, edição, exclusão) | |
 | Leilões: criar, editar, cancelar, estender, aprovar enquete, lance (`place_bid`) e alerta de WhatsApp caído, com job que abre e encerra no horário | Bot de WhatsApp (neonize) e o papel `bot_runtime` |
 | Clientes e visitantes (CPF, telefone e CEP validados), blacklist, perfil e carteira de consignação | Exclusão LGPD (#43, depende da D2) |
+| Painéis: Home ao vivo e Financeiro (KPIs, séries diárias, histogramas, pizzas, top compradores e repasses) |
 | Acertos (criar, frete, desfazer, marcar como pago) e fila de envios com rastreio |
 | Páginas públicas por link: acerto do comprador (CPF, endereço e consentimento LGPD) e acompanhamento do consignador, com papel `public_runtime` e bloqueio por tentativas | "Já paguei" com comprovante (#53, D3) e vitrine pública |
-| Contrato OpenAPI gerado do código (65 operações) | |
+| Contrato OpenAPI gerado do código (69 operações) | |
 | Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
 | | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |
 | | Dockerfile e deploy (a VPS ainda não existe) |

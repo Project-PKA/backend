@@ -89,7 +89,7 @@ pública do acerto (consentimento LGPD, PIX, comprovante, "já paguei"),
 **Envios** (a enviar, enviado, entregue, rastreio) e **acompanhamento do
 consignador**, com as mitigações obrigatórias da [ADR 0014](https://github.com/Project-PKA/shared/blob/main/docs/adr/0014-paginas-publicas-por-link-e-vitrine.md).
 
-**Etapa 7: painéis.** **Home ao vivo** (alerta de enquetes, 5 KPIs, cartas sem
+**Etapa 7: painéis.** *Pronta.* `GET /v1/dashboard/home` (ao vivo, sem período) e `GET /v1/finance/overview|top-buyers|consignment-payouts` (único com período: hoje, 7, 15 ou 30 dias; exige `can_view_finance`). Receita = valor dos itens das vendas pagas, sem o frete; lucro = o valor todo nas cartas próprias (ainda não há custo de compra) e só a comissão nas consignadas; dias no fuso de São Paulo. Descrição original: **Home ao vivo** (alerta de enquetes, 5 KPIs, cartas sem
 leilão, acertos rápidos; sem período e sem rankings) e **Financeiro** (único com
 período: séries diárias, histogramas, pizzas, top compradores, repasses). Os
 endpoints de período do doc 02 (`dashboard/operational?period=`) **não existem

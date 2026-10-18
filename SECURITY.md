@@ -85,6 +85,7 @@ tarefa que o toca não está pronta sem ele.
 | Marcar acerto como pago é só da loja e exige `can_view_finance`; o comprador nunca altera estado de pagamento. Acertos criados com lock nas linhas dos leilões (dois acertos simultâneos não repetem um leilão) | **feito** (com teste) |
 | Páginas públicas por link ([ADR 0014](https://github.com/Project-PKA/shared/blob/main/docs/adr/0014-paginas-publicas-por-link-e-vitrine.md), D13 aprovada): token de 256 bits só em hash, expiração e revogação, resposta idêntica para link inválido/expirado/revogado/bloqueado/chave errada, 5 chaves erradas bloqueiam o link por 15 min, 20 falhas por IP bloqueiam o IP por 15 min, limite de requisições, `Referrer-Policy: no-referrer`, `noindex` e `no-store`, papel `public_runtime` sem acesso a tabela (só `EXECUTE` em funções `SECURITY DEFINER` com `search_path` fixo) | **feito** (migration 0015, com testes de abuso) |
 | Consentimento LGPD do acerto registrado (quem, quando, versão do texto, IP); CPF validado no servidor e nunca devolvido inteiro | **feito** |
+| Financeiro (`/v1/finance/*`) exige `can_view_finance` em todas as rotas e só lê a loja do contexto (RLS); período fechado em valores permitidos | **feito** (com teste) |
 | Sala de lances devolve telefone com o miolo oculto e nunca o texto original da mensagem | **feito** (com teste) |
 | O ID da carta e o texto da mensagem são tratados como entrada não confiável (regex estrita, tamanho máximo, sem eval/SQL concatenado) | Etapa 5 |
 | Risco aceito: banimento do número e violação dos termos do WhatsApp (ADR 0007) | aceito |
