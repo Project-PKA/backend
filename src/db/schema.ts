@@ -43,6 +43,11 @@ export const auctionStatus = pgEnum('auction_status', [
   'CANCELLED',
 ]);
 export const settlementStatus = pgEnum('settlement_status', ['PENDING', 'PAID']);
+export const accessRequestStatus = pgEnum('access_request_status', [
+  'PENDING',
+  'REFUSED',
+  'CONVERTED',
+]);
 export const publicLinkKind = pgEnum('public_link_kind', ['SETTLEMENT', 'CONSIGNOR']);
 export const shipmentStatus = pgEnum('shipment_status', ['TO_SHIP', 'SHIPPED', 'DELIVERED']);
 export const userStatus = pgEnum('user_status', ['INVITED', 'ACTIVE', 'SUSPENDED']);
@@ -99,6 +104,10 @@ export const stores = pgTable('stores', {
   inactivityDaysLimit: integer('inactivity_days_limit'),
   /** Chave PIX mostrada ao comprador na página do acerto. */
   pixKey: text('pix_key'),
+  city: text('city'),
+  /** Plano definido pela administração (não há autoatendimento). */
+  plan: text('plan').notNull().default('STANDARD'),
+  memberLimit: integer('member_limit').notNull().default(5),
   createdAt: createdAt(),
 });
 
@@ -401,6 +410,47 @@ export const shipments = pgTable(
       foreignColumns: [settlements.id, settlements.storeId],
     }),
     index('shipments_store_status_idx').on(t.storeId, t.status),
+  ],
+);
+
+// --- Administração da plataforma (0016) ------------------------------------------
+/** Log da plataforma: só o administrador grava e lê. O log da loja é só da loja. */
+export const adminActivityLog = pgTable(
+  'admin_activity_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    action: text('action').notNull(),
+    targetType: text('target_type'),
+    targetId: uuid('target_id'),
+    details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (t) => [index('admin_activity_log_created_idx').on(t.createdAt, t.id)],
+);
+
+/** Pedido de acesso da landing. Não cria usuário nem loja; o administrador decide. */
+export const accessRequests = pgTable(
+  'access_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    whatsapp: text('whatsapp'),
+    storeName: text('store_name').notNull(),
+    message: text('message'),
+    status: accessRequestStatus('status').notNull().default('PENDING'),
+    ipHash: text('ip_hash').notNull(),
+    decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'set null' }),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    convertedStoreId: uuid('converted_store_id').references(() => stores.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('access_requests_status_created_idx').on(t.status, t.createdAt, t.id),
+    index('access_requests_ip_created_idx').on(t.ipHash, t.createdAt),
   ],
 );
 

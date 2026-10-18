@@ -137,7 +137,7 @@ sequenceDiagram
 - **Áreas de rotas** (todas sob `/v1`, exceto infraestrutura):
   `/v1/auth` (login, refresh, logout, aceitar convite), `/v1/me` (perfil e
   sessões), `POST /v1/stores` (criar loja), e as rotas de uma loja (exigem
-  `x-store-id`): `/v1/store`, `/v1/team*`, `/v1/activity-log`, `/v1/catalog*` (busca e detalhe do catálogo) e `/v1/cards*` (estoque) `/v1/auctions*` (leilões e lances) `/v1/customers*` (clientes, blacklist, perfil e carteira), `/v1/settlements*` (acertos) `/v1/shipments*` (envios), `/v1/dashboard/home` e `/v1/finance/*` (painéis), `/v1/public-links*` (gestão dos links) e `/v1/public/*` (páginas públicas, sem login),
+  `x-store-id`): `/v1/store`, `/v1/team*`, `/v1/activity-log`, `/v1/catalog*` (busca e detalhe do catálogo) e `/v1/cards*` (estoque) `/v1/auctions*` (leilões e lances) `/v1/customers*` (clientes, blacklist, perfil e carteira), `/v1/settlements*` (acertos) `/v1/shipments*` (envios), `/v1/dashboard/home` e `/v1/finance/*` (painéis), `/v1/admin/*` (administração da plataforma), `/v1/public-links*` (gestão dos links) e `/v1/public/*` (páginas públicas, sem login),
   `/v1/admin` (só administrador da plataforma) e `/v1/public` (sem login,
   por token no link; vitrine, acerto, consignador, solicitação de acesso).
 - Ferramenta de geração: `@fastify/swagger` (ver [`STACK.md`](STACK.md)).

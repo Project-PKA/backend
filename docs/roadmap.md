@@ -62,6 +62,12 @@ A etapa fica em três entregas, nesta ordem:
 > dela (CPF, endereços, lances). Precisa da política de retenção e exclusão da
 > revisão de LGPD antes de existir.
 
+## Etapa 2c: administração da plataforma (pronta)
+
+`/v1/admin` (só administrador): usuários (listar, buscar, detalhe, cadastrar com convite de conta, permissões globais, suspender e reativar derrubando as sessões), lojas (listar, criar com proprietário novo ou existente, transferir propriedade sem nunca zerar os proprietários), convites (listar, reenviar, revogar), solicitações de acesso (listar, recusar, converter ao criar a loja), painel com KPIs e lojas com WhatsApp desconectado, e o log de atividades da plataforma. A landing envia o pedido por `POST /v1/public/access-requests` (não cria usuário nem loja e não manda e-mail). Cidade, plano e **limite de membros** da loja são definidos pela administração; o limite vale para os convites da equipe.
+
+> **Excluir loja** continua de fora (ver acima).
+
 ## Etapas seguintes
 
 **Etapa 3: catálogo e estoque.** *Pronta, menos as fotos.* Sync do catálogo às 03:00
