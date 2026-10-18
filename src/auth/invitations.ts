@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, ne, sql } from 'drizzle-orm';
 
 import { recordActivity } from '../audit/activity.js';
 import type { AuthConfig } from '../config/env.js';
@@ -31,7 +31,7 @@ export interface InvitationPreview {
 
 export type CreateInvitationResult =
   | { ok: true; invitationId: string; expiresAt: Date }
-  | { ok: false; reason: 'USER_SUSPENDED' | 'ROLE_REQUIRED' | 'ALREADY_MEMBER' };
+  | { ok: false; reason: 'USER_SUSPENDED' | 'ROLE_REQUIRED' | 'ALREADY_MEMBER' | 'MEMBER_LIMIT' };
 
 export type InvitationState = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
 
@@ -106,6 +106,12 @@ export class InvitationService {
           .limit(1);
         if (member !== undefined) return { ok: false, reason: 'ALREADY_MEMBER' } as const;
       }
+      if (
+        input.storeId !== undefined &&
+        (await this.atMemberLimit(tx, input.storeId, email, now))
+      ) {
+        return { ok: false, reason: 'MEMBER_LIMIT' } as const;
+      }
       if (existing === undefined) await tx.insert(users).values({ email, status: 'INVITED' });
 
       // Um convite novo substitui o anterior para a mesma pessoa e loja.
@@ -116,7 +122,10 @@ export class InvitationService {
           and(
             eq(invitations.email, email),
             eq(invitations.status, 'PENDING'),
-            input.storeId === undefined ? undefined : eq(invitations.storeId, input.storeId),
+            // Convite só de conta substitui só convite de conta, nunca um de loja.
+            input.storeId === undefined
+              ? isNull(invitations.storeId)
+              : eq(invitations.storeId, input.storeId),
           ),
         );
 
@@ -166,6 +175,37 @@ export class InvitationService {
     this.pending.add(task);
 
     return { ok: true, invitationId: created.invitationId, expiresAt };
+  }
+
+  /** Membros mais convites pendentes (de outras pessoas) chegaram no limite definido pela administração? */
+  private async atMemberLimit(
+    tx: Parameters<Parameters<Db['transaction']>[0]>[0],
+    storeId: string,
+    email: string,
+    now: Date,
+  ): Promise<boolean> {
+    const [store] = await tx
+      .select({ limit: stores.memberLimit })
+      .from(stores)
+      .where(eq(stores.id, storeId))
+      .limit(1);
+    if (store === undefined) return false;
+    const [members] = await tx
+      .select({ total: count() })
+      .from(storeMembers)
+      .where(eq(storeMembers.storeId, storeId));
+    const [pending] = await tx
+      .select({ total: count() })
+      .from(invitations)
+      .where(
+        and(
+          eq(invitations.storeId, storeId),
+          eq(invitations.status, 'PENDING'),
+          gt(invitations.expiresAt, now),
+          ne(invitations.email, email),
+        ),
+      );
+    return (members?.total ?? 0) + (pending?.total ?? 0) >= store.limit;
   }
 
   /** Convites de uma loja, do mais novo para o mais antigo. Vencido aparece como `EXPIRED`. */

@@ -81,6 +81,25 @@ export class PublicAccessService {
     });
   }
 
+  /** Grava o pedido de acesso. Nunca informa se era novo, repetido ou descartado por abuso. */
+  async submitAccessRequest(
+    ip: string,
+    data: {
+      name: string;
+      email: string;
+      whatsapp: string | null;
+      storeName: string;
+      message: string | null;
+    },
+  ): Promise<void> {
+    await this.asPublic(async (tx) => {
+      await tx.execute(sql`
+        SELECT public_access_request_submit(${data.name}::text, ${data.email}::text,
+          ${data.whatsapp}::text, ${data.storeName}::text, ${data.message}::text, ${ip}::text)
+      `);
+    });
+  }
+
   async consignor(token: string, key: string, ip: string): Promise<ConsignorPage | null> {
     return this.asPublic(async (tx) => {
       const result = await tx.execute<{ page: ConsignorPage | null }>(

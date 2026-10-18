@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 
 import type { AuthHooks } from '../auth/hooks.js';
-import { normalizeCep, normalizeCpf } from '../customers/validation.js';
+import { normalizeCep, normalizeCpf, normalizePhone } from '../customers/validation.js';
 import { DEFAULT_LIMIT, pageQuerySchema } from '../http/pagination.js';
 import { buildProblem, problemSchema, sendProblem } from '../http/problem.js';
 import type { PublicAccessService } from '../public/access.js';
@@ -12,6 +12,8 @@ export interface PublicRouteDeps {
   access: PublicAccessService;
   /** Requisições por minuto e por IP nas rotas públicas. */
   rateLimitPerMinute: number;
+  /** Limite próprio do formulário de pedido de acesso. */
+  accessRequestPerMinute: number;
 }
 
 export interface PublicLinkRouteDeps {
@@ -190,6 +192,69 @@ export function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps): void 
           return invalidData(reply, 'PUBLIC_DATA_INVALID', 'Dados inválidos');
         }
         return { result: 'OK' };
+      },
+    );
+
+    scope.post(
+      '/v1/public/access-requests',
+      {
+        config: { rateLimit: { max: deps.accessRequestPerMinute, timeWindow: '1 minute' } },
+        schema: {
+          operationId: 'publicRequestAccess',
+          tags: ['public'],
+          summary: 'Solicitar acesso (formulário da landing)',
+          description:
+            'Não cria usuário nem loja e não envia e-mail: a administração decide depois. A resposta é a mesma para pedido novo, repetido ou descartado. O campo `website` é uma isca: deve vir vazio.',
+          body: {
+            type: 'object',
+            required: ['name', 'email', 'store_name'],
+            additionalProperties: false,
+            properties: {
+              name: { type: 'string', minLength: 1, maxLength: 120 },
+              email: { type: 'string', format: 'email', maxLength: 254 },
+              whatsapp: { type: 'string', maxLength: 30, nullable: true },
+              store_name: { type: 'string', minLength: 1, maxLength: 120 },
+              message: { type: 'string', maxLength: 1000, nullable: true },
+              website: { type: 'string', maxLength: 200 },
+            },
+          },
+          response: {
+            202: {
+              type: 'object',
+              required: ['status'],
+              properties: { status: { type: 'string', enum: ['RECEIVED'] } },
+            },
+            ...failures,
+          },
+        },
+      },
+      async (request, reply) => {
+        const body = request.body as {
+          name: string;
+          email: string;
+          whatsapp?: string | null;
+          store_name: string;
+          message?: string | null;
+          website?: string;
+        };
+        // Campo-isca: robô preenche, pessoa não vê. Responde igual e não grava.
+        if (body.website !== undefined && body.website !== '') {
+          return reply.status(202).send({ status: 'RECEIVED' });
+        }
+        let whatsapp: string | null = null;
+        if (body.whatsapp !== undefined && body.whatsapp !== null && body.whatsapp.trim() !== '') {
+          whatsapp = normalizePhone(body.whatsapp);
+          if (whatsapp === null)
+            return invalidData(reply, 'PUBLIC_PHONE_INVALID', 'WhatsApp inválido');
+        }
+        await access.submitAccessRequest(request.ip, {
+          name: body.name,
+          email: body.email,
+          whatsapp,
+          storeName: body.store_name,
+          message: body.message ?? null,
+        });
+        return reply.status(202).send({ status: 'RECEIVED' });
       },
     );
 

@@ -39,6 +39,8 @@ export const KIND = {
   item: 9,
   shipment: 13,
   link: 14,
+  request: 15,
+  adminLog: 16,
   token: 10,
   invitation: 11,
   activity: 12,
@@ -61,6 +63,8 @@ export const SEED_IDS = {
 } as const;
 
 const TABLES_TO_CLEAR = [
+  'access_requests',
+  'admin_activity_log',
   'public_links',
   'lgpd_consents',
   'public_ip_failures',
@@ -231,6 +235,8 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
     'shipments',
     'public_links',
     'lgpd_consents',
+    'access_requests',
+    'admin_activity_log',
   ];
   for (const table of created) {
     await db.execute(sql.raw(`UPDATE ${table} SET created_at = '${SEED_TIME}'`));
@@ -320,8 +326,16 @@ async function insertAll(db: Tx): Promise<void> {
       whatsappStatus: 'ONLINE',
       inactivityDaysLimit: 30,
       pixKey: 'pix@cartasdoze.example.com',
+      city: 'São Paulo',
     },
-    { id: SEED_IDS.storeB, name: 'Pokémon Açaí', whatsappStatus: 'QR_READY' },
+    {
+      id: SEED_IDS.storeB,
+      name: 'Pokémon Açaí',
+      whatsappStatus: 'QR_READY',
+      city: 'Curitiba',
+      plan: 'PRO',
+      memberLimit: 10,
+    },
     { id: SEED_IDS.storeC, name: 'Loja Isolada', whatsappStatus: 'OFFLINE' },
   ]);
   await db.insert(schema.whatsappSessions).values({
@@ -749,6 +763,7 @@ async function insertAuctions(db: Tx): Promise<void> {
 
   await insertSettlements(db);
   await insertPublicLinks(db);
+  await insertAdministration(db);
 }
 
 /**
@@ -762,6 +777,53 @@ export const SEED_LINK_TOKENS = {
 } as const;
 
 const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
+
+const sha256Hex = (value: string): string =>
+  createHash('sha256').update(value, 'utf8').digest('hex');
+
+/** Solicitações de acesso nos três estados e uma entrada no log da plataforma. */
+async function insertAdministration(db: Tx): Promise<void> {
+  await db.insert(schema.accessRequests).values([
+    {
+      id: uid(KIND.request, 1),
+      name: 'Gary Oak',
+      email: 'gary@example.com',
+      whatsapp: '5511988880001',
+      storeName: 'Cartas do Gary',
+      message: 'Vendo cartas há 3 anos em grupos de WhatsApp.',
+      ipHash: sha256Hex('203.0.113.1'),
+    },
+    {
+      id: uid(KIND.request, 2),
+      name: 'Team Rocket',
+      email: 'rocket@example.com',
+      storeName: 'Loja suspeita',
+      status: 'REFUSED',
+      ipHash: sha256Hex('203.0.113.2'),
+      decidedBy: SEED_IDS.userAdmin,
+      decidedAt: at('2026-09-30T12:00:00Z'),
+    },
+    {
+      id: uid(KIND.request, 3),
+      name: 'Dono da Loja Isolada',
+      email: 'outro-dono@example.com',
+      storeName: 'Loja Isolada',
+      status: 'CONVERTED',
+      ipHash: sha256Hex('203.0.113.3'),
+      decidedBy: SEED_IDS.userAdmin,
+      decidedAt: at('2026-09-01T12:00:00Z'),
+      convertedStoreId: SEED_IDS.storeC,
+    },
+  ]);
+  await db.insert(schema.adminActivityLog).values({
+    id: uid(KIND.adminLog, 1),
+    actorUserId: SEED_IDS.userAdmin,
+    action: 'store.created',
+    targetType: 'store',
+    targetId: SEED_IDS.storeC,
+    details: { access_request_id: uid(KIND.request, 3) },
+  });
+}
 
 async function insertPublicLinks(db: Tx): Promise<void> {
   const A = SEED_IDS.storeA;

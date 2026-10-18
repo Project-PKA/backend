@@ -300,6 +300,16 @@ export function teamRoutes(app: FastifyInstance, deps: TeamRouteDeps): void {
           .status(201)
           .send({ id: result.invitationId, expires_at: result.expiresAt.toISOString() });
       }
+      if (result.reason === 'MEMBER_LIMIT') {
+        return sendProblem(
+          reply,
+          buildProblem(
+            409,
+            'A loja atingiu o limite de membros do plano. Fale com a administração',
+            'MEMBER_LIMIT_REACHED',
+          ),
+        );
+      }
       return result.reason === 'ALREADY_MEMBER'
         ? sendProblem(
             reply,
