@@ -306,7 +306,9 @@ describe('lista (GET /v1/cards)', () => {
         items: { short_code: string; status: string; origin: string }[];
       }>().items;
 
-    expect((await list('status=SOLD')).map((i) => i.short_code)).toEqual(['A6']);
+    expect(
+      (await list('status=SOLD')).map((i) => i.short_code).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['A31', 'A32', 'A6']);
     const consigned = await list('origin=CONSIGNED');
     expect(consigned).toHaveLength(12);
     expect(consigned.every((i) => i.origin === 'CONSIGNED')).toBe(true);

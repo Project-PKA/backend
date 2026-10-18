@@ -143,6 +143,7 @@ describe('seed', () => {
     ]);
     expect(await distinct('auctions', 'type')).toEqual(['FREE_BID', 'POLL']);
     expect(await distinct('settlements', 'status')).toEqual(['PAID', 'PENDING']);
+    expect(await distinct('shipments', 'status')).toEqual(['DELIVERED', 'SHIPPED', 'TO_SHIP']);
     expect(await distinct('store_members', 'role')).toEqual(['OWNER', 'STAFF']);
     expect(await distinct('users', 'status')).toEqual(['ACTIVE', 'INVITED', 'SUSPENDED']);
     expect(await count('activity_log')).toBeGreaterThan(0);
@@ -276,6 +277,35 @@ describe('regras de integridade do banco', () => {
     });
     await expect(insert('PENDING', '2026-10-01')).rejects.toMatchObject({
       constraint: 'settlements_paid_at_matches_status',
+    });
+  });
+
+  it('recusa envio com datas que não batem com o estado, rastreio inválido e dois envios no acerto', async () => {
+    const insert = (
+      settlement: string,
+      status: string,
+      shipped: string | null,
+      tracking: string | null,
+    ) =>
+      database.pool.query(
+        `INSERT INTO shipments (store_id, settlement_id, status, shipped_at, tracking_code)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [SEED_IDS.storeA, settlement, status, shipped, tracking],
+      );
+
+    await expect(insert(uid(KIND.settlement, 2), 'SHIPPED', null, null)).rejects.toMatchObject({
+      constraint: 'shipments_dates_match_status',
+    });
+    await expect(
+      insert(uid(KIND.settlement, 2), 'TO_SHIP', '2026-10-01', null),
+    ).rejects.toMatchObject({
+      constraint: 'shipments_dates_match_status',
+    });
+    await expect(insert(uid(KIND.settlement, 2), 'TO_SHIP', null, 'a b')).rejects.toMatchObject({
+      constraint: 'shipments_tracking_format',
+    });
+    await expect(insert(uid(KIND.settlement, 1), 'TO_SHIP', null, null)).rejects.toMatchObject({
+      constraint: 'shipments_settlement_key',
     });
   });
 

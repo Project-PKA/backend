@@ -29,6 +29,8 @@ fila, API externa) e poucos testes de ponta a ponta pela API.
 
 ## O que já está coberto
 
+- **Acertos e envios (Sprint 06):** fila por comprador, total = itens + frete, criação simultânea do mesmo leilão (só um acerto), leilão de outro comprador/outra loja/em andamento recusado, pagar só com `can_view_finance` (e uma vez só, mesmo ao mesmo tempo), desfazer pendente, envio que só avança e exige rastreio, acesso cruzado entre lojas. O seed ganhou três estados de envio.
+
 - **Clientes (Sprint 04):** validação de telefone, CPF e CEP (unitário), cadastro com telefone único por loja (inclusive simultâneo), visitante que vira cliente, CPF mascarado na resposta e fora do log, blacklist que bloqueia o lance, filtro de inativos, perfil (acertos e lances) e carteira de consignação com o líquido calculado. Acesso cruzado entre lojas em todas as rotas.
 
 - **Leilões (Sprint 05):** criar/editar/cancelar/estender, `place_bid` (incremento, blacklist, período, outra loja), 20 lances simultâneos (o maior vence, nenhum fura o incremento), mesmo valor simultâneo (só um passa), enquete no teto (pausa sem encerrar, aprovar e manter aberta), virada de relógio (abre, encerra, vencedor) e acesso cruzado entre lojas. O relógio é manipulado mexendo nas datas do leilão no banco.
