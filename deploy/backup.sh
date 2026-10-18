@@ -47,5 +47,14 @@ fi
 mv "$partial" "$final"
 echo "backup: $final ($(wc -c < "$final") bytes)"
 
+# Arquivos enviados (fotos e comprovantes): tar do volume, criptografado do mesmo jeito. Vazio é
+# normal (ninguém enviou nada ainda), por isso não há a checagem de tamanho do dump.
+files="backups/$stamp.storage.tar.enc"
+# shellcheck disable=SC2086
+$COMPOSE exec -T api tar -C /app/storage -cf - . \
+  | BACKUP_PASSPHRASE="$BACKUP_PASSPHRASE" openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+      -pass env:BACKUP_PASSPHRASE -out "$files"
+echo "backup: $files ($(wc -c < "$files") bytes)"
+
 # Retenção: apaga os mais antigos que KEEP_DAYS dias.
-find backups -name '*.dump.enc' -mtime "+$KEEP_DAYS" -print -delete
+find backups \( -name '*.dump.enc' -o -name '*.storage.tar.enc' \) -mtime "+$KEEP_DAYS" -print -delete

@@ -23,6 +23,7 @@ import { ShipmentService } from './shipments/service.js';
 import { CustomerService } from './customers/service.js';
 import { AuctionService } from './auctions/service.js';
 import { CatalogService } from './catalog/service.js';
+import { PhotoService } from './inventory/photos.js';
 import { InventoryService } from './inventory/service.js';
 import { createTcgdexClient, type TcgdexClient } from './catalog/tcgdex.js';
 import { InvitationService } from './auth/invitations.js';
@@ -45,6 +46,7 @@ import { inventoryRoutes } from './routes/inventory.js';
 import { meRoutes } from './routes/me.js';
 import { storeRoutes } from './routes/store.js';
 import { teamRoutes } from './routes/team.js';
+import { DiskStorage, type FileStorage } from './storage/disk.js';
 import { StoreService } from './stores/service.js';
 import { TeamService } from './team/service.js';
 
@@ -58,6 +60,8 @@ export interface AppDeps {
   now?: () => Date;
   /** Cliente do catálogo. Os testes injetam um falso; em produção é o do TCGdex. */
   tcgdex?: TcgdexClient;
+  /** Armazenamento de arquivos. Os testes injetam um em memória; o padrão é o disco em STORAGE_DIR. */
+  storage?: FileStorage;
 }
 
 export interface BuiltApp {
@@ -68,6 +72,7 @@ export interface BuiltApp {
   team: TeamService;
   catalog: CatalogService;
   inventory: InventoryService;
+  photos: PhotoService;
   auctions: AuctionService;
   customers: CustomerService;
   settlements: SettlementService;
@@ -234,7 +239,8 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   });
   catalogRoutes(app, { hooks, catalog });
   const inventory = new InventoryService(deps.db);
-  inventoryRoutes(app, { hooks, inventory });
+  const photos = new PhotoService(deps.db, deps.storage ?? new DiskStorage(env.storageDir));
+  inventoryRoutes(app, { hooks, inventory, photos });
   const auctions = new AuctionService(deps.db, deps.now);
   auctionRoutes(app, { hooks, auctions });
   const customers = new CustomerService(deps.db);
@@ -273,6 +279,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
     team,
     catalog,
     inventory,
+    photos,
     auctions,
     customers,
     settlements,

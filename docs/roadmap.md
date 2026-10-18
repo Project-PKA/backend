@@ -70,12 +70,14 @@ A etapa fica em três entregas, nesta ordem:
 
 ## Etapas seguintes
 
-**Etapa 3: catálogo e estoque.** *Pronta, menos as fotos.* Sync do catálogo às 03:00
+**Etapa 3: catálogo e estoque.** *Pronta.* Sync do catálogo às 03:00
 (BullMQ, `npm run catalog:sync` para a carga inicial), busca sem acento com
 `pg_trgm`, CRUD de carta com **Observações**, origem **sem valor padrão**,
 "cartas sem leilão" (`no_auction`), detalhe com histórico e exclusão com
-permissão. **Falta:** upload de fotos, que depende da decisão de
-armazenamento (D3 no `OWNER.md`).
+permissão. **Fotos (#38):** `PUT /v1/cards/:id/photos` com a imagem crua no corpo (JPEG, PNG ou
+WebP, até 5 MB, 8 por carta, tipo conferido pelos primeiros bytes, nome gerado pelo servidor),
+`GET`/`DELETE /v1/cards/:id/photos/:photoId`. Os arquivos ficam no disco da VPS (D3), fora de qualquer
+pasta pública; o download exige login e a loja da carta (o frontend busca com `fetch` e usa o blob).
 
 **Etapa 4: clientes.** *Pronta, menos a exclusão LGPD.* Base com visitantes e clientes, blacklist
 (com motivo), filtro de inativos pelo limite da loja, perfil 360 (acertos, histórico de lances) e
@@ -90,7 +92,7 @@ e "estender todos"), decisão de lance com lock da linha do leilão, e o alerta
 de **WhatsApp desconectado com leilões ativos** (o bot publica o estado; o
 Backend lista os afetados).
 
-**Etapa 6: acertos, envios e páginas públicas.** *Pronta, menos o comprovante em arquivo do "já paguei" (#53, depende do armazenamento D3).* O "já paguei" em si existe (`POST /v1/public/settlement/paid`): só avisa a loja e nunca marca como pago. Feito: fila "a acertar" por comprador, criar acerto (total = itens + frete), editar o frete, desfazer, **marcar como pago** (só a loja, exige `can_view_finance`; as cartas viram `SOLD` e entra na fila de envios) e **Envios** (a enviar, enviado, entregue, rastreio; nenhuma mensagem automática). **Falta** (precisa da sua aprovação do desenho, ver `OWNER.md` D13): papel `public_runtime` e funções `SECURITY DEFINER` (#57), página pública do acerto com consentimento LGPD (#52), "já paguei" e comprovante (#53, depende do armazenamento D3), acompanhamento do consignador (#56) e testes de abuso (#58). Descrição original: Acerto com itens, página
+**Etapa 6: acertos, envios e páginas públicas.** *Pronta, menos o comprovante em arquivo do "já paguei" (#53): o armazenamento já existe, mas a rota pública precisa de uma função `SECURITY DEFINER` nova e isso espera a sua aprovação.* O "já paguei" em si existe (`POST /v1/public/settlement/paid`): só avisa a loja e nunca marca como pago. Feito: fila "a acertar" por comprador, criar acerto (total = itens + frete), editar o frete, desfazer, **marcar como pago** (só a loja, exige `can_view_finance`; as cartas viram `SOLD` e entra na fila de envios) e **Envios** (a enviar, enviado, entregue, rastreio; nenhuma mensagem automática). **Falta** (precisa da sua aprovação do desenho, ver `OWNER.md` D13): papel `public_runtime` e funções `SECURITY DEFINER` (#57), página pública do acerto com consentimento LGPD (#52), "já paguei" e comprovante (#53, depende do armazenamento D3), acompanhamento do consignador (#56) e testes de abuso (#58). Descrição original: Acerto com itens, página
 pública do acerto (consentimento LGPD, PIX, comprovante, "já paguei"),
 **Envios** (a enviar, enviado, entregue, rastreio) e **acompanhamento do
 consignador**, com as mitigações obrigatórias da [ADR 0014](https://github.com/Project-PKA/shared/blob/main/docs/adr/0014-paginas-publicas-por-link-e-vitrine.md).
@@ -135,8 +137,8 @@ Tudo por migration `up`/`down`, com `schema.ts` e seed no mesmo PR.
 
 | Decisão | Trava | Recomendação |
 | --- | --- | --- |
-| Provedor de e-mail (convite e OTP) | Etapa 2b (convites reais) | Decidir antes de `homolog`; até lá, log em desenvolvimento |
-| Armazenamento de arquivos (fotos, avatar, comprovante) | Etapas 3, 6 e 8 | Disco da VPS com backup no início; bucket quando crescer |
+| Provedor de e-mail (convite e OTP) | Etapa 2b (convites reais) | **Decidido:** SMTP do Gmail por enquanto (D1); trocar por provedor transacional antes de crescer (issue no `shared`) |
+| Armazenamento de arquivos (fotos, avatar, comprovante) | Etapas 3, 6 e 8 | **Decidido (D3):** disco da VPS, no backup; bucket quando crescer (a porta `FileStorage` permite trocar) |
 | Cobrança da assinatura da plataforma | Etapa 8 | Manual (fatura externa) no MVP, como o "solicitar mudança de plano" do design indica |
 | "Avisar cliente no WhatsApp" | Etapa 6 | Link `wa.me` aberto pela loja, coerente com a ADR 0006 |
 | Segundo fator para o administrador | Etapa 2c | Avaliar antes de produção |

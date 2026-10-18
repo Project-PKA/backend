@@ -18589,6 +18589,426 @@ paths:
                     type: string
                   code:
                     type: string
+  /v1/cards/{id}/photos:
+    put:
+      operationId: addCardPhoto
+      summary: Envia uma foto da carta (corpo = a imagem; até 8 por carta)
+      tags:
+        - inventory
+      description: Corpo binário `image/jpeg`, `image/png` ou `image/webp`, até 5 MB.
+        O tipo é conferido pelo conteúdo.
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a5
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - photo
+                  - photos
+                properties:
+                  photo:
+                    type: string
+                    description: Id da foto recém-enviada
+                  photos:
+                    type: array
+                    items:
+                      type: string
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "413":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "415":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/cards/{id}/photos/{photoId}:
+    get:
+      operationId: getCardPhoto
+      summary: Baixa uma foto da carta (exige login e a loja da carta)
+      tags:
+        - inventory
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+            pattern: ^[0-9a-f-]{36}\.(jpg|png|webp)$
+          in: path
+          name: photoId
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a5
+      responses:
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+    delete:
+      operationId: deleteCardPhoto
+      summary: Remove uma foto da carta
+      tags:
+        - inventory
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+            pattern: ^[0-9a-f-]{36}\.(jpg|png|webp)$
+          in: path
+          name: photoId
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a5
+      responses:
+        "204":
+          description: Default Response
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
   /v1/public/settlement:
     post:
       operationId: publicSettlementView

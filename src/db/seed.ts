@@ -196,10 +196,8 @@ function buildCardsStoreA(
       condition: CONDITIONS[n % CONDITIONS.length] ?? 'NM',
       isFoil: n % 3 === 0,
       notes: n % 4 === 0 ? 'Canto levemente marcado, ver foto' : null,
-      customPhotos: Array.from(
-        { length: n % 4 },
-        (_, i) => `https://example.com/fotos/A${n}-${i + 1}.jpg`,
-      ),
+      // As fotos reais entram pela API (PUT /v1/cards/:id/photos); o seed não tem arquivos.
+      customPhotos: [],
       ownershipType: consigned ? 'CONSIGNED' : 'OWN',
       consignorId: consigned ? uid(KIND.customer, ((n / 5 - 1) % 4) + 1) : null,
       storeCommissionPct: consigned ? money(10 + (n % 4) * 5) : null,

@@ -1,6 +1,6 @@
 const APP_ENVS = ['local', 'dev', 'test', 'homolog', 'prod'] as const;
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
-const EMAIL_PROVIDERS = ['log'] as const;
+const EMAIL_PROVIDERS = ['log', 'smtp'] as const;
 
 export type AppEnv = (typeof APP_ENVS)[number];
 export type LogLevel = (typeof LOG_LEVELS)[number];
@@ -47,6 +47,18 @@ export interface HttpLimits {
   handlerTimeoutMs: number;
 }
 
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  /** Porta 465 usa TLS direto; as demais negociam STARTTLS quando o servidor oferece. */
+  secure: boolean;
+  /** Ausente no Mailpit local (sem autenticação). */
+  user: string | null;
+  password: string | null;
+  /** Remetente (`From`). Padrão: o próprio usuário SMTP. */
+  from: string;
+}
+
 export interface Env {
   appEnv: AppEnv;
   port: number;
@@ -60,6 +72,10 @@ export interface Env {
   /** URL pública do frontend, usada nos links de convite. */
   publicAppUrl: string;
   emailProvider: EmailProvider;
+  /** Presente só com `EMAIL_PROVIDER=smtp`. */
+  smtp: SmtpConfig | null;
+  /** Pasta dos arquivos enviados (fotos das cartas, comprovantes). Fora do diretório público. */
+  storageDir: string;
   /** Fila dos jobs (BullMQ). Ausente em desenvolvimento = sem jobs agendados. */
   redisUrl: string | null;
   /** Idiomas do sync do catálogo; o primeiro é o canônico. */
@@ -147,6 +163,30 @@ function parseLanguages(value: string | undefined): string[] {
   return [...new Set(languages)];
 }
 
+function parseSmtp(source: Source, isLive: boolean): SmtpConfig {
+  const user = source['SMTP_USER'] === '' ? undefined : source['SMTP_USER'];
+  const password = source['EMAIL_PASSWORD'] === '' ? undefined : source['EMAIL_PASSWORD'];
+  if ((user === undefined) !== (password === undefined)) {
+    throw new Error('SMTP_USER e EMAIL_PASSWORD precisam vir juntos (ou nenhum, no Mailpit local)');
+  }
+  if (isLive && user === undefined) {
+    throw new Error('SMTP_USER e EMAIL_PASSWORD são obrigatórios em homolog e prod');
+  }
+  const port = integer(source, 'SMTP_PORT', 465, 1, 65_535);
+  const from = source['EMAIL_FROM'] ?? user;
+  if (from === undefined || from === '') {
+    throw new Error('Defina EMAIL_FROM (ou SMTP_USER) para o remetente dos e-mails');
+  }
+  return {
+    host: source['SMTP_HOST'] ?? 'smtp.gmail.com',
+    port,
+    secure: port === 465,
+    user: user ?? null,
+    password: password ?? null,
+    from,
+  };
+}
+
 function parseAuth(source: Source): AuthConfig {
   return {
     accessSecret: secret(source, 'JWT_ACCESS_SECRET'),
@@ -189,6 +229,8 @@ export function loadEnv(source: Source = process.env): Env {
     corsOrigins: parseOrigins(source['CORS_ORIGINS']),
     publicAppUrl: source['APP_PUBLIC_URL'] ?? 'http://localhost:3000',
     emailProvider,
+    smtp: emailProvider === 'smtp' ? parseSmtp(source, isLive) : null,
+    storageDir: source['STORAGE_DIR'] ?? './storage',
     redisUrl: redisUrl ?? null,
     catalogLanguages: parseLanguages(source['CATALOG_LANGUAGES']),
     secureCookies: appEnv !== 'local' && appEnv !== 'test',

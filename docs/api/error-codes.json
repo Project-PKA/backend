@@ -257,6 +257,18 @@
       "status": 422
     },
     {
+      "code": "PHOTO_INVALID",
+      "status": 422
+    },
+    {
+      "code": "PHOTO_LIMIT_REACHED",
+      "status": 409
+    },
+    {
+      "code": "PHOTO_NOT_FOUND",
+      "status": 404
+    },
+    {
       "code": "PUBLIC_CEP_INVALID",
       "status": null
     },

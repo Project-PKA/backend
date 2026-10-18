@@ -6,6 +6,7 @@ import type { TcgdexClient } from '../../src/catalog/tcgdex.js';
 import { createPool } from '../../src/db/client.js';
 import { createDb, type Db } from '../../src/db/context.js';
 import { loadEnv, type Env } from '../../src/config/env.js';
+import { MemoryStorage } from '../../src/storage/disk.js';
 
 /** Valores só de teste: longos o bastante para passar na validação, sem valor real. */
 export function testEnv(overrides: NodeJS.ProcessEnv = {}): Env {
@@ -30,6 +31,7 @@ export function testEnv(overrides: NodeJS.ProcessEnv = {}): Env {
 
 export interface TestApp extends BuiltApp {
   email: MemoryEmailSender;
+  storage: MemoryStorage;
   db: Db;
   env: Env;
   close: () => Promise<void>;
@@ -51,10 +53,12 @@ export async function buildTestApp(options: Options = {}): Promise<TestApp> {
   const pool = options.pool ?? createPool(env.databaseUrl);
   const db = createDb(pool);
   const email = new MemoryEmailSender();
+  const storage = new MemoryStorage();
   const built = await buildApp({
     env,
     db,
     email,
+    storage,
     checkDatabase: options.checkDatabase ?? (() => Promise.resolve()),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.tcgdex === undefined ? {} : { tcgdex: options.tcgdex }),
@@ -63,6 +67,7 @@ export async function buildTestApp(options: Options = {}): Promise<TestApp> {
   return {
     ...built,
     email,
+    storage,
     db,
     env,
     close: async () => {

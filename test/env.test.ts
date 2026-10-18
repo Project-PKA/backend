@@ -69,6 +69,53 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...base, APP_ENV: 'dev' })).not.toThrow();
   });
 
+  it('configura o SMTP: Mailpit local sem login, Gmail exige usuário e senha de app', () => {
+    const local = loadEnv({
+      ...base,
+      EMAIL_PROVIDER: 'smtp',
+      SMTP_HOST: 'localhost',
+      SMTP_PORT: '1025',
+      EMAIL_FROM: 'a@b.test',
+    });
+    expect(local.smtp).toEqual({
+      host: 'localhost',
+      port: 1025,
+      secure: false,
+      user: null,
+      password: null,
+      from: 'a@b.test',
+    });
+
+    const gmail = loadEnv({
+      ...base,
+      APP_ENV: 'prod',
+      REDIS_URL: 'redis://x',
+      EMAIL_PROVIDER: 'smtp',
+      SMTP_USER: 'loja@gmail.com',
+      EMAIL_PASSWORD: 'senha-de-app',
+    });
+    expect(gmail.smtp).toMatchObject({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      from: 'loja@gmail.com',
+    });
+
+    expect(() => loadEnv({ ...base, EMAIL_PROVIDER: 'smtp' })).toThrow('EMAIL_FROM');
+    expect(() =>
+      loadEnv({ ...base, EMAIL_PROVIDER: 'smtp', SMTP_USER: 'a@b.test', EMAIL_FROM: 'a@b.test' }),
+    ).toThrow('precisam vir juntos');
+    expect(() =>
+      loadEnv({
+        ...base,
+        APP_ENV: 'prod',
+        REDIS_URL: 'redis://x',
+        EMAIL_PROVIDER: 'smtp',
+        EMAIL_FROM: 'a@b.test',
+      }),
+    ).toThrow('obrigatórios em homolog e prod');
+  });
+
   it('não aceita CORS com curinga nem origem malformada', () => {
     expect(() => loadEnv({ ...base, CORS_ORIGINS: '*' })).toThrow('não aceita "*"');
     expect(() => loadEnv({ ...base, CORS_ORIGINS: 'isto-nao-e-url' })).toThrow('origem inválida');

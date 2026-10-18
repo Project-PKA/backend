@@ -82,7 +82,8 @@ export type UpdateResult =
   | { ok: true; card: InventoryCard }
   | { ok: false; reason: CardFailure | 'NOT_FOUND' | 'CARD_LOCKED' };
 export type DeleteResult =
-  { ok: true } | { ok: false; reason: 'NOT_FOUND' | 'CARD_LOCKED' | 'CARD_HAS_HISTORY' };
+  | { ok: true; photos: string[] }
+  | { ok: false; reason: 'NOT_FOUND' | 'CARD_LOCKED' | 'CARD_HAS_HISTORY' };
 
 export interface ListQuery {
   limit: number;
@@ -453,7 +454,7 @@ export class InventoryService {
         targetId: id,
         details: { short_code: current.shortCode, tcgdex_id: current.tcgdexId },
       });
-      return { ok: true } as const;
+      return { ok: true, photos: current.customPhotos } as const;
     });
   }
 }

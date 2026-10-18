@@ -3,8 +3,13 @@
 > **Status:** o fluxo está **implementado e testado localmente** (compose, migrations, papel da API,
 > backup e restauração rodaram de ponta a ponta com a imagem real), mas **ainda não foi executado numa
 > VPS**, porque ela não existe. O job de deploy do GitHub só roda com a variable `DEPLOY_ENABLED=true`.
-> Para `homolog` e `prod` falta também o provedor de e-mail (decisão D1): a API recusa subir com o
-> provedor `log` nesses ambientes. `dev` sobe sem isso.
+> `homolog` e `prod` enviam e-mail por **SMTP do Gmail** (decisão D1; a troca por um provedor
+> transacional está em `Project-PKA/shared`): a API recusa subir com o provedor `log` nesses
+> ambientes. Preencha `SMTP_USER` e `EMAIL_PASSWORD` (senha de app do Google) no `.env` da VPS: o
+> deploy não copia secrets do GitHub para lá.
+>
+> **Arquivos enviados** (fotos das cartas) ficam no volume `storage_data`, no disco da VPS (D3), e
+> entram no `backup.sh` (`backups/<data>.storage.tar.enc`, criptografado como o dump).
 
 A fundação separa **como publicar**, que depende da plataforma, de **quando,
 o quê e com que autorização publicar**, que não depende.

@@ -41,8 +41,11 @@ make seed                    # dados de desenvolvimento (apaga o banco!)
 make run                     # API em http://localhost:8080 (usa DATABASE_URL)
 ```
 
-O provedor de e-mail local imprime o código de login no log da API (só em
-desenvolvimento). Contas do seed: `dono@example.com` (proprietário de duas
+Por padrão o e-mail local imprime o código de login no log da API (só em
+desenvolvimento). Para ver os e-mails de verdade, sem enviar nada: `docker compose up -d mailpit`,
+use `EMAIL_PROVIDER=smtp`, `SMTP_HOST=localhost`, `SMTP_PORT=1025` e abra http://localhost:8025.
+Com `docker compose --profile app up -d --build app` a API já sobe assim (fotos no volume
+`storage_data`). Contas do seed: `dono@example.com` (proprietário de duas
 lojas), `funcionario@example.com` e `admin@example.com`.
 
 Conferindo:
@@ -61,7 +64,7 @@ rodando).
 | Pronto | Falta (ver [`docs/roadmap.md`](docs/roadmap.md)) |
 | --- | --- |
 | Health, ready, metrics, erros `problem+json`, limites de corpo e timeouts | API `/v1/admin` e solicitações de acesso (Etapa 2c) |
-| Schema (25 tabelas) com migrations `up`/`down`, RLS e seed | Fotos das cartas (Etapa 3, depende do armazenamento), clientes (4) |
+| Schema (25 tabelas) com migrations `up`/`down`, RLS e seed | Clientes (4) |
 | Login por código, sessão com refresh rotacionado, convites, tenant e RBAC | Acertos e páginas públicas (6) |
 | Criar e editar loja, equipe, convites, log de atividades | Painéis (7), vitrine, planos e perfil (8) |
 | Catálogo TCGdex (sync às 03:00 com BullMQ, busca sem acento) e estoque (cadastro, lista, detalhe, edição, exclusão) | |
@@ -71,8 +74,8 @@ rodando).
 | Perfil (preferências), notificações internas, plano e uso, vitrine pública opt-in | Cobrança e faturas (D6) |
 | Painéis: Home ao vivo e Financeiro (KPIs, séries diárias, histogramas, pizzas, top compradores e repasses) |
 | Acertos (criar, frete, desfazer, marcar como pago) e fila de envios com rastreio |
-| Páginas públicas por link: acerto do comprador (CPF, endereço e consentimento LGPD) e acompanhamento do consignador, com papel `public_runtime` e bloqueio por tentativas | Comprovante em arquivo do "já paguei" (#53, D3) |
-| Deploy numa VPS real (compose, backup e restauração testados localmente) | VPS, domínio e provedor de e-mail |
+| Páginas públicas por link: acerto do comprador (CPF, endereço e consentimento LGPD) e acompanhamento do consignador, com papel `public_runtime` e bloqueio por tentativas | Comprovante em arquivo do "já paguei" (#53, precisa de função pública nova) |
+| Deploy numa VPS real (compose, backup e restauração testados localmente) | VPS e domínio |
 | Contrato OpenAPI gerado do código (99 operações) | |
 | Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
 | | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |

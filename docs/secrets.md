@@ -42,13 +42,17 @@ Um valor diferente em cada Environment. Nunca reutilize o de `prod` fora dele.
 | `RATE_LIMIT_SHOWCASE_PER_MINUTE` | variable | Leituras da vitrine pública por minuto e por IP (padrão 30) | Opcional |
 | `RATE_LIMIT_ACCESS_REQUEST_PER_MINUTE` | variable | Pedidos de acesso da landing por minuto e por IP (padrão 3) | Opcional |
 | `CATALOG_LANGUAGES` | variable | Idiomas do sync do catálogo (padrão `en,pt`; o primeiro é o canônico) | Opcional |
-| `EMAIL_API_KEY` *(proposto)* | secret | Envio do OTP. **Provedor ainda não decidido** | Conta no provedor escolhido |
+| `EMAIL_PASSWORD` | secret | **Senha de app** do Google (Conta > Segurança > Verificação em duas etapas > Senhas de app), usada no SMTP do Gmail. Nunca a senha da conta. Na VPS vai para o `.env` | Conta Google do dono |
+| `SMTP_USER` | variable | Endereço Gmail que envia (também é o remetente padrão). Obrigatória com `EMAIL_PROVIDER=smtp` em homolog e prod | Conta Google do dono |
 | `GRAFANA_ADMIN_PASSWORD` *(proposto)* | secret | Painel de observabilidade | Gerador de senha |
 | `APP_BASE_URL` | variable | URL pública, usada no smoke test do deploy | Domínio, depois da VPS |
 | `APP_PUBLIC_URL` | variable | URL pública do frontend, usada nos links de convite | Domínio do frontend |
 | `CORS_ORIGINS` | variable | Origens do frontend autorizadas a chamar a API, separadas por vírgula. Nunca `*` | Domínio do frontend |
 | `TRUST_PROXY` | variable | `true` atrás do reverse proxy, para o limite de requisições ver o IP real | `true` em homolog e prod |
-| `EMAIL_PROVIDER` | variable | Provedor de e-mail. `log` só em desenvolvimento: a API recusa subir com `log` em homolog e prod | Decidir o provedor |
+| `EMAIL_PROVIDER` | variable | `smtp` (homolog e prod) ou `log` (só desenvolvimento: a API recusa subir com `log` em homolog e prod) | `smtp` |
+| `SMTP_HOST` / `SMTP_PORT` | variable | Padrão `smtp.gmail.com` / `465` (TLS direto). No Mailpit local: `localhost` / `1025`, sem login | Opcional |
+| `EMAIL_FROM` | variable | Remetente exibido. Padrão: `SMTP_USER` (o Gmail reescreve para a conta) | Opcional |
+| `STORAGE_DIR` | variable | Pasta das fotos enviadas. No compose é o volume `storage_data` em `/app/storage` | Opcional |
 
 **Atenção ao `WHATSAPP_SESSION_ENCRYPTION_KEY`:** perder a chave significa
 perder todas as sessões salvas (cada loja precisa ler o QR Code de novo).
