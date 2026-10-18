@@ -12,6 +12,7 @@ import { collectDefaultMetrics, Registry } from 'prom-client';
 import type { EmailSender } from './auth/email.js';
 import { createAuthHooks } from './auth/hooks.js';
 import { CatalogService } from './catalog/service.js';
+import { InventoryService } from './inventory/service.js';
 import { createTcgdexClient, type TcgdexClient } from './catalog/tcgdex.js';
 import { InvitationService } from './auth/invitations.js';
 import { AuthService } from './auth/service.js';
@@ -22,6 +23,7 @@ import { authRoutes } from './routes/auth.js';
 import { infraRoutes } from './routes/infra.js';
 import { activityRoutes } from './routes/activity.js';
 import { catalogRoutes } from './routes/catalog.js';
+import { inventoryRoutes } from './routes/inventory.js';
 import { meRoutes } from './routes/me.js';
 import { storeRoutes } from './routes/store.js';
 import { teamRoutes } from './routes/team.js';
@@ -47,6 +49,7 @@ export interface BuiltApp {
   stores: StoreService;
   team: TeamService;
   catalog: CatalogService;
+  inventory: InventoryService;
 }
 
 const TRACEPARENT = /^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/;
@@ -142,6 +145,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
         },
         { name: 'team', description: 'Equipe e convites da loja (só o proprietário altera)' },
         { name: 'catalog', description: 'Catálogo de cartas (busca e detalhe)' },
+        { name: 'inventory', description: 'Estoque da loja (cartas próprias e consignadas)' },
       ],
       components: {
         securitySchemes: {
@@ -187,6 +191,8 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
     },
   });
   catalogRoutes(app, { hooks, catalog });
+  const inventory = new InventoryService(deps.db);
+  inventoryRoutes(app, { hooks, inventory });
 
-  return { app, auth, invitations, stores: storesService, team, catalog };
+  return { app, auth, invitations, stores: storesService, team, catalog, inventory };
 }
