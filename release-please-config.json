@@ -55,7 +55,15 @@
     }
   ],
   "packages": {
-    ".": {}
+    ".": {
+      "extra-files": [
+        {
+          "type": "yaml",
+          "path": "docs/api/openapi.yaml",
+          "jsonpath": "$.info.version"
+        }
+      ]
+    }
   },
   "bump-minor-pre-major": true
 }
