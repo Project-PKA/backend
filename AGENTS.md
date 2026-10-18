@@ -38,12 +38,12 @@ administrador da plataforma, e há **páginas públicas** por link (vitrine,
 acerto do cliente, acompanhamento do consignador). O que falta e em que
 ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 
-**Estado atual:** Etapas 1, 2a, 2b e 3 prontas (a 3 sem as fotos): scaffold, schema com seed, RLS e papéis
+**Estado atual:** Etapas 1, 2a, 2b, 3 (sem as fotos) e 5 (sem o bot) prontas: scaffold, schema com seed, RLS e papéis
 de banco, login por código, sessão com refresh rotacionado, convites, middleware
 de loja e RBAC, criar e editar loja, equipe, convites por rota, log de atividades
 e limites de HTTP (rotas `/v1/auth`, `/v1/me`, `/v1/stores`, `/v1/store`, `/v1/team*`,
-`/v1/activity-log`, `/v1/catalog*` e `/v1/cards*`). Faltam a API `/v1/admin` (2c), clientes, leilões,
-acertos e painéis (Etapas 4 a 8 do roteiro). O que vem a seguir está nas issues
+`/v1/activity-log`, `/v1/catalog*`, `/v1/cards*` e `/v1/auctions*`). Faltam a API `/v1/admin` (2c), clientes,
+acertos e painéis (Etapas 4, 6, 7 e 8 do roteiro) e o bot. O que vem a seguir está nas issues
 da próxima sprint (milestones). A VPS
 ainda não existe, então não há deploy.
 
@@ -270,9 +270,15 @@ reverter, pergunte primeiro.
 - **A FK composta `(id, store_id)`** em lances, leilões e acertos impede
   referência entre lojas no banco. Ao criar tabela nova que aponte para uma
   dessas, siga o mesmo padrão.
-- **Lances simultâneos:** a decisão é transação com `SELECT ... FOR UPDATE`
-  na linha do leilão, validando incremento e maior lance antes do `INSERT`.
-  O banco só garante que dois lances do mesmo valor não coexistem.
+- **Lances:** a regra vive na função `place_bid` do Postgres (migration 0013, ADR 0016),
+  que trava a linha do leilão (`FOR UPDATE`) e valida período, blacklist, incremento e
+  teto. Backend e bot a chamam; **não reescreva a regra em TypeScript**. Ela devolve
+  `outcome` (não lança erro de regra de negócio). A hora do lance é lida **depois** do
+  lock (`clock_timestamp()`), não no início da transação.
+- **Abrir e encerrar leilões:** `advance_auctions(loja)` vira o estado conforme o relógio
+  do banco (abre, encerra, define vencedor, devolve a carta). A API a chama ao listar,
+  detalhar e agir. Ainda **não há job** que varra todas as lojas: quem agenda é o bot (a
+  fazer, issue #44) ou um job futuro.
 - **`prom-client` está deprecado no npm** e o ESLint 9 saiu de suporte:
   revisar antes de produção (`STACK.md`, seção 8).
 - **`BOOTSTRAP.md` e `SETUP-GITHUB.md` ainda existem** de propósito: o

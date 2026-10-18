@@ -80,7 +80,8 @@ tarefa que o toca não está pronta sem ele.
 | --- | --- |
 | Sessão do WhatsApp fora do alcance do administrador e nunca em log. Com o neonize a sessão é persistida pela biblioteca (SQLite ou PostgreSQL): o formato de armazenamento e a criptografia serão decididos no bootstrap do bot ([ADR 0015](https://github.com/Project-PKA/shared/blob/main/docs/adr/0015-bot-em-python-com-neonize.md)). Regra mantida: `whatsapp_sessions.session_data` (tabela própria, só visível com o contexto da própria loja, nem o administrador a lê) guardado **criptografado** (AES-256-GCM, chave `WHATSAPP_SESSION_ENCRYPTION_KEY` fora do banco) | tabela e isolamento **feitos**; a criptografia entra na Etapa 5 |
 | Role do banco do bot com **privilégio mínimo**: só as tabelas e colunas que o fluxo exige, sem DDL, sem `SUPERUSER` | Etapa 5 |
-| Decisão de lance dentro de **uma função do banco** (`place_bid`) com trava da linha do leilão; valor, incremento e blacklist validados lá, para API e bot usarem a mesma regra ([ADR 0016](https://github.com/Project-PKA/shared/blob/main/docs/adr/0016-decisao-de-lance-em-funcao-do-banco.md)) | Etapa 5 |
+| Decisão de lance dentro de **uma função do banco** (`place_bid`) com trava da linha do leilão; valor, incremento e blacklist validados lá, para API e bot usarem a mesma regra ([ADR 0016](https://github.com/Project-PKA/shared/blob/main/docs/adr/0016-decisao-de-lance-em-funcao-do-banco.md)) | **feito** (migration 0013; função `SECURITY INVOKER`, sob o RLS; testes com lances simultâneos e com loja errada) |
+| Sala de lances devolve telefone com o miolo oculto e nunca o texto original da mensagem | **feito** (com teste) |
 | O ID da carta e o texto da mensagem são tratados como entrada não confiável (regex estrita, tamanho máximo, sem eval/SQL concatenado) | Etapa 5 |
 | Risco aceito: banimento do número e violação dos termos do WhatsApp (ADR 0007) | aceito |
 
