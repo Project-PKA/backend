@@ -6768,6 +6768,2259 @@ paths:
                     type: string
                   code:
                     type: string
+  /v1/customers:
+    post:
+      operationId: createCustomer
+      summary: Cadastra um cliente ou visitante (o telefone é único por loja)
+      tags:
+        - customers
+      description: Com CPF e endereço completos é Cliente; sem eles, Visitante.
+        Telefone, CPF e CEP são validados e guardados só com dígitos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - name
+              additionalProperties: false
+              properties:
+                phone:
+                  type: string
+                  minLength: 8
+                  maxLength: 20
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                  nullable: true
+                cpf:
+                  type: string
+                  maxLength: 14
+                  nullable: true
+                  description: Validado; nunca devolvido inteiro
+                address:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    zip:
+                      type: string
+                      maxLength: 9
+                      nullable: true
+                    street:
+                      type: string
+                      maxLength: 120
+                      nullable: true
+                    number:
+                      type: string
+                      maxLength: 20
+                      nullable: true
+                    comp:
+                      type: string
+                      maxLength: 60
+                      nullable: true
+                    city:
+                      type: string
+                      maxLength: 80
+                      nullable: true
+                    state:
+                      type: string
+                      pattern: ^[A-Za-z]{2}$
+                      nullable: true
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: &a7
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - phone
+                  - name
+                  - email
+                  - cpf_masked
+                  - kind
+                  - is_blacklisted
+                  - blacklist_reason
+                  - last_interaction_at
+                  - address
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  phone:
+                    type: string
+                    description: Só dígitos, com código do país
+                  name:
+                    type: string
+                  email:
+                    type: string
+                    nullable: true
+                  cpf_masked:
+                    type: string
+                    nullable: true
+                  kind:
+                    type: string
+                    enum:
+                      - VISITOR
+                      - CUSTOMER
+                  is_blacklisted:
+                    type: boolean
+                  blacklist_reason:
+                    type: string
+                    nullable: true
+                  last_interaction_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  address:
+                    type: object
+                    properties:
+                      zip:
+                        type: string
+                        nullable: true
+                      street:
+                        type: string
+                        nullable: true
+                      number:
+                        type: string
+                        nullable: true
+                      comp:
+                        type: string
+                        nullable: true
+                      city:
+                        type: string
+                        nullable: true
+                      state:
+                        type: string
+                        nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+    get:
+      operationId: listCustomers
+      summary: Base de clientes e visitantes, com filtros
+      tags:
+        - customers
+      parameters:
+        - schema:
+            type: string
+            maxLength: 300
+          in: query
+          name: cursor
+          required: false
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          in: query
+          name: limit
+          required: false
+        - schema:
+            type: string
+            maxLength: 80
+          in: query
+          name: q
+          required: false
+          description: Nome ou telefone
+        - schema:
+            type: string
+            enum:
+              - VISITOR
+              - CUSTOMER
+          in: query
+          name: kind
+          required: false
+        - schema:
+            type: boolean
+          in: query
+          name: blacklisted
+          required: false
+        - schema:
+            type: boolean
+          in: query
+          name: inactive
+          required: false
+          description: Sem interação há mais dias que o limite de inatividade da loja
+        - schema:
+            type: boolean
+          in: query
+          name: consignor
+          required: false
+          description: Só quem tem carta consignada
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a7
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - next_cursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - phone
+                        - name
+                        - email
+                        - cpf_masked
+                        - kind
+                        - is_blacklisted
+                        - blacklist_reason
+                        - last_interaction_at
+                        - address
+                        - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        phone:
+                          type: string
+                          description: Só dígitos, com código do país
+                        name:
+                          type: string
+                        email:
+                          type: string
+                          nullable: true
+                        cpf_masked:
+                          type: string
+                          nullable: true
+                        kind:
+                          type: string
+                          enum:
+                            - VISITOR
+                            - CUSTOMER
+                        is_blacklisted:
+                          type: boolean
+                        blacklist_reason:
+                          type: string
+                          nullable: true
+                        last_interaction_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        address:
+                          type: object
+                          properties:
+                            zip:
+                              type: string
+                              nullable: true
+                            street:
+                              type: string
+                              nullable: true
+                            number:
+                              type: string
+                              nullable: true
+                            comp:
+                              type: string
+                              nullable: true
+                            city:
+                              type: string
+                              nullable: true
+                            state:
+                              type: string
+                              nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+                  next_cursor:
+                    type: string
+                    nullable: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/customers/{id}:
+    get:
+      operationId: getCustomer
+      summary: Perfil do cliente
+      tags:
+        - customers
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a7
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - phone
+                  - name
+                  - email
+                  - cpf_masked
+                  - kind
+                  - is_blacklisted
+                  - blacklist_reason
+                  - last_interaction_at
+                  - address
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  phone:
+                    type: string
+                    description: Só dígitos, com código do país
+                  name:
+                    type: string
+                  email:
+                    type: string
+                    nullable: true
+                  cpf_masked:
+                    type: string
+                    nullable: true
+                  kind:
+                    type: string
+                    enum:
+                      - VISITOR
+                      - CUSTOMER
+                  is_blacklisted:
+                    type: boolean
+                  blacklist_reason:
+                    type: string
+                    nullable: true
+                  last_interaction_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  address:
+                    type: object
+                    properties:
+                      zip:
+                        type: string
+                        nullable: true
+                      street:
+                        type: string
+                        nullable: true
+                      number:
+                        type: string
+                        nullable: true
+                      comp:
+                        type: string
+                        nullable: true
+                      city:
+                        type: string
+                        nullable: true
+                      state:
+                        type: string
+                        nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+    patch:
+      operationId: updateCustomer
+      summary: Edita os dados do cliente (o telefone não muda)
+      tags:
+        - customers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                  nullable: true
+                cpf:
+                  type: string
+                  maxLength: 14
+                  nullable: true
+                  description: Validado; nunca devolvido inteiro
+                address:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    zip:
+                      type: string
+                      maxLength: 9
+                      nullable: true
+                    street:
+                      type: string
+                      maxLength: 120
+                      nullable: true
+                    number:
+                      type: string
+                      maxLength: 20
+                      nullable: true
+                    comp:
+                      type: string
+                      maxLength: 60
+                      nullable: true
+                    city:
+                      type: string
+                      maxLength: 80
+                      nullable: true
+                    state:
+                      type: string
+                      pattern: ^[A-Za-z]{2}$
+                      nullable: true
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a7
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - phone
+                  - name
+                  - email
+                  - cpf_masked
+                  - kind
+                  - is_blacklisted
+                  - blacklist_reason
+                  - last_interaction_at
+                  - address
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  phone:
+                    type: string
+                    description: Só dígitos, com código do país
+                  name:
+                    type: string
+                  email:
+                    type: string
+                    nullable: true
+                  cpf_masked:
+                    type: string
+                    nullable: true
+                  kind:
+                    type: string
+                    enum:
+                      - VISITOR
+                      - CUSTOMER
+                  is_blacklisted:
+                    type: boolean
+                  blacklist_reason:
+                    type: string
+                    nullable: true
+                  last_interaction_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  address:
+                    type: object
+                    properties:
+                      zip:
+                        type: string
+                        nullable: true
+                      street:
+                        type: string
+                        nullable: true
+                      number:
+                        type: string
+                        nullable: true
+                      comp:
+                        type: string
+                        nullable: true
+                      city:
+                        type: string
+                        nullable: true
+                      state:
+                        type: string
+                        nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/customers/{id}/blacklist:
+    post:
+      operationId: blacklistCustomer
+      summary: Coloca o cliente na blacklist (os lances dele deixam de valer)
+      tags:
+        - customers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a7
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - phone
+                  - name
+                  - email
+                  - cpf_masked
+                  - kind
+                  - is_blacklisted
+                  - blacklist_reason
+                  - last_interaction_at
+                  - address
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  phone:
+                    type: string
+                    description: Só dígitos, com código do país
+                  name:
+                    type: string
+                  email:
+                    type: string
+                    nullable: true
+                  cpf_masked:
+                    type: string
+                    nullable: true
+                  kind:
+                    type: string
+                    enum:
+                      - VISITOR
+                      - CUSTOMER
+                  is_blacklisted:
+                    type: boolean
+                  blacklist_reason:
+                    type: string
+                    nullable: true
+                  last_interaction_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  address:
+                    type: object
+                    properties:
+                      zip:
+                        type: string
+                        nullable: true
+                      street:
+                        type: string
+                        nullable: true
+                      number:
+                        type: string
+                        nullable: true
+                      comp:
+                        type: string
+                        nullable: true
+                      city:
+                        type: string
+                        nullable: true
+                      state:
+                        type: string
+                        nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+    delete:
+      operationId: unblacklistCustomer
+      summary: Tira o cliente da blacklist
+      tags:
+        - customers
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a7
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - phone
+                  - name
+                  - email
+                  - cpf_masked
+                  - kind
+                  - is_blacklisted
+                  - blacklist_reason
+                  - last_interaction_at
+                  - address
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  phone:
+                    type: string
+                    description: Só dígitos, com código do país
+                  name:
+                    type: string
+                  email:
+                    type: string
+                    nullable: true
+                  cpf_masked:
+                    type: string
+                    nullable: true
+                  kind:
+                    type: string
+                    enum:
+                      - VISITOR
+                      - CUSTOMER
+                  is_blacklisted:
+                    type: boolean
+                  blacklist_reason:
+                    type: string
+                    nullable: true
+                  last_interaction_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  address:
+                    type: object
+                    properties:
+                      zip:
+                        type: string
+                        nullable: true
+                      street:
+                        type: string
+                        nullable: true
+                      number:
+                        type: string
+                        nullable: true
+                      comp:
+                        type: string
+                        nullable: true
+                      city:
+                        type: string
+                        nullable: true
+                      state:
+                        type: string
+                        nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/customers/{id}/settlements:
+    get:
+      operationId: listCustomerSettlements
+      summary: "Aba Acerto: acertos do cliente"
+      tags:
+        - customers
+      parameters:
+        - schema:
+            type: string
+            maxLength: 300
+          in: query
+          name: cursor
+          required: false
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          in: query
+          name: limit
+          required: false
+        - schema:
+            type: string
+            enum:
+              - PENDING
+              - PAID
+          in: query
+          name: status
+          required: false
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a7
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - next_cursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - status
+                        - total_amount
+                        - shipping_cost
+                        - items
+                        - paid_at
+                        - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                          enum:
+                            - PENDING
+                            - PAID
+                        total_amount:
+                          type: string
+                        shipping_cost:
+                          type: string
+                        items:
+                          type: integer
+                        paid_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+                  next_cursor:
+                    type: string
+                    nullable: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/customers/{id}/bids:
+    get:
+      operationId: listCustomerBids
+      summary: "Aba Histórico: lances do cliente"
+      tags:
+        - customers
+      parameters:
+        - schema:
+            type: string
+            maxLength: 300
+          in: query
+          name: cursor
+          required: false
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          in: query
+          name: limit
+          required: false
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a7
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - next_cursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - amount
+                        - created_at
+                        - auction_id
+                        - auction_status
+                        - won
+                        - card
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        amount:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        auction_id:
+                          type: string
+                          format: uuid
+                        auction_status:
+                          type: string
+                        won:
+                          type: boolean
+                        card:
+                          type: object
+                          required:
+                            - id
+                            - short_code
+                            - name
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            short_code:
+                              type: string
+                            name:
+                              type: string
+                  next_cursor:
+                    type: string
+                    nullable: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/customers/{id}/consignments:
+    get:
+      operationId: getCustomerConsignments
+      summary: "Carteira de consignação: cartas, vendido e a receber (exige
+        can_view_finance)"
+      tags:
+        - customers
+      description: "Valores são estimativas até o acerto: líquido = lance vencedor
+        menos a comissão da loja."
+      parameters:
+        - schema:
+            type: string
+            maxLength: 300
+          in: query
+          name: cursor
+          required: false
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          in: query
+          name: limit
+          required: false
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a7
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - next_cursor
+                  - totals
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - short_code
+                        - name
+                        - card_status
+                        - commission_pct
+                        - sale_amount
+                        - commission_amount
+                        - net_amount
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        short_code:
+                          type: string
+                        name:
+                          type: string
+                        card_status:
+                          type: string
+                        commission_pct:
+                          type: string
+                        sale_amount:
+                          type: string
+                          nullable: true
+                        commission_amount:
+                          type: string
+                          nullable: true
+                        net_amount:
+                          type: string
+                          nullable: true
+                          description: Lance menos a comissão da loja
+                  next_cursor:
+                    type: string
+                    nullable: true
+                  totals:
+                    type: object
+                    required:
+                      - in_stock
+                      - pending_net
+                      - sold_net
+                      - commission
+                    properties:
+                      in_stock:
+                        type: integer
+                      pending_net:
+                        type: string
+                        description: Vendido, aguardando confirmação
+                      sold_net:
+                        type: string
+                        description: Venda confirmada e paga
+                      commission:
+                        type: string
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
 tags:
   - name: infra
     description: Health check, readiness e métricas
@@ -6781,6 +9034,8 @@ tags:
     description: Equipe e convites da loja (só o proprietário altera)
   - name: catalog
     description: Catálogo de cartas (busca e detalhe)
+  - name: customers
+    description: Clientes, visitantes, blacklist e carteira de consignação
   - name: auctions
     description: Leilões, lances e enquetes
   - name: inventory

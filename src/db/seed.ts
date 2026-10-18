@@ -121,8 +121,8 @@ function storeACustomer(n: number): CustomerRow {
     ...base,
     // Cliente de número múltiplo de 5 não informou e-mail.
     email: n % 5 === 0 ? null : `cliente${n}@example.com`,
-    cpf: `000.000.${pad(n, 3)}-00`,
-    addressZip: '01310-100',
+    cpf: `000000${pad(n, 3)}00`,
+    addressZip: '01310100',
     addressStreet: 'Avenida Paulista',
     addressNumber: String(n * 10),
     addressComp: n % 3 === 0 ? 'Apto 12' : null,
