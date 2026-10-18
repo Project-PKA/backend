@@ -170,6 +170,7 @@ Receita e rollback em [`DEPLOY.md`](DEPLOY.md).
 
 | O que foi dispensado | Motivo | Revisitar quando |
 | --- | --- | --- |
+| SonarCloud desligado (`sonar: false` no `ci.yml`; `sonar-project.properties` com placeholders) | Ainda não há conta nem `SONAR_TOKEN`; o restante do CI (lint, tipos, testes, build, contrato, imagem) roda | Criar a conta e o secret (shared/OWNER.md, A4) |
 | `SEED_CMD` pendente (não é `skip`) | Ainda não há tabelas; entra com o schema na Etapa 1 do backlog | Etapa 1 do backlog |
 | Deploy (`scripts/deploy.sh` e passo `Publicar` do `deploy.yml` em `skip`) | A VPS ainda não existe (decisão do usuário em 2026-10-17) | A VPS for contratada |
 

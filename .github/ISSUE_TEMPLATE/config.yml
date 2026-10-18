@@ -4,9 +4,9 @@ blank_issues_enabled: false
 
 contact_links:
   - name: Duvida ou discussao
-    url: https://github.com/SUA-ORG/SEU-REPOSITORIO/discussions
+    url: https://github.com/Project-PKA/Backend/discussions
     about: Para perguntas e ideias que ainda nao viraram bug ou feature.
 
   - name: Vulnerabilidade de seguranca
-    url: https://github.com/SUA-ORG/SEU-REPOSITORIO/security/advisories/new
+    url: https://github.com/Project-PKA/Backend/security/advisories/new
     about: Reporte em privado. Nunca abra issue publica para falha de seguranca.
