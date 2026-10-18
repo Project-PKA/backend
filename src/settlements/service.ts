@@ -29,6 +29,7 @@ export interface SettlementView {
   totalAmount: string;
   paidAt: Date | null;
   paymentClaimedAt: Date | null;
+  hasReceipt: boolean;
   createdAt: Date;
   shipment: { id: string; status: string; trackingCode: string | null } | null;
   items: SettlementItemView[];
@@ -168,6 +169,7 @@ export class SettlementService {
       totalAmount: row.settlement.totalAmount,
       paidAt: row.settlement.paidAt,
       paymentClaimedAt: row.settlement.paymentClaimedAt,
+      hasReceipt: row.settlement.receiptFile !== null,
       createdAt: row.settlement.createdAt,
       shipment:
         row.shipment === null
@@ -385,7 +387,7 @@ export class SettlementService {
   async remove(
     context: Context,
     id: string,
-  ): Promise<{ ok: true } | { ok: false; reason: SettlementFailure }> {
+  ): Promise<{ ok: true; receiptFile: string | null } | { ok: false; reason: SettlementFailure }> {
     return withContext(this.db, context, async (tx) => {
       const current = await this.lock(tx, context.storeId, id);
       if (current === undefined) return { ok: false, reason: 'NOT_FOUND' } as const;
@@ -400,7 +402,7 @@ export class SettlementService {
         targetId: id,
         details: { customer_id: current.customerId },
       });
-      return { ok: true } as const;
+      return { ok: true, receiptFile: current.receiptFile } as const;
     });
   }
 }

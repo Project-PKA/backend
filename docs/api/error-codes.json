@@ -297,6 +297,14 @@
       "status": 429
     },
     {
+      "code": "RECEIPT_INVALID",
+      "status": null
+    },
+    {
+      "code": "RECEIPT_NOT_FOUND",
+      "status": 404
+    },
+    {
       "code": "RESEND_TOO_SOON",
       "status": 429
     },

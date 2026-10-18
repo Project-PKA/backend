@@ -1,3 +1,4 @@
+import type { ReceiptService } from '../settlements/receipt.js';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 
 import type { AuthHooks } from '../auth/hooks.js';
@@ -21,6 +22,7 @@ export interface SettlementRouteDeps {
   hooks: AuthHooks;
   settlements: SettlementService;
   shipments: ShipmentService;
+  receipts: ReceiptService;
 }
 
 const security = [{ bearerAuth: [] }];
@@ -64,6 +66,7 @@ const settlementResponse = {
     'total_amount',
     'paid_at',
     'payment_claimed_at',
+    'has_receipt',
     'created_at',
     'shipment',
     'items',
@@ -91,6 +94,10 @@ const settlementResponse = {
       nullable: true,
       description:
         'O comprador avisou que pagou (a loja ainda precisa conferir e marcar como pago)',
+    },
+    has_receipt: {
+      type: 'boolean',
+      description: 'O comprador enviou o comprovante (baixe em GET /v1/settlements/{id}/receipt)',
     },
     created_at: { type: 'string', format: 'date-time' },
     shipment: {
@@ -189,6 +196,7 @@ const toSettlementJson = (view: SettlementView) => ({
   total_amount: view.totalAmount,
   paid_at: view.paidAt?.toISOString() ?? null,
   payment_claimed_at: view.paymentClaimedAt?.toISOString() ?? null,
+  has_receipt: view.hasReceipt,
   created_at: view.createdAt.toISOString(),
   shipment:
     view.shipment === null
@@ -272,7 +280,7 @@ const pageOf = (item: object) =>
   }) as const;
 
 export function settlementRoutes(app: FastifyInstance, deps: SettlementRouteDeps): void {
-  const { hooks, settlements, shipments } = deps;
+  const { hooks, settlements, shipments, receipts } = deps;
   const member = [hooks.authenticate, hooks.requireStore];
   const manage = [...member, hooks.requirePermission('can_manage_auctions')];
   const finance = [...member, hooks.requirePermission('can_view_finance')];
@@ -446,6 +454,38 @@ export function settlementRoutes(app: FastifyInstance, deps: SettlementRouteDeps
     },
   );
 
+  app.get(
+    '/v1/settlements/:id/receipt',
+    {
+      preValidation: manage,
+      schema: {
+        operationId: 'getSettlementReceipt',
+        tags: ['settlements'],
+        summary: 'Baixa o comprovante que o comprador enviou (imagem)',
+        security,
+        headers: storeHeader,
+        params: uuidParams,
+        response: { 401: problemSchema, 403: problemSchema, 404: problemSchema },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const found = await receipts.read(contextOf(request), id);
+      if (found === null) {
+        return sendProblem(
+          reply,
+          buildProblem(404, 'Comprovante não encontrado', 'RECEIPT_NOT_FOUND'),
+        );
+      }
+      return reply
+        .header('Content-Type', found.contentType)
+        .header('Cache-Control', 'private, no-store')
+        .header('X-Content-Type-Options', 'nosniff')
+        .header('Content-Disposition', 'inline')
+        .send(found.data);
+    },
+  );
+
   app.delete(
     '/v1/settlements/:id',
     {
@@ -464,6 +504,7 @@ export function settlementRoutes(app: FastifyInstance, deps: SettlementRouteDeps
       const { id } = request.params as { id: string };
       const result = await settlements.remove(contextOf(request), id);
       if (!result.ok) return sendSettlementFailure(reply, result.reason);
+      await receipts.discard(result.receiptFile);
       return reply.status(204).send();
     },
   );

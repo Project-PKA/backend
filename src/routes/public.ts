@@ -4,12 +4,14 @@ import type { AuthHooks } from '../auth/hooks.js';
 import { normalizeCep, normalizeCpf, normalizePhone } from '../customers/validation.js';
 import { DEFAULT_LIMIT, pageQuerySchema } from '../http/pagination.js';
 import { buildProblem, problemSchema, sendProblem } from '../http/problem.js';
+import { MAX_RECEIPT_BYTES, type ReceiptService } from '../settlements/receipt.js';
 import type { PublicAccessService } from '../public/access.js';
 import type { LinkKind, LinkView, PublicLinkService } from '../public/links.js';
 import { storeHeader } from './store.js';
 
 export interface PublicRouteDeps {
   access: PublicAccessService;
+  receipts: ReceiptService;
   /** Requisições por minuto e por IP nas rotas públicas. */
   rateLimitPerMinute: number;
   /** Limite próprio do formulário de pedido de acesso. */
@@ -44,7 +46,7 @@ const failures = {
 
 /** Rotas SEM login. O token nunca vai na URL: vem no corpo, para não parar em log nem em Referer. */
 export function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps): void {
-  const { access } = deps;
+  const { access, receipts } = deps;
   const rateLimit = { max: deps.rateLimitPerMinute, timeWindow: '1 minute' };
 
   void app.register((scope, _options, done) => {
@@ -81,6 +83,7 @@ export function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps): void 
                 pix_key: { type: 'string', nullable: true },
                 status: { type: 'string', enum: ['PENDING', 'PAID'] },
                 payment_claimed_at: { type: 'string', nullable: true },
+                receipt_sent: { type: 'boolean' },
                 shipping_cost: { type: 'string' },
                 total_amount: { type: 'string' },
                 expires_at: { type: 'string' },
@@ -398,6 +401,11 @@ export function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps): void 
       },
     );
 
+    scope.register((upload, _options, uploadDone) => {
+      receiptRoute(upload, receipts, rateLimit);
+      uploadDone();
+    });
+
     done();
   });
 }
@@ -620,6 +628,71 @@ export function publicLinkRoutes(app: FastifyInstance, deps: PublicLinkRouteDeps
         );
       }
       return toLinkJson(link);
+    },
+  );
+}
+
+/**
+ * Comprovante do "já paguei". O corpo é a imagem crua e o token vai no header (não pode ir no
+ * corpo nem na URL). Escopo próprio: só aqui valem o parser de imagem e o limite de 5 MB.
+ */
+function receiptRoute(
+  app: FastifyInstance,
+  receipts: ReceiptService,
+  rateLimit: { max: number; timeWindow: string },
+): void {
+  app.removeAllContentTypeParsers();
+  app.addContentTypeParser(
+    ['image/jpeg', 'image/png', 'image/webp'],
+    { parseAs: 'buffer', bodyLimit: MAX_RECEIPT_BYTES },
+    (_request, body, done) => {
+      done(null, body);
+    },
+  );
+
+  app.put(
+    '/v1/public/settlement/receipt',
+    {
+      config: { rateLimit },
+      bodyLimit: MAX_RECEIPT_BYTES,
+      schema: {
+        operationId: 'publicSettlementReceipt',
+        tags: ['public'],
+        summary: 'O comprador anexa o comprovante de pagamento (imagem)',
+        description:
+          'Corpo binário `image/jpeg`, `image/png` ou `image/webp`, até 5 MB; o token vai no header `x-public-token`. ' +
+          'Também vale como "já paguei". Um comprovante por acerto. Nunca marca o acerto como pago.',
+        headers: {
+          type: 'object',
+          required: ['x-public-token'],
+          properties: { 'x-public-token': TOKEN },
+        },
+        response: {
+          200: {
+            type: 'object',
+            required: ['result'],
+            properties: {
+              result: { type: 'string', enum: ['OK', 'ALREADY_PAID', 'RECEIPT_EXISTS'] },
+            },
+          },
+          ...failures,
+          413: problemSchema,
+          415: problemSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const token = request.headers['x-public-token'] as string;
+      const outcome = await receipts.attach(token, request.ip, request.body as Buffer);
+      if (outcome === null) return notFound(reply);
+      if (outcome === 'INVALID_FILE') {
+        return invalidData(
+          reply,
+          'RECEIPT_INVALID',
+          'O arquivo não é uma imagem JPEG, PNG ou WebP',
+        );
+      }
+      return { result: outcome };
     },
   );
 }

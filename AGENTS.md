@@ -38,12 +38,12 @@ administrador da plataforma, e há **páginas públicas** por link (vitrine,
 acerto do cliente, acompanhamento do consignador). O que falta e em que
 ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 
-**Estado atual:** Etapas 1, 2a, 2b, 2c, 3, 4 (sem a exclusão LGPD), 5 (sem o bot), 6 (sem o comprovante), 7 e 8 (sem a cobrança) prontas: scaffold, schema com seed, RLS e papéis
+**Estado atual:** Etapas 1, 2a, 2b, 2c, 3, 4 (sem a exclusão LGPD), 5 (sem o bot), 6, 7 e 8 (sem a cobrança) prontas: scaffold, schema com seed, RLS e papéis
 de banco, login por código, sessão com refresh rotacionado, convites, middleware
 de loja e RBAC, criar e editar loja, equipe, convites por rota, log de atividades
 e limites de HTTP (rotas `/v1/auth`, `/v1/me`, `/v1/stores`, `/v1/store`, `/v1/team*`,
 `/v1/activity-log`, `/v1/catalog*`, `/v1/cards*`, `/v1/auctions*`, `/v1/customers*`, `/v1/settlements*`, `/v1/shipments*`, `/v1/public-links*`, `/v1/dashboard/home`, `/v1/finance/*` e `/v1/public/*` sem login e `/v1/admin/*` só do administrador).
-Faltam o comprovante em arquivo do "já paguei" (#53), a cobrança e o bot. E-mail sai por SMTP (nodemailer; Mailpit no compose) e as fotos das cartas ficam em disco (`src/storage`, `STORAGE_DIR`). O que vem a seguir está nas issues
+Faltam a cobrança e o bot. E-mail sai por SMTP (nodemailer; Mailpit no compose) e as fotos das cartas ficam em disco (`src/storage`, `STORAGE_DIR`). O que vem a seguir está nas issues
 da próxima sprint (milestones). A VPS
 ainda não existe, então não há deploy.
 
@@ -287,6 +287,7 @@ reverter, pergunte primeiro.
   lock (`clock_timestamp()`), não no início da transação.
 - **Limpeza:** `purge_expired()` (migration 0019, `SECURITY DEFINER`, só `app_runtime`) apaga só o que é técnico e efêmero. **Não** apague dado pessoal por aqui (pedidos de acesso, avisos, clientes): o prazo é a decisão de LGPD (D2). O log de atividades é imutável.
 - **Fotos e arquivos:** o corpo do `PUT` é a imagem crua (sem multipart); o tipo vem dos primeiros bytes (`sniffImage`), nunca do `Content-Type`, e o nome do arquivo é gerado (`<loja>/<carta>/<uuid>.<ext>`). Nada vindo do cliente vira caminho. A carta guarda só o id em `custom_photos`. O `DiskStorage` implementa `FileStorage`; os testes usam `MemoryStorage`.
+- **Comprovante do "já paguei":** `PUT /v1/public/settlement/receipt` (imagem crua, token no header `x-public-token`) chama `public_settlement_receipt_attach` (migration 0020, aprovada em shared#25). O arquivo é gravado antes e apagado se o banco não responder `OK`; fica em `receipts/<uuid>.<ext>`. A loja baixa por `GET /v1/settlements/:id/receipt`.
 - **E-mail:** `EMAIL_PROVIDER=smtp` usa nodemailer (`src/auth/smtp.ts`). Falha de envio vai ao log sem destinatário nem conteúdo. Gmail exige senha de app e limita ~500 envios por dia.
 - **Deploy:** `scripts/deploy.sh` + `deploy/` (compose de produção, Caddy, backup e restauração). A API no compose recebe só as variáveis listadas em `environment`, nunca a senha do dono do schema.
 - **Abrir e encerrar leilões:** `advance_auctions(loja)` vira o estado conforme o relógio

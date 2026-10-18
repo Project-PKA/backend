@@ -7,6 +7,7 @@ export interface SettlementPage {
   pix_key: string | null;
   status: 'PENDING' | 'PAID';
   payment_claimed_at: string | null;
+  receipt_sent: boolean;
   shipping_cost: string;
   total_amount: string;
   expires_at: string;
