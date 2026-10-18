@@ -160,10 +160,15 @@ export const tcgdexCatalog = pgTable(
     name: text('name').notNull(),
     cardNumber: text('card_number').notNull(),
     setName: text('set_name').notNull(),
+    setId: text('set_id'),
+    /** Nomes, número, coleção e id, em minúsculas e sem acento (src/catalog/normalize.ts). */
+    searchText: text('search_text').notNull().default(''),
     rawData: jsonb('raw_data').$type<Record<string, unknown>>().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index('tcgdex_catalog_search_trgm_idx').using('gin', t.searchText.op('gin_trgm_ops')),
+    index('tcgdex_catalog_set_id_idx').on(t.setId),
     index('tcgdex_catalog_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
     index('tcgdex_catalog_card_number_trgm_idx').using('gin', t.cardNumber.op('gin_trgm_ops')),
   ],
@@ -218,6 +223,8 @@ export const cardsInventory = pgTable(
     condition: cardCondition('condition').notNull(),
     isFoil: boolean('is_foil').notNull().default(false),
     customPhotos: jsonb('custom_photos').$type<string[]>().notNull().default([]),
+    /** Observações da loja sobre a carta física (até 2000 caracteres). */
+    notes: text('notes'),
     ownershipType: ownershipType('ownership_type').notNull(),
     consignorId: uuid('consignor_id'),
     storeCommissionPct: numeric('store_commission_pct', { precision: 5, scale: 2 }),
@@ -383,4 +390,25 @@ export const activityLog = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index('activity_log_store_created_idx').on(t.storeId, t.createdAt, t.id)],
+);
+
+// --- Execuções do sync do catálogo (0011) ---------------------------------------------
+export const catalogSyncRuns = pgTable(
+  'catalog_sync_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    source: text('source').notNull(),
+    languages: text('languages').array().notNull(),
+    /** `RUNNING`, `OK` ou `FAILED`. */
+    status: text('status').notNull().default('RUNNING'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    cardsSeen: integer('cards_seen'),
+    cardsInserted: integer('cards_inserted'),
+    cardsUpdated: integer('cards_updated'),
+    cardsSkipped: integer('cards_skipped'),
+    /** Mensagem curta, sem payload. */
+    error: text('error'),
+  },
+  (t) => [index('catalog_sync_runs_started_idx').on(t.startedAt)],
 );

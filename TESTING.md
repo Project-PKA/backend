@@ -29,6 +29,10 @@ fila, API externa) e poucos testes de ponta a ponta pela API.
 
 ## O que já está coberto
 
+- **Leilões (Sprint 05):** criar/editar/cancelar/estender, `place_bid` (incremento, blacklist, período, outra loja), 20 lances simultâneos (o maior vence, nenhum fura o incremento), mesmo valor simultâneo (só um passa), enquete no teto (pausa sem encerrar, aprovar e manter aberta), virada de relógio (abre, encerra, vencedor) e acesso cruzado entre lojas. O relógio é manipulado mexendo nas datas do leilão no banco.
+
+- **Catálogo e estoque (Sprint 03):** normalização de texto, cliente do TCGdex (host fixo, id inválido, resposta grande), sync idempotente que preserva a raridade e recusa resposta parcial, busca (acento, número, `%`), estoque com acesso cruzado entre lojas, código curto sob concorrência, edição e exclusão bloqueadas em leilão. O TCGdex é sempre falso nos testes (`fetch` injetado). O agendamento do BullMQ foi conferido à mão com um Redis em container; falta teste automatizado (precisaria de dependência de teste nova).
+
 - **Migrations:** aplica tudo, reverte tudo (`down`) e reaplica; não sobra
   tabela nem enum; migration editada depois de aplicada é recusada; falha no
   meio desfaz a transação inteira; os `.sql` são UTF-8 sem BOM.

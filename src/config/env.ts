@@ -54,6 +54,10 @@ export interface Env {
   /** URL pública do frontend, usada nos links de convite. */
   publicAppUrl: string;
   emailProvider: EmailProvider;
+  /** Fila dos jobs (BullMQ). Ausente em desenvolvimento = sem jobs agendados. */
+  redisUrl: string | null;
+  /** Idiomas do sync do catálogo; o primeiro é o canônico. */
+  catalogLanguages: string[];
   /** Cookie `Secure` em tudo que não é desenvolvimento local. */
   secureCookies: boolean;
   rateLimit: RateLimitConfig;
@@ -124,6 +128,19 @@ function parseOrigins(value: string | undefined): string[] {
   return origins;
 }
 
+function parseLanguages(value: string | undefined): string[] {
+  const languages = list(value ?? 'en,pt');
+  for (const language of languages) {
+    if (!/^[a-z]{2}(-[a-z]{2})?$/.test(language)) {
+      throw new Error(`CATALOG_LANGUAGES tem um idioma inválido: "${language}"`);
+    }
+  }
+  if (languages.length === 0 || languages.length > 5) {
+    throw new Error('CATALOG_LANGUAGES precisa ter de 1 a 5 idiomas');
+  }
+  return [...new Set(languages)];
+}
+
 function parseAuth(source: Source): AuthConfig {
   return {
     accessSecret: secret(source, 'JWT_ACCESS_SECRET'),
@@ -152,6 +169,10 @@ export function loadEnv(source: Source = process.env): Env {
       `EMAIL_PROVIDER=log é recusado em APP_ENV=${appEnv}: configure um provedor real`,
     );
   }
+  const redisUrl = source['REDIS_URL'] === '' ? undefined : source['REDIS_URL'];
+  if (isLive && redisUrl === undefined) {
+    throw new Error(`REDIS_URL é obrigatória em APP_ENV=${appEnv}: os jobs noturnos dependem dela`);
+  }
   return {
     appEnv,
     port: parsePort(source['PORT'] ?? '8080'),
@@ -162,6 +183,8 @@ export function loadEnv(source: Source = process.env): Env {
     corsOrigins: parseOrigins(source['CORS_ORIGINS']),
     publicAppUrl: source['APP_PUBLIC_URL'] ?? 'http://localhost:3000',
     emailProvider,
+    redisUrl: redisUrl ?? null,
+    catalogLanguages: parseLanguages(source['CATALOG_LANGUAGES']),
     secureCookies: appEnv !== 'local' && appEnv !== 'test',
     rateLimit: {
       global: integer(source, 'RATE_LIMIT_PER_MINUTE', 120, 1, 100_000),

@@ -61,10 +61,12 @@ rodando).
 | Pronto | Falta (ver [`docs/roadmap.md`](docs/roadmap.md)) |
 | --- | --- |
 | Health, ready, metrics, erros `problem+json`, limites de corpo e timeouts | API `/v1/admin` e solicitações de acesso (Etapa 2c) |
-| Schema (15 tabelas) com migrations `up`/`down`, RLS e seed | Estoque e catálogo (Etapa 3), clientes (4) |
-| Login por código, sessão com refresh rotacionado, convites, tenant e RBAC | Leilões e bot (5), acertos e páginas públicas (6) |
+| Schema (16 tabelas) com migrations `up`/`down`, RLS e seed | Fotos das cartas (Etapa 3, depende do armazenamento), clientes (4) |
+| Login por código, sessão com refresh rotacionado, convites, tenant e RBAC | Acertos e páginas públicas (6) |
 | Criar e editar loja, equipe, convites, log de atividades | Painéis (7), vitrine, planos e perfil (8) |
-| Contrato OpenAPI gerado do código (23 operações) | |
+| Catálogo TCGdex (sync às 03:00 com BullMQ, busca sem acento) e estoque (cadastro, lista, detalhe, edição, exclusão) | |
+| Leilões: criar, editar, cancelar, estender, aprovar enquete, lance (`place_bid`) e alerta de WhatsApp caído | Bot de WhatsApp (neonize) e o papel `bot_runtime` |
+| Contrato OpenAPI gerado do código (40 operações) | |
 | Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
 | | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |
 | | Dockerfile e deploy (a VPS ainda não existe) |

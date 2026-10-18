@@ -47,13 +47,14 @@ organização já opera, o ecossistema para os requisitos da etapa 2 (filas,
 tempo real, integrações) e o custo de contratação.
 
 **Escolha:** Node.js + TypeScript (versão exata a fixar em `.tool-versions`).
-**Critério:** mesma linguagem do `whatsapp_microservice` (Baileys é Node) e do
-frontend provável; ecossistema para filas, tempo real e OpenAPI.
+**Critério:** ecossistema para API (Fastify, OpenAPI, Drizzle) e o mesmo idioma do frontend provável. O
+`whatsapp_microservice` agora é **Python** ([ADR 0015](https://github.com/Project-PKA/shared/blob/main/docs/adr/0015-bot-em-python-com-neonize.md)),
+por isso a regra de lance mora no banco e não em código compartilhado; ecossistema para filas, tempo real e OpenAPI.
 **Por quê:** um único idioma nos três repositórios reduz custo de manutenção
 para quem mantém sozinho.
-**Descartado:** Python e Go. Nenhum tem a biblioteca de WhatsApp Web que o
-projeto usa, e o bot precisaria de outra linguagem.
-**Quando reabrir:** se o bot deixar de usar Baileys ou se um gargalo de CPU
+**Descartado:** Python e Go para a API (o bot é Python por causa da biblioteca de WhatsApp, e fica
+em processo e repositório separados).
+**Quando reabrir:** se um gargalo de CPU
 medido não couber em Node.
 
 ## 2. Framework HTTP

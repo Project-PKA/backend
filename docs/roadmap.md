@@ -64,15 +64,17 @@ A etapa fica em três entregas, nesta ordem:
 
 ## Etapas seguintes
 
-**Etapa 3: catálogo e estoque.** Sync do catálogo às 03:00 (BullMQ), busca
-`ILIKE` com `pg_trgm`, CRUD de carta com **Observações**, origem **sem valor
-padrão**, "cartas sem leilão" (derivado), detalhe com histórico, upload de fotos
-(depende da decisão de armazenamento), exclusão com permissão.
+**Etapa 3: catálogo e estoque.** *Pronta, menos as fotos.* Sync do catálogo às 03:00
+(BullMQ, `npm run catalog:sync` para a carga inicial), busca sem acento com
+`pg_trgm`, CRUD de carta com **Observações**, origem **sem valor padrão**,
+"cartas sem leilão" (`no_auction`), detalhe com histórico e exclusão com
+permissão. **Falta:** upload de fotos, que depende da decisão de
+armazenamento (D3 no `OWNER.md`).
 
 **Etapa 4: clientes.** Base, visitantes, blacklist, inatividade, perfil 360 e
 **carteira de consignação**. Geração do link do consignador fica na Etapa 6.
 
-**Etapa 5: leilões e bot.** Criação a partir do cadastro da carta (**agendar,
+**Etapa 5: leilões e bot.** *Backend pronto; falta o bot e o agendador.* Feito: criar (agendar ou lançar agora), editar, cancelar, estender um ou todos, aprovar enquete, lance manual e alerta de WhatsApp caído, tudo sobre `place_bid` e `advance_auctions` (migration 0013). **Falta:** o papel `bot_runtime` com RLS (#44) e quem varre as lojas no horário. Descrição original: O bot é **Python + neonize** e fica **adiado** até haver conta de WhatsApp para testar ([ADR 0015](https://github.com/Project-PKA/shared/blob/main/docs/adr/0015-bot-em-python-com-neonize.md)); o motor de leilões e a função `place_bid` ([ADR 0016](https://github.com/Project-PKA/shared/blob/main/docs/adr/0016-decisao-de-lance-em-funcao-do-banco.md)) seguem no Backend e são testados sem WhatsApp. Criação a partir do cadastro da carta (**agendar,
 lançar agora ou deixar para depois**), editar e cancelar, **aprovar enquete**
 (aprovar encerramento ou manter aberto), **estender leilões** (+30 min por linha
 e "estender todos"), decisão de lance com lock da linha do leilão, e o alerta

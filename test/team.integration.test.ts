@@ -472,7 +472,10 @@ describe('permissões e remoção (PATCH e DELETE /v1/team/:id)', () => {
       call(server, 'DELETE', `/v1/team/${ownerMemberId}`, second, A),
     ]);
 
-    expect(results.map((r) => r.statusCode).sort((a, b) => a - b)).toEqual([204, 409]);
+    // Quem perde a corrida leva 409 (último proprietário) ou 403 (já foi removido): nunca 204 duas vezes.
+    const codes = results.map((r) => r.statusCode).sort((a, b) => a - b);
+    expect(codes[0]).toBe(204);
+    expect([403, 409]).toContain(codes[1]);
     expect(
       await server.team.countOwners({ storeId: A, userId: SEED_IDS.userOwner }),
     ).toBeLessThanOrEqual(1);

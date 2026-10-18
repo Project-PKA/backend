@@ -17,7 +17,7 @@ leilões, acertos, dashboards, e o **dono único do schema do banco**.
 
 O que **não** está aqui:
 
-- A conversa com o WhatsApp (Baileys, sessões por QR Code, leitura de lances,
+- A conversa com o WhatsApp (neonize em Python, sessões por QR Code, leitura de lances,
   abertura e fechamento no horário): é o `Project-PKA/whatsapp_microservice`.
   Ele usa este mesmo banco, com role própria.
 - A interface web: `Project-PKA/frontend_web` (ainda não iniciada).
@@ -38,12 +38,12 @@ administrador da plataforma, e há **páginas públicas** por link (vitrine,
 acerto do cliente, acompanhamento do consignador). O que falta e em que
 ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 
-**Estado atual:** Etapas 1, 2a e 2b prontas: scaffold, schema com seed, RLS e papéis
+**Estado atual:** Etapas 1, 2a, 2b, 3 (sem as fotos) e 5 (sem o bot) prontas: scaffold, schema com seed, RLS e papéis
 de banco, login por código, sessão com refresh rotacionado, convites, middleware
 de loja e RBAC, criar e editar loja, equipe, convites por rota, log de atividades
-e limites de HTTP (rotas `/v1/auth`, `/v1/me`, `/v1/stores`, `/v1/store`, `/v1/team*`
-e `/v1/activity-log`). Faltam a API `/v1/admin` (2c), estoque, clientes, leilões,
-acertos e painéis (Etapas 3 a 8 do roteiro). O que vem a seguir está nas issues
+e limites de HTTP (rotas `/v1/auth`, `/v1/me`, `/v1/stores`, `/v1/store`, `/v1/team*`,
+`/v1/activity-log`, `/v1/catalog*`, `/v1/cards*` e `/v1/auctions*`). Faltam a API `/v1/admin` (2c), clientes,
+acertos e painéis (Etapas 4, 6, 7 e 8 do roteiro) e o bot. O que vem a seguir está nas issues
 da próxima sprint (milestones). A VPS
 ainda não existe, então não há deploy.
 
@@ -59,6 +59,7 @@ Todos passam pelo contrato do `Makefile`; os comandos reais ficam em
 | `make migrate` | Aplica as migrations pendentes | `npm run db:rollback` reverte a última |
 | `make seed` | Recria os dados de desenvolvimento | **Apaga o banco.** Recusa `APP_ENV` fora de `local`/`dev`/`test` |
 | `npm run db:provision-dev` | Cria o papel `app_api` (sem `BYPASSRLS`) para o `make run` | Só dev; roda uma vez depois do `make migrate` |
+| `npm run catalog:sync` | Sincroniza o catálogo do TCGdex agora | Carga inicial; o job das 03:00 exige `REDIS_URL` |
 | `npm run db:create-admin -- <email> [nome]` | Cria ou promove o administrador da plataforma | Único caminho para isso; usa `MIGRATION_DATABASE_URL` |
 | `make migration NAME=cria-x` | Cria `migrations/000N_cria-x/{up,down}.sql` | Atualize `src/db/schema.ts` e o seed no mesmo PR |
 | `make run` | API em modo watch | Porta 8080 |
@@ -269,9 +270,15 @@ reverter, pergunte primeiro.
 - **A FK composta `(id, store_id)`** em lances, leilões e acertos impede
   referência entre lojas no banco. Ao criar tabela nova que aponte para uma
   dessas, siga o mesmo padrão.
-- **Lances simultâneos:** a decisão é transação com `SELECT ... FOR UPDATE`
-  na linha do leilão, validando incremento e maior lance antes do `INSERT`.
-  O banco só garante que dois lances do mesmo valor não coexistem.
+- **Lances:** a regra vive na função `place_bid` do Postgres (migration 0013, ADR 0016),
+  que trava a linha do leilão (`FOR UPDATE`) e valida período, blacklist, incremento e
+  teto. Backend e bot a chamam; **não reescreva a regra em TypeScript**. Ela devolve
+  `outcome` (não lança erro de regra de negócio). A hora do lance é lida **depois** do
+  lock (`clock_timestamp()`), não no início da transação.
+- **Abrir e encerrar leilões:** `advance_auctions(loja)` vira o estado conforme o relógio
+  do banco (abre, encerra, define vencedor, devolve a carta). A API a chama ao listar,
+  detalhar e agir. Ainda **não há job** que varra todas as lojas: quem agenda é o bot (a
+  fazer, issue #44) ou um job futuro.
 - **`prom-client` está deprecado no npm** e o ESLint 9 saiu de suporte:
   revisar antes de produção (`STACK.md`, seção 8).
 - **`BOOTSTRAP.md` e `SETUP-GITHUB.md` ainda existem** de propósito: o
