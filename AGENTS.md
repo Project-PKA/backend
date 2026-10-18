@@ -34,11 +34,13 @@ administrador da plataforma, e há **páginas públicas** por link (vitrine,
 acerto do cliente, acompanhamento do consignador). O que falta e em que
 ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 
-**Estado atual:** Etapas 1 e 2a prontas: scaffold, schema com seed, RLS e papéis
+**Estado atual:** Etapas 1, 2a e 2b prontas: scaffold, schema com seed, RLS e papéis
 de banco, login por código, sessão com refresh rotacionado, convites, middleware
-de loja e RBAC, e as rotas `/v1/auth`, `/v1/me` e `/v1/store`. Faltam convites
-e equipe por rota (2b), a API `/v1/admin` (2c), estoque, clientes, leilões,
-acertos e painéis (Etapas 3 a 8 do roteiro). A VPS
+de loja e RBAC, criar e editar loja, equipe, convites por rota, log de atividades
+e limites de HTTP (rotas `/v1/auth`, `/v1/me`, `/v1/stores`, `/v1/store`, `/v1/team*`
+e `/v1/activity-log`). Faltam a API `/v1/admin` (2c), estoque, clientes, leilões,
+acertos e painéis (Etapas 3 a 8 do roteiro). O que vem a seguir está nas issues
+da próxima sprint (milestones). A VPS
 ainda não existe, então não há deploy.
 
 ## 2. Comandos
@@ -121,6 +123,11 @@ direto: usa função `SECURITY DEFINER` auditada (ADR 0014).
   igual e não envia nada. Não crie rota que cadastre usuário aberto.
 - Resposta de erro de autenticação é genérica e idêntica (nada de "e-mail não
   existe"). Segredo e token só em hash no banco.
+
+- **Log de atividades:** ação sensível de loja chama `recordActivity(tx, ...)` **dentro
+  da transação da própria ação** (`src/audit/activity.ts`). Só ids e valores técnicos em
+  `details`: nunca e-mail, telefone ou CPF. A tabela é imutável (sem `UPDATE`/`DELETE`).
+- **Listas** paginam por cursor com `src/http/pagination.ts` (`pageQuerySchema`, `toPage`).
 
 **Banco** (`docs/database.md`)
 
@@ -243,6 +250,9 @@ reverter, pergunte primeiro.
   superusuário, que **ignora o RLS**. Para a API enxergar o RLS de verdade, rode
   `npm run db:provision-dev` e use `DATABASE_URL` com `app_api`. Teste de RLS
   só vale com papel sem `BYPASSRLS`.
+- **O Fastify converte tipos** nos corpos e na query (um número vira `"5"` num campo de
+  texto). É o padrão do framework e os schemas já cuidam do resto; não conte com `400`
+  para tipo "quase certo".
 - **E-mail com espaço no começo ou no fim** é recusado pela validação (400); o
   frontend deve fazer `trim`. Maiúsculas são aceitas e normalizadas.
 - **Testes de integração precisam do Docker** rodando (Testcontainers). Na

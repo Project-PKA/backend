@@ -32,6 +32,12 @@ describe('loadEnv', () => {
       otpMaxAttempts: 5,
       otpResendSeconds: 60,
       invitationTtlDays: 7,
+      invitationResendSeconds: 60,
+    });
+    expect(env.http).toEqual({
+      bodyLimitBytes: 262_144,
+      requestTimeoutMs: 30_000,
+      handlerTimeoutMs: 20_000,
     });
   });
 
@@ -76,6 +82,14 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...base, ACCESS_TOKEN_TTL_SECONDS: '999999' })).toThrow(
       'ACCESS_TOKEN_TTL_SECONDS',
     );
+  });
+
+  it('valida os limites de HTTP', () => {
+    expect(() => loadEnv({ ...base, BODY_LIMIT_BYTES: '10' })).toThrow('BODY_LIMIT_BYTES');
+    expect(() => loadEnv({ ...base, REQUEST_TIMEOUT_MS: '99999999' })).toThrow(
+      'REQUEST_TIMEOUT_MS',
+    );
+    expect(loadEnv({ ...base, BODY_LIMIT_BYTES: '4096' }).http.bodyLimitBytes).toBe(4096);
   });
 
   it('cookie seguro em tudo que não é local nem teste', () => {
