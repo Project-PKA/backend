@@ -11,6 +11,7 @@ import { collectDefaultMetrics, Registry } from 'prom-client';
 
 import type { EmailSender } from './auth/email.js';
 import { createAuthHooks } from './auth/hooks.js';
+import { DashboardService } from './dashboard/service.js';
 import { PublicAccessService } from './public/access.js';
 import { PublicLinkService } from './public/links.js';
 import { SettlementService } from './settlements/service.js';
@@ -28,6 +29,7 @@ import { errorHandler, notFoundHandler } from './http/problem.js';
 import { authRoutes } from './routes/auth.js';
 import { infraRoutes } from './routes/infra.js';
 import { activityRoutes } from './routes/activity.js';
+import { dashboardRoutes } from './routes/dashboard.js';
 import { publicLinkRoutes, publicRoutes } from './routes/public.js';
 import { settlementRoutes } from './routes/settlements.js';
 import { customerRoutes } from './routes/customers.js';
@@ -65,6 +67,7 @@ export interface BuiltApp {
   settlements: SettlementService;
   shipments: ShipmentService;
   publicLinks: PublicLinkService;
+  dashboard: DashboardService;
 }
 
 const TRACEPARENT = /^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/;
@@ -164,6 +167,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
           name: 'customers',
           description: 'Clientes, visitantes, blacklist e carteira de consignação',
         },
+        { name: 'dashboard', description: 'Home ao vivo e Financeiro' },
         {
           name: 'public',
           description: 'Páginas públicas por link (acerto e consignador) e gestão dos links',
@@ -227,6 +231,8 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   settlementRoutes(app, { hooks, settlements, shipments });
   const publicLinks = new PublicLinkService(deps.db);
   publicLinkRoutes(app, { hooks, links: publicLinks });
+  const dashboard = new DashboardService(deps.db);
+  dashboardRoutes(app, { hooks, dashboard });
   publicRoutes(app, {
     access: new PublicAccessService(deps.db),
     rateLimitPerMinute: deps.env.rateLimit.publicAccess,
@@ -245,5 +251,6 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
     settlements,
     shipments,
     publicLinks,
+    dashboard,
   };
 }
