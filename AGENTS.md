@@ -38,12 +38,12 @@ administrador da plataforma, e há **páginas públicas** por link (vitrine,
 acerto do cliente, acompanhamento do consignador). O que falta e em que
 ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 
-**Estado atual:** Etapas 1, 2a, 2b, 3 (sem as fotos), 4 (sem a exclusão LGPD), 5 (sem o bot) e 6 (só a parte autenticada) prontas: scaffold, schema com seed, RLS e papéis
+**Estado atual:** Etapas 1, 2a, 2b, 3 (sem as fotos), 4 (sem a exclusão LGPD), 5 (sem o bot) e 6 (sem o "já paguei" e a vitrine) prontas: scaffold, schema com seed, RLS e papéis
 de banco, login por código, sessão com refresh rotacionado, convites, middleware
 de loja e RBAC, criar e editar loja, equipe, convites por rota, log de atividades
 e limites de HTTP (rotas `/v1/auth`, `/v1/me`, `/v1/stores`, `/v1/store`, `/v1/team*`,
-`/v1/activity-log`, `/v1/catalog*`, `/v1/cards*`, `/v1/auctions*`, `/v1/customers*`, `/v1/settlements*` e `/v1/shipments*`). Faltam a API `/v1/admin` (2c),
-as páginas públicas (Etapa 6), os painéis (7 e 8) e o bot. O que vem a seguir está nas issues
+`/v1/activity-log`, `/v1/catalog*`, `/v1/cards*`, `/v1/auctions*`, `/v1/customers*`, `/v1/settlements*`, `/v1/shipments*`, `/v1/public-links*` e `/v1/public/*` sem login).
+Faltam a API `/v1/admin` (2c), o "já paguei" e a vitrine, os painéis (7 e 8) e o bot. O que vem a seguir está nas issues
 da próxima sprint (milestones). A VPS
 ainda não existe, então não há deploy.
 
@@ -114,6 +114,11 @@ Todos passam pelo contrato do `Makefile`; os comandos reais ficam em
 token). O administrador **não** lê nem altera dados internos das lojas, e
 isso vale no banco (RLS), não só na rota. Rota pública nunca consulta tabela
 direto: usa função `SECURITY DEFINER` auditada (ADR 0014).
+
+**Rotas públicas (`/v1/public/*`):** nunca consultam tabela. Rodam com `SET LOCAL ROLE public_runtime`
+(sem privilégio em nenhuma tabela) e chamam só as funções `public_*` (`SECURITY DEFINER`, `search_path`
+fixo, migration 0015). O token vai no **corpo** (nunca na URL), em hash no banco; qualquer falha de link
+responde `404 PUBLIC_LINK_NOT_FOUND` idêntico. Função pública nova passa pela aprovação da seção 6.
 
 **Autenticação e acesso a dados**
 

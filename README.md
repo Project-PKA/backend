@@ -61,14 +61,15 @@ rodando).
 | Pronto | Falta (ver [`docs/roadmap.md`](docs/roadmap.md)) |
 | --- | --- |
 | Health, ready, metrics, erros `problem+json`, limites de corpo e timeouts | API `/v1/admin` e solicitações de acesso (Etapa 2c) |
-| Schema (17 tabelas) com migrations `up`/`down`, RLS e seed | Fotos das cartas (Etapa 3, depende do armazenamento), clientes (4) |
+| Schema (20 tabelas) com migrations `up`/`down`, RLS e seed | Fotos das cartas (Etapa 3, depende do armazenamento), clientes (4) |
 | Login por código, sessão com refresh rotacionado, convites, tenant e RBAC | Acertos e páginas públicas (6) |
 | Criar e editar loja, equipe, convites, log de atividades | Painéis (7), vitrine, planos e perfil (8) |
 | Catálogo TCGdex (sync às 03:00 com BullMQ, busca sem acento) e estoque (cadastro, lista, detalhe, edição, exclusão) | |
 | Leilões: criar, editar, cancelar, estender, aprovar enquete, lance (`place_bid`) e alerta de WhatsApp caído, com job que abre e encerra no horário | Bot de WhatsApp (neonize) e o papel `bot_runtime` |
 | Clientes e visitantes (CPF, telefone e CEP validados), blacklist, perfil e carteira de consignação | Exclusão LGPD (#43, depende da D2) |
-| Acertos (criar, frete, desfazer, marcar como pago) e fila de envios com rastreio | Páginas públicas: acerto do cliente, consignador, vitrine (precisam da D13) |
-| Contrato OpenAPI gerado do código (58 operações) | |
+| Acertos (criar, frete, desfazer, marcar como pago) e fila de envios com rastreio |
+| Páginas públicas por link: acerto do comprador (CPF, endereço e consentimento LGPD) e acompanhamento do consignador, com papel `public_runtime` e bloqueio por tentativas | "Já paguei" com comprovante (#53, D3) e vitrine pública |
+| Contrato OpenAPI gerado do código (65 operações) | |
 | Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
 | | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |
 | | Dockerfile e deploy (a VPS ainda não existe) |
