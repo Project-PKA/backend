@@ -29,6 +29,8 @@ fila, API externa) e poucos testes de ponta a ponta pela API.
 
 ## O que já está coberto
 
+- **Perfil, notificações, plano e vitrine (Sprint 08):** preferências (padrão, parcial, fuso inválido), avisos por loja com leitura por pessoa (inclusive os gerados pela enquete no teto e pela página pública do acerto), plano com uso, pedido de mudança e decisão do administrador, limite de cartas e de membros nas ações, opt-in da vitrine e a função pública (só lojas que optaram, filtros, tetos, nenhum dado de cliente).
+
 - **Administração (Sprint 02):** toda rota `/v1/admin` com 401 sem login e 403 para proprietário e funcionário; o administrador não lê estoque nem clientes; usuários (busca, filtros, convite, permissões coerentes com a constraint, suspender derruba sessão, não suspende a si mesmo); lojas (criar com dono novo ou existente, converter solicitação uma vez só, transferir sem nunca zerar proprietários, também com remoção ao mesmo tempo); limite de membros; convites (reenviar revoga o anterior, intervalo mínimo, revogar impede aceite); pedidos de acesso (resposta igual, isca, teto por IP, 429, nenhum e-mail ao solicitante); painel com KPIs.
 
 - **Painéis (Sprint 07):** Home com KPIs conferidos contra o banco, alerta de enquete, loja nova zerada e leilão que acabou saindo do ar na consulta; Financeiro com períodos (hoje, 7, 15, 30), lucro de cartas próprias e consignadas, série diária com zeros, histogramas, fatias, top compradores, repasses, frete fora da receita, permissão e isolamento entre lojas.

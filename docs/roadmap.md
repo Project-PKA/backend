@@ -101,6 +101,8 @@ período: séries diárias, histogramas, pizzas, top compradores, repasses). Os
 endpoints de período do doc 02 (`dashboard/operational?period=`) **não existem
 mais**.
 
+**Etapa 8 (pronta, menos cobrança e faturas):** perfil (`/v1/me/preferences`: idioma `pt-BR`/`en`, tema, fuso, moeda, notificações), notificações internas por loja com leitura por pessoa, plano (`/v1/plan`: limites, uso, pedido de mudança que chega ao administrador; limite de cartas e de membros valem nas ações) e vitrine pública opt-in (`GET /v1/public/showcase`, função `SECURITY DEFINER`, teto de página e de deslocamento, limite por minuto). Cobrança e faturas dependem da D6. Descrição original:
+
 **Etapa 8: vitrine, planos e perfil.** Vitrine pública (com opt-in da loja),
 landing (SEO) no frontend, planos e uso, notificações, log de atividades
 (só proprietário) e perfil (preferências, sessões ativas).
