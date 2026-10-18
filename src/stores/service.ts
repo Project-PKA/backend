@@ -13,6 +13,7 @@ export interface StoreSummary {
   name: string;
   whatsappStatus: 'ONLINE' | 'OFFLINE' | 'QR_READY';
   inactivityDaysLimit: number | null;
+  pixKey: string | null;
 }
 
 export type CreateStoreResult =
@@ -22,6 +23,8 @@ export interface StorePatch {
   name?: string;
   /** `null` desliga a expulsão por inatividade. */
   inactivityDaysLimit?: number | null;
+  /** Chave PIX mostrada ao comprador. `null` apaga. */
+  pixKey?: string | null;
 }
 
 const toSummary = (row: typeof stores.$inferSelect): StoreSummary => ({
@@ -29,6 +32,7 @@ const toSummary = (row: typeof stores.$inferSelect): StoreSummary => ({
   name: row.name,
   whatsappStatus: row.whatsappStatus,
   inactivityDaysLimit: row.inactivityDaysLimit,
+  pixKey: row.pixKey,
 });
 
 /** Lojas: criação por conta própria (com permissão e limite) e edição pelo proprietário. */
@@ -87,6 +91,7 @@ export class StoreService {
     if (patch.inactivityDaysLimit !== undefined) {
       values.inactivityDaysLimit = patch.inactivityDaysLimit;
     }
+    if (patch.pixKey !== undefined) values.pixKey = patch.pixKey;
 
     return withContext(this.db, context, async (tx) => {
       const [store] = await tx

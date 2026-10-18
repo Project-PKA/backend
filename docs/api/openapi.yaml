@@ -826,6 +826,10 @@ paths:
                   inactivity_days_limit:
                     type: integer
                     nullable: true
+                  pix_key:
+                    type: string
+                    nullable: true
+                    description: Chave PIX mostrada ao comprador
                   role:
                     type: string
                     enum:
@@ -943,6 +947,10 @@ paths:
                   inactivity_days_limit:
                     type: integer
                     nullable: true
+                  pix_key:
+                    type: string
+                    nullable: true
+                    description: Chave PIX mostrada ao comprador
                   role:
                     type: string
                     enum:
@@ -1024,6 +1032,11 @@ paths:
                   maximum: 3650
                   description: Dias sem interação até o bot remover o membro do grupo. `null`
                     desliga
+                pix_key:
+                  type: string
+                  nullable: true
+                  minLength: 1
+                  maxLength: 140
       parameters:
         - schema:
             type: string
@@ -1060,6 +1073,10 @@ paths:
                   inactivity_days_limit:
                     type: integer
                     nullable: true
+                  pix_key:
+                    type: string
+                    nullable: true
+                    description: Chave PIX mostrada ao comprador
         "401":
           description: Default Response
           content:
@@ -11347,6 +11364,1283 @@ paths:
                     type: string
                   code:
                     type: string
+  /v1/settlements/{id}/public-link:
+    post:
+      operationId: createSettlementLink
+      summary: Gera o link da página pública do acerto (revoga o anterior)
+      tags:
+        - public
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                expires_in_days:
+                  type: integer
+                  minimum: 1
+                  maximum: 90
+                  default: 14
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: &a9
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - link
+                  - token
+                properties:
+                  link:
+                    type: object
+                    required:
+                      - id
+                      - kind
+                      - settlement_id
+                      - customer_id
+                      - state
+                      - expires_at
+                      - created_at
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      kind:
+                        type: string
+                        enum:
+                          - SETTLEMENT
+                          - CONSIGNOR
+                      settlement_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      customer_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      state:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - EXPIRED
+                          - REVOKED
+                          - LOCKED
+                      expires_at:
+                        type: string
+                        format: date-time
+                      locked_until:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
+                  token:
+                    type: string
+                    description: Aparece UMA vez. Monte o link com ele no fragmento (#token=...); a
+                      plataforma só guarda o hash.
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/customers/{id}/consignor-link:
+    post:
+      operationId: createConsignorLink
+      summary: Gera o link de acompanhamento do consignador (exige CPF cadastrado)
+      tags:
+        - public
+      description: A chave de acesso são os 4 primeiros dígitos do CPF dele. Sem CPF,
+        o link não é gerado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                expires_in_days:
+                  type: integer
+                  minimum: 1
+                  maximum: 90
+                  default: 30
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a9
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - link
+                  - token
+                properties:
+                  link:
+                    type: object
+                    required:
+                      - id
+                      - kind
+                      - settlement_id
+                      - customer_id
+                      - state
+                      - expires_at
+                      - created_at
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      kind:
+                        type: string
+                        enum:
+                          - SETTLEMENT
+                          - CONSIGNOR
+                      settlement_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      customer_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      state:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - EXPIRED
+                          - REVOKED
+                          - LOCKED
+                      expires_at:
+                        type: string
+                        format: date-time
+                      locked_until:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
+                  token:
+                    type: string
+                    description: Aparece UMA vez. Monte o link com ele no fragmento (#token=...); a
+                      plataforma só guarda o hash.
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/public-links:
+    get:
+      operationId: listPublicLinks
+      summary: Links públicos da loja e o estado de cada um (nunca o token)
+      tags:
+        - public
+      parameters:
+        - schema:
+            type: string
+            maxLength: 300
+          in: query
+          name: cursor
+          required: false
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          in: query
+          name: limit
+          required: false
+        - schema:
+            type: string
+            enum:
+              - SETTLEMENT
+              - CONSIGNOR
+          in: query
+          name: kind
+          required: false
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a9
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - next_cursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - kind
+                        - settlement_id
+                        - customer_id
+                        - state
+                        - expires_at
+                        - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        kind:
+                          type: string
+                          enum:
+                            - SETTLEMENT
+                            - CONSIGNOR
+                        settlement_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        customer_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        state:
+                          type: string
+                          enum:
+                            - ACTIVE
+                            - EXPIRED
+                            - REVOKED
+                            - LOCKED
+                        expires_at:
+                          type: string
+                          format: date-time
+                        locked_until:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+                  next_cursor:
+                    type: string
+                    nullable: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/public-links/{id}:
+    delete:
+      operationId: revokePublicLink
+      summary: Revoga o link na hora
+      tags:
+        - public
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a9
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - kind
+                  - settlement_id
+                  - customer_id
+                  - state
+                  - expires_at
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  kind:
+                    type: string
+                    enum:
+                      - SETTLEMENT
+                      - CONSIGNOR
+                  settlement_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  customer_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  state:
+                    type: string
+                    enum:
+                      - ACTIVE
+                      - EXPIRED
+                      - REVOKED
+                      - LOCKED
+                  expires_at:
+                    type: string
+                    format: date-time
+                  locked_until:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/public/settlement:
+    post:
+      operationId: publicSettlementView
+      summary: Página pública do acerto (o token vem no corpo)
+      tags:
+        - public
+      description: Sem login. Resposta igual para link inválido, expirado ou revogado.
+        A plataforma não cobra nem garante o pagamento.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              additionalProperties: false
+              properties:
+                token:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  store_name:
+                    type: string
+                  pix_key:
+                    type: string
+                    nullable: true
+                  status:
+                    type: string
+                    enum:
+                      - PENDING
+                      - PAID
+                  shipping_cost:
+                    type: string
+                  total_amount:
+                    type: string
+                  expires_at:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  buyer:
+                    type: object
+                    additionalProperties: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/public/settlement/data:
+    post:
+      operationId: publicSettlementSubmit
+      summary: O comprador informa CPF e endereço, com consentimento LGPD
+      tags:
+        - public
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - cpf
+                - address
+                - consent
+              additionalProperties: false
+              properties:
+                token:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+                cpf:
+                  type: string
+                  maxLength: 14
+                address:
+                  type: object
+                  required:
+                    - zip
+                    - street
+                    - number
+                    - city
+                    - state
+                  additionalProperties: false
+                  properties:
+                    zip:
+                      type: string
+                      maxLength: 9
+                    street:
+                      type: string
+                      minLength: 1
+                      maxLength: 120
+                    number:
+                      type: string
+                      minLength: 1
+                      maxLength: 20
+                    comp:
+                      type: string
+                      maxLength: 60
+                      nullable: true
+                    city:
+                      type: string
+                      minLength: 1
+                      maxLength: 80
+                    state:
+                      type: string
+                      pattern: ^[A-Za-z]{2}$
+                consent:
+                  type: object
+                  required:
+                    - accepted
+                    - version
+                  additionalProperties: false
+                  properties:
+                    accepted:
+                      type: boolean
+                    version:
+                      type: string
+                      minLength: 1
+                      maxLength: 40
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - result
+                properties:
+                  result:
+                    type: string
+                    enum:
+                      - OK
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/public/consignor:
+    post:
+      operationId: publicConsignorView
+      summary: Acompanhamento do consignador (token + 4 primeiros dígitos do CPF)
+      tags:
+        - public
+      description: Chave errada responde igual a link inválido. 5 erros bloqueiam o
+        link por 15 minutos. O repasse é só estimativa.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - key
+              additionalProperties: false
+              properties:
+                token:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+                key:
+                  type: string
+                  pattern: ^[0-9]{4}$
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  store_name:
+                    type: string
+                  first_name:
+                    type: string
+                  expires_at:
+                    type: string
+                  estimate_is_final:
+                    type: boolean
+                  cards:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
 tags:
   - name: infra
     description: Health check, readiness e métricas
@@ -11362,6 +12656,8 @@ tags:
     description: Catálogo de cartas (busca e detalhe)
   - name: customers
     description: Clientes, visitantes, blacklist e carteira de consignação
+  - name: public
+    description: Páginas públicas por link (acerto e consignador) e gestão dos links
   - name: settlements
     description: Acertos, pagamento e fila de envios
   - name: auctions

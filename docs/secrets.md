@@ -38,6 +38,7 @@ Um valor diferente em cada Environment. Nunca reutilize o de `prod` fora dele.
 | `OTP_HASH_SECRET` | secret | Chave do hash do código OTP | `openssl rand -base64 48` |
 | `WHATSAPP_SESSION_ENCRYPTION_KEY` *(proposto)* | secret | Criptografa `whatsapp_sessions.session_data`. **Mesma chave no Backend e no bot** | `openssl rand -base64 32` |
 | `REDIS_URL` | secret | Redis do BullMQ (`redis://:senha@host:6379`). **Obrigatória em homolog e prod**: sem ela a API recusa subir. Redis sem porta pública | Senha gerada (`openssl rand -base64 32`) |
+| `RATE_LIMIT_PUBLIC_PER_MINUTE` | variable | Requisições por minuto e por IP nas rotas públicas por link (padrão 20) | Opcional |
 | `CATALOG_LANGUAGES` | variable | Idiomas do sync do catálogo (padrão `en,pt`; o primeiro é o canônico) | Opcional |
 | `EMAIL_API_KEY` *(proposto)* | secret | Envio do OTP. **Provedor ainda não decidido** | Conta no provedor escolhido |
 | `GRAFANA_ADMIN_PASSWORD` *(proposto)* | secret | Painel de observabilidade | Gerador de senha |
