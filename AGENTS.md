@@ -38,12 +38,12 @@ administrador da plataforma, e há **páginas públicas** por link (vitrine,
 acerto do cliente, acompanhamento do consignador). O que falta e em que
 ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 
-**Estado atual:** Etapas 1, 2a, 2b, 3 (sem as fotos), 4 (sem a exclusão LGPD), 5 (sem o bot), 6 (sem o "já paguei") e 7 prontas: scaffold, schema com seed, RLS e papéis
+**Estado atual:** Etapas 1, 2a, 2b, 2c, 3 (sem as fotos), 4 (sem a exclusão LGPD), 5 (sem o bot), 6 (sem o "já paguei") e 7 prontas: scaffold, schema com seed, RLS e papéis
 de banco, login por código, sessão com refresh rotacionado, convites, middleware
 de loja e RBAC, criar e editar loja, equipe, convites por rota, log de atividades
 e limites de HTTP (rotas `/v1/auth`, `/v1/me`, `/v1/stores`, `/v1/store`, `/v1/team*`,
-`/v1/activity-log`, `/v1/catalog*`, `/v1/cards*`, `/v1/auctions*`, `/v1/customers*`, `/v1/settlements*`, `/v1/shipments*`, `/v1/public-links*`, `/v1/dashboard/home`, `/v1/finance/*` e `/v1/public/*` sem login).
-Faltam a API `/v1/admin` (2c), o "já paguei", a Etapa 8 (vitrine, planos, perfil, notificações) e o bot. O que vem a seguir está nas issues
+`/v1/activity-log`, `/v1/catalog*`, `/v1/cards*`, `/v1/auctions*`, `/v1/customers*`, `/v1/settlements*`, `/v1/shipments*`, `/v1/public-links*`, `/v1/dashboard/home`, `/v1/finance/*` e `/v1/public/*` sem login e `/v1/admin/*` só do administrador).
+Faltam o "já paguei", a Etapa 8 (vitrine, planos, perfil, notificações) e o bot. O que vem a seguir está nas issues
 da próxima sprint (milestones). A VPS
 ainda não existe, então não há deploy.
 
@@ -114,6 +114,8 @@ Todos passam pelo contrato do `Makefile`; os comandos reais ficam em
 token). O administrador **não** lê nem altera dados internos das lojas, e
 isso vale no banco (RLS), não só na rota. Rota pública nunca consulta tabela
 direto: usa função `SECURITY DEFINER` auditada (ADR 0014).
+
+**Área `/v1/admin/*`:** só `requirePlatformAdmin`. Lê e altera contas, lojas e convites; **nunca** estoque, clientes, leilões, lances nem acertos (o RLS barra, com teste). O administrador não grava no log da loja: ações da plataforma vão para `admin_activity_log` (e, quando afetam uma loja, também para o log dela, com o contexto da loja definido).
 
 **Rotas públicas (`/v1/public/*`):** nunca consultam tabela. Rodam com `SET LOCAL ROLE public_runtime`
 (sem privilégio em nenhuma tabela) e chamam só as funções `public_*` (`SECURITY DEFINER`, `search_path`
