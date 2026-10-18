@@ -183,8 +183,11 @@ jobs:
   deploy:
     name: Deploy (${{ needs.resolve.outputs.environment }})
     needs: [resolve, build]
+    # Só implanta com a variable DEPLOY_ENABLED=true (ligar quando existir VPS e `make deploy`
+    # configurado). Sem ela, a imagem continua sendo construída e publicada, mas nada é implantado.
     if: >-
       always() &&
+      vars.DEPLOY_ENABLED == 'true' &&
       needs.resolve.result == 'success' &&
       (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
