@@ -2,12 +2,12 @@
 //
 //   MIGRATION_DATABASE_URL=... DB_APP_PASSWORD=... node dist/db/provision-cli.js
 //
-// Com `DB_BOT_PASSWORD` também cria o login do bot de WhatsApp (`DB_BOT_USER`, padrão bot_api) no
+// Com `DB_BOT_PASSWORD` também cria o login do bot de WhatsApp (`DB_BOT_USER`, padrão bot_api), no
 // grupo `bot_runtime`. Roda com o papel DONO do schema, depois das migrations (que criam o grupo `app_runtime`), e é
 // idempotente. A senha vem do ambiente (secret `DB_APP_PASSWORD`), nunca de argumento de linha de
 // comando (apareceria na lista de processos) e nunca é impressa.
 import { createPool } from './client.js';
-import { provisionLoginRole } from './roles.js';
+import { botLoginFromEnv, provisionRuntimeRoles } from './roles.js';
 
 const url = process.env['MIGRATION_DATABASE_URL'];
 if (url === undefined || url === '') {
@@ -24,36 +24,12 @@ if (password.length < 24) {
   throw new Error('DB_APP_PASSWORD precisa ter pelo menos 24 caracteres');
 }
 
-const botName = process.env['DB_BOT_USER'] ?? 'bot_api';
-if (!/^[a-z][a-z0-9_]{2,30}$/.test(botName)) {
-  throw new Error('DB_BOT_USER inválido: use letras minúsculas, números e _ (3 a 31 caracteres)');
-}
-const botPassword = process.env['DB_BOT_PASSWORD'] ?? '';
-if (botPassword !== '' && botPassword.length < 24) {
-  throw new Error('DB_BOT_PASSWORD precisa ter pelo menos 24 caracteres');
-}
-
-async function ensureNoPrivilege(pool: ReturnType<typeof createPool>, role: string): Promise<void> {
-  const check = await pool.query<{ rolbypassrls: boolean; rolsuper: boolean }>(
-    'SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = $1',
-    [role],
-  );
-  const found = check.rows[0];
-  if (found === undefined || found.rolbypassrls || found.rolsuper) {
-    throw new Error(`o papel "${role}" ficou com privilégio demais (BYPASSRLS ou superusuário)`);
-  }
-}
+const bot = botLoginFromEnv(process.env);
 
 const pool = createPool(url);
 try {
-  await provisionLoginRole(pool, { name, password });
-  await ensureNoPrivilege(pool, name);
-  console.log(`Papel de login "${name}" pronto (grupo app_runtime, sem BYPASSRLS).`);
-  if (botPassword !== '') {
-    await provisionLoginRole(pool, { name: botName, password: botPassword, group: 'bot_runtime' });
-    await ensureNoPrivilege(pool, botName);
-    console.log(`Papel de login "${botName}" pronto (grupo bot_runtime, sem BYPASSRLS).`);
-  }
+  const done = await provisionRuntimeRoles(pool, { app: { name, password }, bot });
+  console.log(done.join('\n'));
 } finally {
   await pool.end();
 }

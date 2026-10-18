@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createPool } from '../src/db/client.js';
 import { migrateUp } from '../src/db/migrator.js';
-import { provisionLoginRole } from '../src/db/roles.js';
+import { assertNoPrivilege, provisionLoginRole, provisionRuntimeRoles } from '../src/db/roles.js';
 import { SEED_IDS, seedDatabase } from '../src/db/seed.js';
 import { resetDatabase, startDatabase, type TestDatabase } from './helpers/database.js';
 
@@ -341,5 +341,50 @@ describe('bot_set_whatsapp_status', () => {
       [B],
     );
     expect(row.rows[0]?.s).not.toBe('ONLINE');
+  });
+});
+
+describe('provisão dos logins de runtime', () => {
+  const secret = 'y'.repeat(24);
+
+  it('cria o login da API e o do bot, cada um no seu grupo e sem privilégio demais', async () => {
+    const done = await provisionRuntimeRoles(database.pool, {
+      app: { name: 'api_provisionada', password: secret },
+      bot: { name: 'bot_provisionado', password: secret },
+    });
+    expect(done).toHaveLength(2);
+    const groups = await database.pool.query<{ member: string; grp: string }>(
+      `SELECT m.rolname AS member, g.rolname AS grp
+         FROM pg_auth_members am
+         JOIN pg_roles m ON m.oid = am.member
+         JOIN pg_roles g ON g.oid = am.roleid
+        WHERE m.rolname IN ('api_provisionada', 'bot_provisionado')`,
+    );
+    expect(groups.rows).toEqual(
+      expect.arrayContaining([
+        { member: 'api_provisionada', grp: 'app_runtime' },
+        { member: 'bot_provisionado', grp: 'bot_runtime' },
+      ]),
+    );
+  });
+
+  it('sem bot cria só o da API', async () => {
+    const done = await provisionRuntimeRoles(database.pool, {
+      app: { name: 'api_sozinha', password: secret },
+      bot: null,
+    });
+    expect(done).toHaveLength(1);
+  });
+
+  it('recusa um papel com superusuário ou BYPASSRLS', async () => {
+    const superuser = await database.pool.query<{ rolname: string }>(
+      'SELECT rolname FROM pg_roles WHERE rolsuper LIMIT 1',
+    );
+    await expect(
+      assertNoPrivilege(database.pool, superuser.rows[0]?.rolname ?? ''),
+    ).rejects.toThrow('privilégio demais');
+    await expect(assertNoPrivilege(database.pool, 'papel_que_nao_existe')).rejects.toThrow(
+      'privilégio demais',
+    );
   });
 });
