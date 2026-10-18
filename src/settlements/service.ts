@@ -28,6 +28,7 @@ export interface SettlementView {
   shippingCost: string;
   totalAmount: string;
   paidAt: Date | null;
+  paymentClaimedAt: Date | null;
   createdAt: Date;
   shipment: { id: string; status: string; trackingCode: string | null } | null;
   items: SettlementItemView[];
@@ -166,6 +167,7 @@ export class SettlementService {
       shippingCost: row.settlement.shippingCost,
       totalAmount: row.settlement.totalAmount,
       paidAt: row.settlement.paidAt,
+      paymentClaimedAt: row.settlement.paymentClaimedAt,
       createdAt: row.settlement.createdAt,
       shipment:
         row.shipment === null

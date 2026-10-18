@@ -835,3 +835,105 @@ describe('testes de abuso (#58)', () => {
     }
   });
 });
+
+describe('"já paguei" (POST /v1/public/settlement/paid)', () => {
+  const claim = (server: TestApp, token: string, ip = '203.0.113.60') =>
+    publicCall(server, '/v1/public/settlement/paid', { token }, ip);
+
+  it('só avisa a loja: grava o aviso, notifica uma vez e NUNCA marca como pago', async () => {
+    const server = await start();
+    await world.admin.query('DELETE FROM notifications');
+
+    const first = await claim(server, SEED_LINK_TOKENS.settlement);
+    const again = await claim(server, SEED_LINK_TOKENS.settlement);
+
+    expect(first.statusCode, first.body).toBe(200);
+    expect(first.json()).toEqual({ result: 'OK' });
+    expect(again.json()).toEqual({ result: 'OK' });
+    const row = await world.admin.query<{
+      status: string;
+      paid_at: Date | null;
+      claimed: Date | null;
+    }>('SELECT status, paid_at, payment_claimed_at AS claimed FROM settlements WHERE id = $1', [
+      PENDING_SETTLEMENT,
+    ]);
+    expect(row.rows[0]?.status).toBe('PENDING');
+    expect(row.rows[0]?.paid_at).toBeNull();
+    expect(row.rows[0]?.claimed).not.toBeNull();
+    const notes = await world.admin.query<{ kind: string; data: Record<string, string> }>(
+      'SELECT kind, data FROM notifications',
+    );
+    expect(notes.rows).toEqual([
+      { kind: 'PAYMENT_CLAIMED', data: { settlement_id: PENDING_SETTLEMENT } },
+    ]);
+    const shipments = await world.admin.query('SELECT 1 FROM shipments WHERE settlement_id = $1', [
+      PENDING_SETTLEMENT,
+    ]);
+    expect(shipments.rowCount).toBe(0);
+  });
+
+  it('a loja vê o aviso, e só ela marca como pago', async () => {
+    const server = await start();
+    const owner = await login(server, OWNER);
+    const staff = await login(server, STAFF);
+    await claim(server, SEED_LINK_TOKENS.settlement);
+
+    const detail = await call(server, 'GET', `/v1/settlements/${PENDING_SETTLEMENT}`, staff, A);
+    expect(detail.json<{ payment_claimed_at: string | null; status: string }>()).toMatchObject({
+      status: 'PENDING',
+    });
+    expect(detail.json<{ payment_claimed_at: string | null }>().payment_claimed_at).not.toBeNull();
+    const page = await settlementView(server, SEED_LINK_TOKENS.settlement, '203.0.113.61');
+    expect(page.json<{ payment_claimed_at: string | null }>().payment_claimed_at).not.toBeNull();
+
+    const notifications = await call(server, 'GET', '/v1/notifications?limit=10', owner, A);
+    const kinds = notifications.json<{ items: { kind: string }[] }>().items.map((i) => i.kind);
+    expect(kinds).toContain('PAYMENT_CLAIMED');
+    const paid = await call(server, 'POST', `/v1/settlements/${PENDING_SETTLEMENT}/paid`, owner, A);
+    expect(paid.json<{ status: string }>().status).toBe('PAID');
+  });
+
+  it('acerto já pago responde ALREADY_PAID e não gera aviso', async () => {
+    const server = await start();
+    const staff = await login(server, STAFF);
+    const created = await call(
+      server,
+      'POST',
+      `/v1/settlements/${PAID_SETTLEMENT}/public-link`,
+      staff,
+      A,
+      {},
+    );
+    await world.admin.query('DELETE FROM notifications');
+
+    const response = await claim(server, created.json<{ token: string }>().token);
+
+    expect(response.json()).toEqual({ result: 'ALREADY_PAID' });
+    expect((await world.admin.query('SELECT 1 FROM notifications')).rowCount).toBe(0);
+  });
+
+  it('link inválido, expirado, revogado ou de outro tipo: mesma resposta, nada é gravado', async () => {
+    const server = await start();
+    await world.admin.query(
+      `UPDATE public_links SET expires_at = now() - interval '1 second'
+        WHERE token_hash = encode(sha256(convert_to($1, 'UTF8')), 'hex')`,
+      [SEED_LINK_TOKENS.settlement],
+    );
+    const responses = await Promise.all([
+      claim(server, UNKNOWN_TOKEN, '198.51.100.71'),
+      claim(server, SEED_LINK_TOKENS.settlement, '198.51.100.72'),
+      claim(server, SEED_LINK_TOKENS.revokedSettlement, '198.51.100.73'),
+      claim(server, SEED_LINK_TOKENS.consignor, '198.51.100.74'),
+    ]);
+    expect(new Set(responses.map((r) => r.statusCode))).toEqual(new Set([404]));
+    expect(new Set(responses.map((r) => r.body)).size).toBe(1);
+    const row = await world.admin.query<{ claimed: Date | null }>(
+      'SELECT payment_claimed_at AS claimed FROM settlements WHERE id = $1',
+      [PENDING_SETTLEMENT],
+    );
+    expect(row.rows[0]?.claimed).toBeNull();
+    expect(
+      (await publicCall(server, '/v1/public/settlement/paid', { token: 'curto' })).statusCode,
+    ).toBe(400);
+  });
+});

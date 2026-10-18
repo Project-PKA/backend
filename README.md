@@ -71,8 +71,8 @@ rodando).
 | Perfil (preferências), notificações internas, plano e uso, vitrine pública opt-in | Cobrança e faturas (D6) |
 | Painéis: Home ao vivo e Financeiro (KPIs, séries diárias, histogramas, pizzas, top compradores e repasses) |
 | Acertos (criar, frete, desfazer, marcar como pago) e fila de envios com rastreio |
-| Páginas públicas por link: acerto do comprador (CPF, endereço e consentimento LGPD) e acompanhamento do consignador, com papel `public_runtime` e bloqueio por tentativas | "Já paguei" com comprovante (#53, D3) e vitrine pública |
-| Contrato OpenAPI gerado do código (98 operações) | |
+| Páginas públicas por link: acerto do comprador (CPF, endereço e consentimento LGPD) e acompanhamento do consignador, com papel `public_runtime` e bloqueio por tentativas | Comprovante em arquivo do "já paguei" (#53, D3) |
+| Contrato OpenAPI gerado do código (99 operações) | |
 | Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
 | | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |
 | | Dockerfile e deploy (a VPS ainda não existe) |

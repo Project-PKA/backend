@@ -6,6 +6,7 @@ export interface SettlementPage {
   store_name: string;
   pix_key: string | null;
   status: 'PENDING' | 'PAID';
+  payment_claimed_at: string | null;
   shipping_cost: string;
   total_amount: string;
   expires_at: string;
@@ -120,6 +121,16 @@ export class PublicAccessService {
         SELECT public_access_request_submit(${data.name}::text, ${data.email}::text,
           ${data.whatsapp}::text, ${data.storeName}::text, ${data.message}::text, ${ip}::text)
       `);
+    });
+  }
+
+  /** O comprador avisa que pagou. Só grava o aviso e notifica a loja; nunca marca como pago. */
+  async claimPaid(token: string, ip: string): Promise<'OK' | 'ALREADY_PAID' | null> {
+    return this.asPublic(async (tx) => {
+      const result = await tx.execute<{ outcome: { result: 'OK' | 'ALREADY_PAID' } | null }>(
+        sql`SELECT public_settlement_claim_paid(${token}::text, ${ip}::text) AS outcome`,
+      );
+      return result.rows[0]?.outcome?.result ?? null;
     });
   }
 

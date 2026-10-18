@@ -354,6 +354,8 @@ export const settlements = pgTable(
     totalAmount: money('total_amount').notNull(),
     status: settlementStatus('status').notNull().default('PENDING'),
     paidAt: timestamp('paid_at', { withTimezone: true }),
+    /** O comprador avisou que pagou. Só avisa: o estado muda quando a loja marca como pago. */
+    paymentClaimedAt: timestamp('payment_claimed_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [

@@ -63,6 +63,7 @@ const settlementResponse = {
     'shipping_cost',
     'total_amount',
     'paid_at',
+    'payment_claimed_at',
     'created_at',
     'shipment',
     'items',
@@ -84,6 +85,13 @@ const settlementResponse = {
     shipping_cost: { type: 'string' },
     total_amount: { type: 'string', description: 'Itens + frete informado pela loja' },
     paid_at: { type: 'string', format: 'date-time', nullable: true },
+    payment_claimed_at: {
+      type: 'string',
+      format: 'date-time',
+      nullable: true,
+      description:
+        'O comprador avisou que pagou (a loja ainda precisa conferir e marcar como pago)',
+    },
     created_at: { type: 'string', format: 'date-time' },
     shipment: {
       type: 'object',
@@ -180,6 +188,7 @@ const toSettlementJson = (view: SettlementView) => ({
   shipping_cost: view.shippingCost,
   total_amount: view.totalAmount,
   paid_at: view.paidAt?.toISOString() ?? null,
+  payment_claimed_at: view.paymentClaimedAt?.toISOString() ?? null,
   created_at: view.createdAt.toISOString(),
   shipment:
     view.shipment === null
