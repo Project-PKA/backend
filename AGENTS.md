@@ -277,8 +277,9 @@ reverter, pergunte primeiro.
   lock (`clock_timestamp()`), não no início da transação.
 - **Abrir e encerrar leilões:** `advance_auctions(loja)` vira o estado conforme o relógio
   do banco (abre, encerra, define vencedor, devolve a carta). A API a chama ao listar,
-  detalhar e agir. Ainda **não há job** que varra todas as lojas: quem agenda é o bot (a
-  fazer, issue #44) ou um job futuro.
+  detalhar e agir, e um job do BullMQ (`src/jobs/auctions.ts`, a cada minuto) a chama para
+  todas as lojas. O job só existe com `REDIS_URL`; sem ele, os leilões só viram quando
+  alguém abre a loja.
 - **`prom-client` está deprecado no npm** e o ESLint 9 saiu de suporte:
   revisar antes de produção (`STACK.md`, seção 8).
 - **`BOOTSTRAP.md` e `SETUP-GITHUB.md` ainda existem** de propósito: o
