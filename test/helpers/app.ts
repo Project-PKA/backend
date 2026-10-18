@@ -2,6 +2,7 @@ import type pg from 'pg';
 
 import { buildApp, type BuiltApp } from '../../src/app.js';
 import { MemoryEmailSender } from '../../src/auth/email.js';
+import type { TcgdexClient } from '../../src/catalog/tcgdex.js';
 import { createPool } from '../../src/db/client.js';
 import { createDb, type Db } from '../../src/db/context.js';
 import { loadEnv, type Env } from '../../src/config/env.js';
@@ -37,6 +38,7 @@ interface Options {
   pool?: pg.Pool;
   checkDatabase?: () => Promise<void>;
   now?: () => Date;
+  tcgdex?: TcgdexClient;
   /** `false` deixa registrar hooks depois de criar o app. */
   ready?: boolean;
 }
@@ -52,6 +54,7 @@ export async function buildTestApp(options: Options = {}): Promise<TestApp> {
     email,
     checkDatabase: options.checkDatabase ?? (() => Promise.resolve()),
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.tcgdex === undefined ? {} : { tcgdex: options.tcgdex }),
   });
   if (options.ready !== false) await built.app.ready();
   return {

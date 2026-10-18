@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type pg from 'pg';
 
+import { buildSearchText } from '../catalog/normalize.js';
 import * as schema from './schema.js';
 
 /**
@@ -177,6 +178,7 @@ function buildCardsStoreA(
       language: LANGUAGES[n % LANGUAGES.length] ?? 'PT',
       condition: CONDITIONS[n % CONDITIONS.length] ?? 'NM',
       isFoil: n % 3 === 0,
+      notes: n % 4 === 0 ? 'Canto levemente marcado, ver foto' : null,
       customPhotos: Array.from(
         { length: n % 4 },
         (_, i) => `https://example.com/fotos/A${n}-${i + 1}.jpg`,
@@ -424,13 +426,24 @@ async function insertAll(db: Tx): Promise<void> {
 
   // --- Catálogo e clientes ----------------------------------------------------
   await db.insert(schema.tcgdexCatalog).values(
-    CATALOG.map(([id, name, cardNumber, setName, rarity]) => ({
-      id,
-      name,
-      cardNumber,
-      setName,
-      rawData: { rarity, image: `https://assets.tcgdex.net/${id}/high.png` },
-    })),
+    CATALOG.map(([id, name, cardNumber, setName, rarity]) => {
+      const setId = 'sv03.5';
+      const localId = cardNumber.split('/')[0] ?? cardNumber;
+      return {
+        id,
+        name,
+        cardNumber: localId,
+        setName,
+        setId,
+        searchText: buildSearchText({ names: [name], localId, setNames: [setName], setId }),
+        // Mesmo formato que o sync grava; a raridade já vem preenchida no seed.
+        rawData: {
+          names: { en: name },
+          images: { en: `https://assets.tcgdex.net/en/sv/${setId}/${localId}` },
+          rarity,
+        },
+      };
+    }),
   );
   await db.insert(schema.customers).values(buildCustomers());
 
