@@ -80,6 +80,7 @@ export function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps): void 
                 store_name: { type: 'string' },
                 pix_key: { type: 'string', nullable: true },
                 status: { type: 'string', enum: ['PENDING', 'PAID'] },
+                payment_claimed_at: { type: 'string', nullable: true },
                 shipping_cost: { type: 'string' },
                 total_amount: { type: 'string' },
                 expires_at: { type: 'string' },
@@ -95,6 +96,39 @@ export function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps): void 
         const { token } = request.body as { token: string };
         const page = await access.settlement(token, request.ip);
         return page === null ? notFound(reply) : page;
+      },
+    );
+
+    scope.post(
+      '/v1/public/settlement/paid',
+      {
+        config: { rateLimit },
+        schema: {
+          operationId: 'publicSettlementClaimPaid',
+          tags: ['public'],
+          summary: 'O comprador avisa que pagou ("já paguei")',
+          description:
+            'Só avisa a loja. Nunca marca o acerto como pago: quem confere e marca é a loja. Repetir é inofensivo.',
+          body: {
+            type: 'object',
+            required: ['token'],
+            additionalProperties: false,
+            properties: { token: TOKEN },
+          },
+          response: {
+            200: {
+              type: 'object',
+              required: ['result'],
+              properties: { result: { type: 'string', enum: ['OK', 'ALREADY_PAID'] } },
+            },
+            ...failures,
+          },
+        },
+      },
+      async (request, reply) => {
+        const { token } = request.body as { token: string };
+        const outcome = await access.claimPaid(token, request.ip);
+        return outcome === null ? notFound(reply) : { result: outcome };
       },
     );
 

@@ -9377,6 +9377,7 @@ paths:
                   - shipping_cost
                   - total_amount
                   - paid_at
+                  - payment_claimed_at
                   - created_at
                   - shipment
                   - items
@@ -9420,6 +9421,12 @@ paths:
                     type: string
                     format: date-time
                     nullable: true
+                  payment_claimed_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: O comprador avisou que pagou (a loja ainda precisa conferir e
+                      marcar como pago)
                   created_at:
                     type: string
                     format: date-time
@@ -9674,6 +9681,7 @@ paths:
                         - shipping_cost
                         - total_amount
                         - paid_at
+                        - payment_claimed_at
                         - created_at
                         - shipment
                         - items
@@ -9717,6 +9725,12 @@ paths:
                           type: string
                           format: date-time
                           nullable: true
+                        payment_claimed_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                          description: O comprador avisou que pagou (a loja ainda precisa conferir e
+                            marcar como pago)
                         created_at:
                           type: string
                           format: date-time
@@ -9945,6 +9959,7 @@ paths:
                   - shipping_cost
                   - total_amount
                   - paid_at
+                  - payment_claimed_at
                   - created_at
                   - shipment
                   - items
@@ -9988,6 +10003,12 @@ paths:
                     type: string
                     format: date-time
                     nullable: true
+                  payment_claimed_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: O comprador avisou que pagou (a loja ainda precisa conferir e
+                      marcar como pago)
                   created_at:
                     type: string
                     format: date-time
@@ -10226,6 +10247,7 @@ paths:
                   - shipping_cost
                   - total_amount
                   - paid_at
+                  - payment_claimed_at
                   - created_at
                   - shipment
                   - items
@@ -10269,6 +10291,12 @@ paths:
                     type: string
                     format: date-time
                     nullable: true
+                  payment_claimed_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: O comprador avisou que pagou (a loja ainda precisa conferir e
+                      marcar como pago)
                   created_at:
                     type: string
                     format: date-time
@@ -10657,6 +10685,7 @@ paths:
                   - shipping_cost
                   - total_amount
                   - paid_at
+                  - payment_claimed_at
                   - created_at
                   - shipment
                   - items
@@ -10700,6 +10729,12 @@ paths:
                     type: string
                     format: date-time
                     nullable: true
+                  payment_claimed_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: O comprador avisou que pagou (a loja ainda precisa conferir e
+                      marcar como pago)
                   created_at:
                     type: string
                     format: date-time
@@ -18594,6 +18629,9 @@ paths:
                     enum:
                       - PENDING
                       - PAID
+                  payment_claimed_at:
+                    type: string
+                    nullable: true
                   shipping_cost:
                     type: string
                   total_amount:
@@ -18608,6 +18646,134 @@ paths:
                   buyer:
                     type: object
                     additionalProperties: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/public/settlement/paid:
+    post:
+      operationId: publicSettlementClaimPaid
+      summary: O comprador avisa que pagou ("já paguei")
+      tags:
+        - public
+      description: "Só avisa a loja. Nunca marca o acerto como pago: quem confere e
+        marca é a loja. Repetir é inofensivo."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              additionalProperties: false
+              properties:
+                token:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - result
+                properties:
+                  result:
+                    type: string
+                    enum:
+                      - OK
+                      - ALREADY_PAID
         "400":
           description: Default Response
           content:

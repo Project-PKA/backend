@@ -410,16 +410,19 @@ describe('lances simultâneos (Postgres real)', () => {
     );
 
     const codes = responses.map((r) => r.statusCode);
-    expect(codes.every((c) => c === 201 || c === 422)).toBe(true);
+    // Mensagens com o detalhe: se isto falhar de novo sob carga, o motivo aparece no relatório.
+    const unexpected = responses.filter((r) => r.statusCode !== 201 && r.statusCode !== 422);
+    expect(unexpected.map((r) => r.statusCode + ' ' + r.body)).toEqual([]);
     const { rows } = await world.admin.query<{ amount: string }>(
       'SELECT amount FROM bids WHERE auction_id = $1 ORDER BY created_at, amount',
       [auction.id],
     );
     const accepted = rows.map((r) => Number(r.amount));
     expect(accepted).toHaveLength(codes.filter((c) => c === 201).length);
-    expect(Math.max(...accepted)).toBe(48);
+    expect(Math.max(...accepted), 'aceitos: ' + accepted.join(',')).toBe(48);
     for (let i = 1; i < accepted.length; i += 1) {
-      expect((accepted[i] ?? 0) - (accepted[i - 1] ?? 0)).toBeGreaterThanOrEqual(2);
+      const step = (accepted[i] ?? 0) - (accepted[i - 1] ?? 0);
+      expect(step, 'aceitos: ' + accepted.join(',')).toBeGreaterThanOrEqual(2);
     }
     const room = await call(server, 'GET', `/v1/auctions/${auction.id}`, staff, A);
     expect(room.json<{ auction: AuctionJson }>().auction.current_bid).toBe('48.00');
