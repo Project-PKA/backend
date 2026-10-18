@@ -11,6 +11,8 @@ import { collectDefaultMetrics, Registry } from 'prom-client';
 
 import type { EmailSender } from './auth/email.js';
 import { createAuthHooks } from './auth/hooks.js';
+import { SettlementService } from './settlements/service.js';
+import { ShipmentService } from './shipments/service.js';
 import { CustomerService } from './customers/service.js';
 import { AuctionService } from './auctions/service.js';
 import { CatalogService } from './catalog/service.js';
@@ -24,6 +26,7 @@ import { errorHandler, notFoundHandler } from './http/problem.js';
 import { authRoutes } from './routes/auth.js';
 import { infraRoutes } from './routes/infra.js';
 import { activityRoutes } from './routes/activity.js';
+import { settlementRoutes } from './routes/settlements.js';
 import { customerRoutes } from './routes/customers.js';
 import { auctionRoutes } from './routes/auctions.js';
 import { catalogRoutes } from './routes/catalog.js';
@@ -56,6 +59,8 @@ export interface BuiltApp {
   inventory: InventoryService;
   auctions: AuctionService;
   customers: CustomerService;
+  settlements: SettlementService;
+  shipments: ShipmentService;
 }
 
 const TRACEPARENT = /^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/;
@@ -155,6 +160,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
           name: 'customers',
           description: 'Clientes, visitantes, blacklist e carteira de consignação',
         },
+        { name: 'settlements', description: 'Acertos, pagamento e fila de envios' },
         { name: 'auctions', description: 'Leilões, lances e enquetes' },
         { name: 'inventory', description: 'Estoque da loja (cartas próprias e consignadas)' },
       ],
@@ -208,6 +214,9 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   auctionRoutes(app, { hooks, auctions });
   const customers = new CustomerService(deps.db);
   customerRoutes(app, { hooks, customers });
+  const settlements = new SettlementService(deps.db);
+  const shipments = new ShipmentService(deps.db);
+  settlementRoutes(app, { hooks, settlements, shipments });
 
   return {
     app,
@@ -219,5 +228,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
     inventory,
     auctions,
     customers,
+    settlements,
+    shipments,
   };
 }
