@@ -59,6 +59,8 @@ Todos passam pelo contrato do `Makefile`; os comandos reais ficam em
 | `make migrate` | Aplica as migrations pendentes | `npm run db:rollback` reverte a última |
 | `make seed` | Recria os dados de desenvolvimento | **Apaga o banco.** Recusa `APP_ENV` fora de `local`/`dev`/`test` |
 | `npm run db:provision-dev` | Cria o papel `app_api` (sem `BYPASSRLS`) para o `make run` | Só dev; roda uma vez depois do `make migrate` |
+| `npm run error-codes:generate` | Regrava `docs/api/error-codes.json` (todos os `code` de erro) | Um teste confere que está em dia |
+| `npm run maintenance:purge` | Apaga agora o que venceu (sessões, OTP, falhas por IP, links e convites antigos) | O job diário às 04:30 exige `REDIS_URL` |
 | `npm run catalog:sync` | Sincroniza o catálogo do TCGdex agora | Carga inicial; o job das 03:00 exige `REDIS_URL` |
 | `npm run db:create-admin -- <email> [nome]` | Cria ou promove o administrador da plataforma | Único caminho para isso; usa `MIGRATION_DATABASE_URL` |
 | `make migration NAME=cria-x` | Cria `migrations/000N_cria-x/{up,down}.sql` | Atualize `src/db/schema.ts` e o seed no mesmo PR |
@@ -210,6 +212,7 @@ verdade. Rode os comandos; não suponha o resultado.
 - [ ] Rota nova: schema de entrada e saída, `store_id` filtrado, autorização
       checada no servidor e teste de acesso cruzado entre lojas
 - [ ] Contrato mudou: `make openapi` rodado e o arquivo commitado
+- [ ] Erro novo com `code` novo: `npm run error-codes:generate` rodado e `docs/api/error-codes.json` commitado (o frontend traduz pelo `code`; um teste falha se o arquivo ficar desatualizado)
 - [ ] Variável de ambiente nova nos três lugares da seção 3
 - [ ] Nenhum log com dado pessoal, teste `only`/`skip` ou segredo no código
 - [ ] `npm audit` sem vulnerabilidade nova
@@ -282,6 +285,8 @@ reverter, pergunte primeiro.
   teto. Backend e bot a chamam; **não reescreva a regra em TypeScript**. Ela devolve
   `outcome` (não lança erro de regra de negócio). A hora do lance é lida **depois** do
   lock (`clock_timestamp()`), não no início da transação.
+- **Limpeza:** `purge_expired()` (migration 0019, `SECURITY DEFINER`, só `app_runtime`) apaga só o que é técnico e efêmero. **Não** apague dado pessoal por aqui (pedidos de acesso, avisos, clientes): o prazo é a decisão de LGPD (D2). O log de atividades é imutável.
+- **Deploy:** `scripts/deploy.sh` + `deploy/` (compose de produção, Caddy, backup e restauração). A API no compose recebe só as variáveis listadas em `environment`, nunca a senha do dono do schema.
 - **Abrir e encerrar leilões:** `advance_auctions(loja)` vira o estado conforme o relógio
   do banco (abre, encerra, define vencedor, devolve a carta). A API a chama ao listar,
   detalhar e agir, e um job do BullMQ (`src/jobs/auctions.ts`, a cada minuto) a chama para

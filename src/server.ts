@@ -5,6 +5,7 @@ import { checkDatabase, createPool } from './db/client.js';
 import { createTcgdexClient } from './catalog/tcgdex.js';
 import { createDb } from './db/context.js';
 import { startAuctionJobs } from './jobs/auctions.js';
+import { startMaintenanceJobs } from './jobs/maintenance.js';
 import { startCatalogJobs, type CatalogJobs } from './jobs/catalog.js';
 
 const env = loadEnv();
@@ -17,6 +18,7 @@ let built: Awaited<ReturnType<typeof buildApp>>;
 const email = new LogEmailSender(() => built.app.log);
 let jobs: CatalogJobs | undefined;
 let auctionJobs: { close: () => Promise<void> } | undefined;
+let maintenanceJobs: { close: () => Promise<void> } | undefined;
 built = await buildApp({
   env,
   db,
@@ -41,6 +43,7 @@ if (env.redisUrl === null) {
     },
   };
   auctionJobs = await startAuctionJobs({ redisUrl: env.redisUrl, auctions, log: jobLog });
+  maintenanceJobs = await startMaintenanceJobs({ redisUrl: env.redisUrl, db, log: jobLog });
   jobs = await startCatalogJobs({
     redisUrl: env.redisUrl,
     db,
@@ -55,6 +58,7 @@ async function shutdown(signal: string): Promise<void> {
   await app.close();
   await jobs?.close();
   await auctionJobs?.close();
+  await maintenanceJobs?.close();
   await Promise.all([auth.flush(), invitations.flush()]);
   await pool.end();
   process.exit(0);

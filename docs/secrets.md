@@ -71,11 +71,17 @@ Fluxo: imagem no GHCR, SSH, `docker compose`. O push no GHCR usa o
 
 | Nome | Tipo | Para quê | Como obter |
 | --- | --- | --- | --- |
-| `SSH_HOST` *(proposto)* | variable | Endereço da VPS | Provedor |
-| `SSH_USER` *(proposto)* | variable | Usuário de deploy (sem root) | Criado na VPS |
-| `SSH_PRIVATE_KEY` *(proposto)* | secret | Chave do usuário de deploy | `ssh-keygen -t ed25519`; a pública vai para a VPS |
-| `SSH_KNOWN_HOSTS` *(proposto)* | secret | Impressão digital do servidor, evita MITM | `ssh-keyscan <host>` |
-| `GHCR_PULL_TOKEN` *(proposto)* | secret | A VPS puxar a imagem privada | PAT com `read:packages` |
+| `SSH_HOST` | variable | Endereço da VPS | Provedor |
+| `SSH_USER` | variable | Usuário de deploy (sem root) | Criado na VPS |
+| `SSH_PRIVATE_KEY` | secret | Chave do usuário de deploy | `ssh-keygen -t ed25519`; a pública vai para a VPS |
+| `SSH_KNOWN_HOSTS` | secret | Impressão digital do servidor, evita MITM | `ssh-keyscan <host>` |
+| `GHCR_PULL_USER` | variable | Usuário do GitHub dono do `GHCR_PULL_TOKEN` | Seu usuário |
+| `GHCR_PULL_TOKEN` | secret | A VPS puxar a imagem privada | PAT com `read:packages` |
+| `DEPLOY_DIR` | variable (opcional) | Pasta do ambiente na VPS (padrão `/srv/pokemon-auction/<ambiente>`) | Criada na VPS |
+| `DEPLOY_ENABLED` | variable (repositório) | Liga o job de deploy (`true`). Sem ela a imagem é só publicada | Criar quando a VPS e o `.env` estiverem prontos |
+
+**No `.env` da VPS** (modelo `deploy/env.example`; nunca passa pelo GitHub nem pelo repositório):
+`APP_DOMAIN`, `DB_OWNER_USER`, `DB_OWNER_PASSWORD`, `DB_APP_PASSWORD`, `REDIS_PASSWORD` (estes três com `openssl rand -hex 32`: base64 quebra a URL de conexão), `JWT_ACCESS_SECRET`, `REFRESH_TOKEN_PEPPER`, `OTP_HASH_SECRET`, `BACKUP_PASSPHRASE` e `BACKUP_KEEP_DAYS`.
 
 ## 4. Como criar no GitHub
 

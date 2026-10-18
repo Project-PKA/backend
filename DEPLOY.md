@@ -1,9 +1,10 @@
 # Deploy
 
-> **Status: não implementado.** A VPS ainda não foi contratada (decisão de
-> 2026-10-17). O fluxo abaixo está **decidido**, mas `scripts/deploy.sh`, o
-> `Dockerfile` e os Environments ainda não existem. Nada aqui foi testado em
-> servidor real.
+> **Status:** o fluxo está **implementado e testado localmente** (compose, migrations, papel da API,
+> backup e restauração rodaram de ponta a ponta com a imagem real), mas **ainda não foi executado numa
+> VPS**, porque ela não existe. O job de deploy do GitHub só roda com a variable `DEPLOY_ENABLED=true`.
+> Para `homolog` e `prod` falta também o provedor de e-mail (decisão D1): a API recusa subir com o
+> provedor `log` nesses ambientes. `dev` sobe sem isso.
 
 A fundação separa **como publicar**, que depende da plataforma, de **quando,
 o quê e com que autorização publicar**, que não depende.
@@ -66,27 +67,61 @@ lock consultivo, então dois deploys simultâneos não aplicam em dobro.
 
 ## Receita: VPS com docker compose (via SSH)
 
-**Variables e secrets do Environment:** `SSH_HOST`, `SSH_USER`,
-`SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS`, `GHCR_PULL_TOKEN`, mais os da aplicação
-(`docs/secrets.md`, seção 2).
+Arquivos no repositório: [`scripts/deploy.sh`](scripts/deploy.sh) (o deploy),
+[`deploy/compose.prod.yaml`](deploy/compose.prod.yaml) (API, Postgres, Redis e Caddy),
+[`deploy/Caddyfile`](deploy/Caddyfile) (HTTPS automático), [`deploy/env.example`](deploy/env.example)
+(modelo do `.env` da VPS), [`deploy/backup.sh`](deploy/backup.sh) e [`deploy/restore.sh`](deploy/restore.sh).
 
-```sh
-# scripts/deploy.sh (a implementar quando a VPS existir)
-: "${SSH_PRIVATE_KEY:?}" "${SSH_HOST:?}" "${SSH_USER:?}" "${SSH_KNOWN_HOSTS:?}"
-key="$RUNNER_TEMP/deploy_key"
-printf '%s\n' "$SSH_PRIVATE_KEY" > "$key" && chmod 600 "$key"
-printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/known_hosts"
+**O que cada deploy faz** (`scripts/deploy.sh`, por SSH, com o usuário sem root):
 
-ssh -i "$key" -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o StrictHostKeyChecking=yes \
-  "$SSH_USER@$SSH_HOST" \
-  "export IMAGE='$IMAGE' \
-   && docker compose -f /srv/app/compose.yaml run --rm -e DATABASE_URL="$MIGRATION_DATABASE_URL" api node dist/db/cli.js up \
-   && docker compose -f /srv/app/compose.yaml up -d api"
-```
+1. copia o `compose.prod.yaml` e o `Caddyfile` para `/srv/pokemon-auction/<ambiente>/`;
+2. faz login no GHCR (o token vai pela entrada padrão, não em argumento) e puxa a imagem do SHA;
+3. sobe `db` e `redis`;
+4. roda as **migrations** com a mesma imagem e o papel dono (`node dist/db/cli.js up`);
+5. cria ou atualiza o **papel de login da API** (`app_api`, sem `BYPASSRLS`) com a senha do `.env`
+   (`node dist/db/provision-cli.js`, idempotente e sem imprimir a senha);
+6. sobe a API e o Caddy e **espera `/ready`** (banco e Redis respondendo) antes de dar por feito.
 
-No servidor, o `compose.yaml` usa `image: ${IMAGE}` e um `.env` de produção
-que **nunca** passa pelo repositório. O `compose.yaml` do repositório é só
-para desenvolvimento local.
+A API **não recebe** a senha do dono do schema nem a do backup: o compose lista só as variáveis dela
+(nada de `env_file`). Roda com sistema de arquivos somente leitura, sem capacidades Linux e sem
+`new-privileges`. Só o Caddy publica porta (80 e 443); Postgres, Redis e a API ficam na rede interna, e
+`/metrics` responde 404 pela internet.
+
+### Preparar a VPS (uma vez por ambiente)
+
+1. **Servidor:** Ubuntu LTS atualizado, Docker Engine com o plugin compose, `ufw` liberando só 22, 80 e
+   443, e o SSH só por chave, sem root e sem senha.
+2. **Usuário de deploy** (por exemplo `deploy`, sem sudo, no grupo `docker`) e a chave pública dele em
+   `~/.ssh/authorized_keys`. A chave privada vira o secret `SSH_PRIVATE_KEY`; a impressão digital do
+   servidor (`ssh-keyscan -t ed25519 <host>`) vira `SSH_KNOWN_HOSTS`.
+3. **DNS:** um registro A do domínio da API (`APP_DOMAIN`) apontando para a VPS. O Caddy emite o
+   certificado sozinho na primeira vez que o domínio resolver.
+4. **Pasta e `.env`:** `sudo install -d -o deploy -g deploy /srv/pokemon-auction/dev`, copie
+   `deploy/env.example` para lá como `.env`, preencha, `chmod 600 .env`. Senhas do banco e do Redis com
+   `openssl rand -hex 32`; os demais segredos com `openssl rand -base64 48`.
+5. **GitHub:** crie o Environment (`dev`, depois `homolog` e `prod` com aprovação) e cadastre
+   `SSH_HOST`, `SSH_USER`, `GHCR_PULL_USER` (variables) e `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS`,
+   `GHCR_PULL_TOKEN` (secrets; `docs/secrets.md`, seção 3). Por último, a variable de repositório
+   `DEPLOY_ENABLED=true`.
+6. **Primeiro deploy:** Actions → Deploy → Run workflow (ambiente `dev`). Confira `GET /health` e
+   `/ready` no domínio.
+7. **Primeiro administrador** (nunca por tela ou API), na VPS:
+   `docker compose --env-file .env --env-file image.env run --rm -e MIGRATION_DATABASE_URL="postgresql://owner:<DB_OWNER_PASSWORD>@db:5432/app" api node dist/db/create-admin.js <email> "<Nome>"`
+8. **Backup:** cole `deploy/backup.sh` e `deploy/restore.sh` na pasta do ambiente (ou deixe o deploy
+   copiá-los) e agende:
+   `17 3 * * *  cd /srv/pokemon-auction/prod && sh backup.sh >> backup.log 2>&1`.
+   **Guarde a `BACKUP_PASSPHRASE` num gerenciador de senhas**: sem ela o backup não abre.
+9. **Teste a restauração** antes de depender dela: `sh restore.sh backups/<arquivo>.dump.enc` restaura
+   num banco descartável (`restore_check`), confere tabelas e usuários e apaga o banco de teste.
+
+### Restaurar de verdade (desastre)
+
+1. Pare a API: `docker compose --env-file .env --env-file image.env stop api`.
+2. `sh restore.sh backups/<arquivo>.dump.enc --keep` e confira os números impressos.
+3. Troque o banco: no `psql` do dono, `ALTER DATABASE app RENAME TO app_antigo;` e
+   `ALTER DATABASE restore_check RENAME TO app;` (ou ajuste `DB_NAME`).
+4. Rode o provisionamento de novo (ele recria os grants do papel da API) e suba a API.
+5. Guarde o banco antigo até confirmar que está tudo certo.
 
 ### Requisitos de segurança da VPS
 
@@ -111,14 +146,15 @@ Obrigatórios antes do primeiro deploy em `homolog` ou `prod` (lista completa em
 
 ## Checklist ao implementar o deploy
 
-- [ ] `Dockerfile` multi-stage que copia `dist/` e `migrations/` e roda como usuário não root
-- [ ] `scripts/deploy.sh` implanta de verdade e falha com código diferente de 0 no erro
-- [ ] Migrations rodam antes da troca de versão, com a mesma imagem e com o papel dono
-- [ ] O papel `app_api` existe e a API sobe com ele (confirme que `rolbypassrls` é falso)
+- [x] `Dockerfile` multi-stage que copia `dist/` e `migrations/` e roda como usuário não root
+- [x] `scripts/deploy.sh` implanta de verdade e falha com código diferente de 0 no erro (testado só localmente)
+- [x] Migrations rodam antes da troca de versão, com a mesma imagem e com o papel dono
+- [x] O papel `app_api` existe e a API sobe com ele (o `provision-cli` recusa se `rolbypassrls` ou superusuário)
 - [ ] Nenhum segredo no código nem em log (use secrets do Environment)
 - [ ] Os quatro Environments existem, com aprovação em `homolog` e `prod`
 - [ ] `APP_BASE_URL` configurada (sem ela o smoke test é pulado em silêncio)
-- [ ] Rollback testado ao menos uma vez, antes de precisar dele
+- [ ] Rollback testado ao menos uma vez numa VPS, antes de precisar dele
+- [ ] Backup agendado e restauração testada na VPS (o teste local passou)
 - [ ] O caminho de deploy é **único**: nenhuma integração automática publicando por fora e ignorando a aprovação
 - [ ] Requisitos de segurança da VPS (acima) atendidos
 

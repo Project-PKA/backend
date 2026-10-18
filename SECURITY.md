@@ -91,6 +91,8 @@ tarefa que o toca não está pronta sem ele.
 | Pedido de acesso público: sem login, só por função `SECURITY DEFINER` (`public_access_request_submit`); resposta igual para novo, repetido ou descartado; campo-isca; limite por minuto e 10 pedidos por IP/dia; e-mail só depois da decisão do administrador; IP em hash | **feito** (com teste) |
 | Vitrine pública (ADR 0014): só lojas que optaram (liga com o link do grupo e a confirmação de que ele ficará público), WhatsApp conectado, função `SECURITY DEFINER` sem telefone nem nome de cliente, página de no máximo 48 e deslocamento de no máximo 480, limite por minuto e cache curto contra coleta em massa | **feito** (com teste) |
 | Notificações: só código e ids, por loja (RLS), leitura por pessoa | **feito** |
+| Limpeza de dados vencidos por `purge_expired()` (`SECURITY DEFINER`, só `app_runtime`): sessões, OTP, falhas por IP, links e convites antigos; dado pessoal fica de fora até a decisão de retenção (D2) | **feito** (com teste) |
+| Deploy: a API não recebe a senha do dono do schema nem a do backup; sistema de arquivos somente leitura, sem capacidades Linux; só o Caddy publica porta; `/metrics` não sai pela internet; backup criptografado (AES-256) com restauração testada | **feito** (testado localmente; falta a VPS) |
 | Sala de lances devolve telefone com o miolo oculto e nunca o texto original da mensagem | **feito** (com teste) |
 | O ID da carta e o texto da mensagem são tratados como entrada não confiável (regex estrita, tamanho máximo, sem eval/SQL concatenado) | Etapa 5 |
 | Risco aceito: banimento do número e violação dos termos do WhatsApp (ADR 0007) | aceito |

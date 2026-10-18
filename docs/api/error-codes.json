@@ -1,0 +1,348 @@
+{
+  "codes": [
+    {
+      "code": "ADMIN_ADMIN_PROTECTED",
+      "status": 409
+    },
+    {
+      "code": "ADMIN_ALREADY_OWNER",
+      "status": 409
+    },
+    {
+      "code": "ADMIN_EMAIL_TAKEN",
+      "status": 409
+    },
+    {
+      "code": "ADMIN_INVALID_LIMIT",
+      "status": 422
+    },
+    {
+      "code": "ADMIN_LIMIT_BELOW_USAGE",
+      "status": 422
+    },
+    {
+      "code": "ADMIN_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "ADMIN_NOT_PENDING",
+      "status": 409
+    },
+    {
+      "code": "ADMIN_NOT_SUSPENDED",
+      "status": 409
+    },
+    {
+      "code": "ADMIN_OWNER_NOT_ACTIVE",
+      "status": 422
+    },
+    {
+      "code": "ADMIN_OWNER_NOT_FOUND",
+      "status": 422
+    },
+    {
+      "code": "ADMIN_OWNER_SUSPENDED",
+      "status": 422
+    },
+    {
+      "code": "ADMIN_REQUEST_NOT_PENDING",
+      "status": 409
+    },
+    {
+      "code": "ADMIN_SELF_ACTION",
+      "status": 409
+    },
+    {
+      "code": "ADMIN_TOO_SOON",
+      "status": 429
+    },
+    {
+      "code": "ALREADY_MEMBER",
+      "status": 409
+    },
+    {
+      "code": "AUCTION_AUCTION_LOCKED",
+      "status": 409
+    },
+    {
+      "code": "AUCTION_CARD_NOT_AVAILABLE",
+      "status": 409
+    },
+    {
+      "code": "AUCTION_CARD_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "AUCTION_INVALID_PERIOD",
+      "status": 422
+    },
+    {
+      "code": "AUCTION_INVALID_VALUES",
+      "status": 422
+    },
+    {
+      "code": "AUCTION_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "AUCTION_NOT_LIVE",
+      "status": 409
+    },
+    {
+      "code": "AUCTION_NOT_PAUSED",
+      "status": 409
+    },
+    {
+      "code": "BID_AUCTION_NOT_ACTIVE",
+      "status": 409
+    },
+    {
+      "code": "BID_AUCTION_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "BID_BID_TOO_LOW",
+      "status": 422
+    },
+    {
+      "code": "BID_CUSTOMER_BLACKLISTED",
+      "status": 422
+    },
+    {
+      "code": "BID_CUSTOMER_NOT_FOUND",
+      "status": 422
+    },
+    {
+      "code": "BID_ENDED",
+      "status": 409
+    },
+    {
+      "code": "BID_INVALID_AMOUNT",
+      "status": 422
+    },
+    {
+      "code": "BID_NOT_STARTED",
+      "status": 409
+    },
+    {
+      "code": "CANNOT_CREATE_STORES",
+      "status": 403
+    },
+    {
+      "code": "CARD_HAS_HISTORY",
+      "status": 409
+    },
+    {
+      "code": "CARD_LIMIT_REACHED",
+      "status": 409
+    },
+    {
+      "code": "CARD_LOCKED",
+      "status": 409
+    },
+    {
+      "code": "CARD_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "CATALOG_CARD_NOT_FOUND",
+      "status": null
+    },
+    {
+      "code": "CONSIGNOR_CPF_REQUIRED",
+      "status": 422
+    },
+    {
+      "code": "CONSIGNOR_NOT_FOUND",
+      "status": 422
+    },
+    {
+      "code": "CUSTOMER_CEP_INVALID",
+      "status": 422
+    },
+    {
+      "code": "CUSTOMER_CPF_INVALID",
+      "status": 422
+    },
+    {
+      "code": "CUSTOMER_INACTIVITY_NOT_SET",
+      "status": 409
+    },
+    {
+      "code": "CUSTOMER_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "CUSTOMER_PHONE_INVALID",
+      "status": 422
+    },
+    {
+      "code": "CUSTOMER_PHONE_TAKEN",
+      "status": 409
+    },
+    {
+      "code": "DATABASE_UNAVAILABLE",
+      "status": 503
+    },
+    {
+      "code": "FORBIDDEN",
+      "status": null
+    },
+    {
+      "code": "INVALID_CODE",
+      "status": 401
+    },
+    {
+      "code": "INVALID_CURSOR",
+      "status": 400
+    },
+    {
+      "code": "INVALID_REFRESH",
+      "status": 401
+    },
+    {
+      "code": "INVALID_TIMEZONE",
+      "status": 422
+    },
+    {
+      "code": "INVITATION_INVALID",
+      "status": 404
+    },
+    {
+      "code": "INVITATION_NOT_ALLOWED",
+      "status": 422
+    },
+    {
+      "code": "INVITATION_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "INVITATION_NOT_PENDING",
+      "status": 409
+    },
+    {
+      "code": "INVITE_URL_REQUIRED",
+      "status": 422
+    },
+    {
+      "code": "LAST_OWNER",
+      "status": 409
+    },
+    {
+      "code": "MEMBER_LIMIT_REACHED",
+      "status": 409
+    },
+    {
+      "code": "MEMBER_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "MISSING_PERMISSION",
+      "status": null
+    },
+    {
+      "code": "NOTIFICATION_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "OWNER_PERMISSIONS_FIXED",
+      "status": 409
+    },
+    {
+      "code": "OWNER_REQUIRED",
+      "status": null
+    },
+    {
+      "code": "OWNERSHIP_INVALID",
+      "status": 422
+    },
+    {
+      "code": "PUBLIC_CEP_INVALID",
+      "status": null
+    },
+    {
+      "code": "PUBLIC_CONSENT_REQUIRED",
+      "status": null
+    },
+    {
+      "code": "PUBLIC_CPF_INVALID",
+      "status": null
+    },
+    {
+      "code": "PUBLIC_DATA_INVALID",
+      "status": null
+    },
+    {
+      "code": "PUBLIC_LINK_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "PUBLIC_PHONE_INVALID",
+      "status": null
+    },
+    {
+      "code": "RATE_LIMITED",
+      "status": 429
+    },
+    {
+      "code": "RESEND_TOO_SOON",
+      "status": 429
+    },
+    {
+      "code": "SESSION_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "SETTLEMENT_AUCTION_NOT_ELIGIBLE",
+      "status": 422
+    },
+    {
+      "code": "SETTLEMENT_CUSTOMER_NOT_FOUND",
+      "status": 422
+    },
+    {
+      "code": "SETTLEMENT_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "SETTLEMENT_NOT_PENDING",
+      "status": 409
+    },
+    {
+      "code": "SHIPMENT_INVALID_TRANSITION",
+      "status": 409
+    },
+    {
+      "code": "SHIPMENT_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "SHIPMENT_TRACKING_REQUIRED",
+      "status": 422
+    },
+    {
+      "code": "SHORT_CODE_TAKEN",
+      "status": 409
+    },
+    {
+      "code": "SHOWCASE_ACK_REQUIRED",
+      "status": 422
+    },
+    {
+      "code": "STORE_LIMIT_REACHED",
+      "status": 409
+    },
+    {
+      "code": "UNAUTHENTICATED",
+      "status": 401
+    },
+    {
+      "code": "USER_NOT_FOUND",
+      "status": 404
+    },
+    {
+      "code": "VALIDATION_ERROR",
+      "status": 400
+    }
+  ]
+}
