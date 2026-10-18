@@ -12180,6 +12180,692 @@ paths:
                     type: string
                   code:
                     type: string
+  /v1/dashboard/home:
+    get:
+      operationId: getHomeDashboard
+      summary: "Home ao vivo: alerta de enquetes, 5 KPIs, lembrete de cartas sem
+        leilão e acertos rápidos"
+      tags:
+        - dashboard
+      description: "Sem período e sem rankings: cada chamada devolve o agora. O front
+        consulta de tempos em tempos."
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: &a10
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - setup
+                  - poll_alerts
+                  - kpis
+                  - cards_without_auction
+                  - quick_settlements
+                properties:
+                  setup:
+                    type: object
+                    required:
+                      - store_created
+                      - whatsapp_connected
+                      - first_card
+                      - first_auction
+                    properties:
+                      store_created:
+                        type: boolean
+                      whatsapp_connected:
+                        type: boolean
+                      first_card:
+                        type: boolean
+                      first_auction:
+                        type: boolean
+                  poll_alerts:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - auction_id
+                        - card
+                        - ceiling
+                        - current_bid
+                        - provisional_winner
+                      properties:
+                        auction_id:
+                          type: string
+                          format: uuid
+                        card:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            short_code:
+                              type: string
+                            name:
+                              type: string
+                        ceiling:
+                          type: string
+                        current_bid:
+                          type: string
+                        provisional_winner:
+                          type: object
+                          nullable: true
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                  kpis:
+                    type: object
+                    required:
+                      - active_auctions
+                      - scheduled_today
+                      - bids_in_active
+                      - pending_settlements
+                      - cards_without_auction
+                    properties:
+                      active_auctions:
+                        type: integer
+                      scheduled_today:
+                        type: integer
+                      bids_in_active:
+                        type: integer
+                      pending_settlements:
+                        type: integer
+                      cards_without_auction:
+                        type: integer
+                  cards_without_auction:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        short_code:
+                          type: string
+                        name:
+                          type: string
+                  quick_settlements:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        customer:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                        total_amount:
+                          type: string
+                        items:
+                          type: integer
+                        created_at:
+                          type: string
+                          format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/finance/overview:
+    get:
+      operationId: getFinanceOverview
+      summary: "Financeiro: KPIs, séries diárias, histogramas e pizzas (único com
+        filtro de período)"
+      tags:
+        - dashboard
+      description: Só vendas pagas. Receita = valor dos itens (sem o frete). Lucro =
+        valor todo nas cartas próprias (ainda não há custo de compra) e só a
+        comissão nas consignadas. Dias no fuso de São Paulo.
+      parameters:
+        - schema:
+            type: string
+            enum:
+              - today
+              - "7"
+              - "15"
+              - "30"
+            default: "7"
+          in: query
+          name: period
+          required: false
+          description: Hoje, 7, 15 ou 30 dias
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a10
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - period
+                  - from
+                  - kpis
+                  - daily
+                  - sales_by_price
+                  - bids_by_hour
+                  - by_origin
+                  - by_language
+                  - by_condition
+                properties:
+                  period:
+                    type: string
+                    enum:
+                      - today
+                      - "7"
+                      - "15"
+                      - "30"
+                  from:
+                    type: string
+                  kpis:
+                    type: object
+                    required:
+                      - revenue
+                      - profit
+                      - items_sold
+                      - average_item
+                    properties:
+                      revenue:
+                        type: string
+                      profit:
+                        type: string
+                      items_sold:
+                        type: integer
+                      average_item:
+                        type: string
+                  daily:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        day:
+                          type: string
+                        revenue:
+                          type: string
+                        profit:
+                          type: string
+                  sales_by_price:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        band:
+                          type: string
+                        count:
+                          type: integer
+                  bids_by_hour:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        hour:
+                          type: integer
+                        count:
+                          type: integer
+                  by_origin:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - key
+                        - revenue
+                        - count
+                      properties:
+                        key:
+                          type: string
+                        revenue:
+                          type: string
+                        count:
+                          type: integer
+                  by_language:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - key
+                        - revenue
+                        - count
+                      properties:
+                        key:
+                          type: string
+                        revenue:
+                          type: string
+                        count:
+                          type: integer
+                  by_condition:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - key
+                        - revenue
+                        - count
+                      properties:
+                        key:
+                          type: string
+                        revenue:
+                          type: string
+                        count:
+                          type: integer
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/finance/top-buyers:
+    get:
+      operationId: getTopBuyers
+      summary: Top compradores do período (vendas pagas)
+      tags:
+        - dashboard
+      parameters:
+        - schema:
+            type: string
+            enum:
+              - today
+              - "7"
+              - "15"
+              - "30"
+            default: "7"
+          in: query
+          name: period
+          required: false
+          description: Hoje, 7, 15 ou 30 dias
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          in: query
+          name: limit
+          required: false
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a10
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        customer:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                        purchases:
+                          type: integer
+                        total:
+                          type: string
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/finance/consignment-payouts:
+    get:
+      operationId: getConsignmentPayouts
+      summary: "Repasses de consignação do período: o que cada consignador tem a
+        receber"
+      tags:
+        - dashboard
+      description: Repasse = valor da venda paga menos a comissão da loja.
+      parameters:
+        - schema:
+            type: string
+            enum:
+              - today
+              - "7"
+              - "15"
+              - "30"
+            default: "7"
+          in: query
+          name: period
+          required: false
+          description: Hoje, 7, 15 ou 30 dias
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a10
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        consignor:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                        items_sold:
+                          type: integer
+                        gross:
+                          type: string
+                        commission:
+                          type: string
+                        payout:
+                          type: string
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
   /v1/public/settlement:
     post:
       operationId: publicSettlementView
@@ -12656,6 +13342,8 @@ tags:
     description: Catálogo de cartas (busca e detalhe)
   - name: customers
     description: Clientes, visitantes, blacklist e carteira de consignação
+  - name: dashboard
+    description: Home ao vivo e Financeiro
   - name: public
     description: Páginas públicas por link (acerto e consignador) e gestão dos links
   - name: settlements
