@@ -604,6 +604,42 @@ describe('relógio: abrir e encerrar', () => {
   });
 });
 
+describe('virada do relógio de todas as lojas (advanceAll)', () => {
+  it('abre e encerra os leilões de cada loja, sem misturar', async () => {
+    const server = await start();
+    const staff = await login(server, STAFF);
+    const owner = await login(server, OWNER);
+    const inA = await createAuction(server, staff);
+    await bid(server, staff, inA.id, customer(5), '10.00');
+    const inB = await call(
+      server,
+      'POST',
+      '/v1/auctions',
+      owner,
+      B,
+      terms({ card_id: uid(KIND.card, 1002) }),
+    );
+    const idB = inB.json<AuctionJson>().id;
+    await movePeriod(inA.id, '-2 hours', '-1 minute');
+    await movePeriod(idB, '-2 hours', '-1 minute');
+
+    const summary = await server.auctions.advanceAll();
+
+    expect(summary.failed).toBe(0);
+    expect(summary.stores).toBeGreaterThanOrEqual(3);
+    expect(summary.finished).toBeGreaterThanOrEqual(2);
+    const { rows } = await world.admin.query<{ id: string; status: string }>(
+      'SELECT id, status FROM auctions WHERE id = ANY($1::uuid[])',
+      [[inA.id, idB]],
+    );
+    expect(rows.map((r) => r.status)).toEqual(['FINISHED', 'FINISHED']);
+    expect(await cardStatus(12)).toBe('AWAITING_CONFIRMATION');
+
+    const again = await server.auctions.advanceAll();
+    expect(again.finished).toBe(0);
+  });
+});
+
 describe('editar, cancelar e estender', () => {
   it('leilão pendente aceita qualquer ajuste', async () => {
     const server = await start();
