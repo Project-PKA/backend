@@ -19,8 +19,8 @@ test-results/
 # Ao escolher a stack, descomente o bloco dela.
 
 # --- Node/TypeScript ---
-# node_modules/
-# *.tsbuildinfo
+node_modules/
+*.tsbuildinfo
 
 # --- Python ---
 # __pycache__/

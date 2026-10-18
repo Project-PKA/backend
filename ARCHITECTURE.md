@@ -1,68 +1,110 @@
 # Arquitetura
 
-> **Esqueleto do template.** Preenchido pelo [`BOOTSTRAP.md`](BOOTSTRAP.md).
-> O que depende de decisão do projeto está marcado como `A DECIDIR` ou com
-> `<!-- -->`. Um agente de IA deve tratar um `A DECIDIR` remanescente como
-> sinal de que a decisão ainda não foi tomada: **pergunte, não escolha**.
->
 > Este documento cobre só **este repositório**. A visão de sistema (como os
-> repositórios se conectam) e as decisões cross-repo ficam no docs/shared.
+> repositórios se conectam) e as decisões cross-repo ficam no
+> [`Project-PKA/shared`](https://github.com/Project-PKA/shared).
 
-**Última revisão:** <!-- AAAA-MM-DD --> · **Responsável:** <!-- time/pessoa -->
+**Última revisão:** 2026-10-17 · **Responsável:** dono do projeto
 
 ---
 
 ## 1. Visão geral
 
-<!--
-Em até 10 linhas: o que este serviço faz, quem consome a API, com quem ele
-conversa, o que NÃO faz. Volume esperado e SLA (BOOTSTRAP etapa 2).
--->
+API do **pokemonAuction** (nome provisório), um SaaS B2B multi-tenant para
+lojistas de Trading Card Games fazerem leilões de cartas em grupos de WhatsApp.
 
-`A DECIDIR`
+- **Quem consome:** o painel web do lojista (`frontend_web`). O bot de WhatsApp
+  (`whatsapp_microservice`) **não** usa a API: acessa o banco com role própria.
+- **O que faz:** login passwordless (e-mail + OTP), lojas e equipe com RBAC,
+  estoque próprio e consignado, catálogo TCGdex local com autocomplete,
+  clientes e visitantes, leilões, acertos pós-leilão e dashboards.
+- **O que NÃO faz:** falar com o WhatsApp, processar pagamento, gerir envio
+  (ADR 0002).
+- **Estágio:** MVP, produto novo. Volume inicial pequeno (algumas lojas,
+  centenas de mensagens por leilão). O que limita a escala não é a API e sim
+  a RAM da VPS: cada loja conectada custa 150 a 300MB no bot (ADR 0010).
+  Gatilho para revisitar: RAM da VPS como limite de lojas.
+- **SLA:** nenhum contratado ainda.
+- **Escopo ampliado pelo design (2026-10-17):** acesso somente por convite, área
+  `/admin`, páginas públicas por link (vitrine, acerto, consignador), envios,
+  planos, notificações e log de atividades. Veja
+  [`https://github.com/Project-PKA/shared/blob/main/docs/produto.md`](https://github.com/Project-PKA/shared/blob/main/docs/produto.md) e o roteiro
+  revisado em [`docs/roadmap.md`](docs/roadmap.md).
 
 ## 2. Diagramas C4
 
 ```mermaid
 C4Context
-    title Contexto (placeholder: preencher no bootstrap)
+    title Contexto: pokemonAuction
 
-    Person(user, "Usuário", "A DECIDIR")
-    System(system, "Este backend", "A DECIDIR: o que ele faz")
-    System_Ext(ext, "Sistema externo", "A DECIDIR: dependência externa, se houver")
+    Person(lojista, "Lojista / Funcionário", "Gerencia estoque, leilões e acertos")
+    Person(participante, "Participante do grupo", "Dá lances no WhatsApp, sem cadastro")
+    System(system, "Backend (este repositório)", "API, autenticação, regras de negócio, dono do schema")
+    System(bot, "WhatsApp Microservice", "Lê lances, abre e fecha leilões no grupo")
+    System_Ext(whatsapp, "WhatsApp", "Grupo do leilão, via WhatsApp Web")
+    System_Ext(tcgdex, "TCGdex", "Catálogo oficial de cartas")
+    System_Ext(email, "Provedor de e-mail", "Envio do OTP (a decidir)")
 
-    Rel(user, system, "Usa", "HTTPS")
-    Rel(system, ext, "Integra com", "A DECIDIR")
+    Rel(lojista, system, "Usa pelo painel web", "HTTPS")
+    Rel(participante, whatsapp, "Envia lances", "Mensagem")
+    Rel(bot, whatsapp, "Lê e posta no grupo", "WhatsApp Web")
+    Rel(bot, system, "Compartilha o banco", "SQL, role própria")
+    Rel(system, tcgdex, "Sync noturno às 03:00", "HTTPS")
+    Rel(system, email, "Envia OTP", "A decidir")
 ```
 
 ```mermaid
 C4Container
-    title Contêineres (placeholder: preencher no bootstrap)
+    title Contêineres: Backend
 
-    Person(user, "Usuário")
-    System_Boundary(s1, "Este backend") {
-        Container(api, "API", "A DECIDIR: linguagem/framework", "Endpoints de negócio sob /v1")
-        ContainerDb(db, "Banco de dados", "A DECIDIR", "Estado da aplicação")
+    Person(lojista, "Lojista / Funcionário")
+    Container_Ext(web, "frontend_web", "A decidir", "Painel do lojista")
+    Container_Ext(bot, "whatsapp_microservice", "Node.js + Baileys", "Sessões de WhatsApp")
+    System_Boundary(s1, "Backend") {
+        Container(api, "API", "Node.js 22, TypeScript, Fastify 5", "Rotas /v1, /health, /ready, /metrics")
+        Container(worker, "Jobs", "BullMQ", "Sync TCGdex (03:00), limpeza de inativos (ainda não ligado)")
+        ContainerDb(db, "PostgreSQL 17", "pg_trgm, JSONB", "Estado da aplicação e catálogo TCGdex")
+        ContainerDb(redis, "Redis", "BullMQ", "Fila dos jobs (ainda não ligado)")
     }
 
-    Rel(user, api, "HTTPS/JSON")
-    Rel(api, db, "A DECIDIR: driver/protocolo")
+    Rel(lojista, web, "Usa", "HTTPS")
+    Rel(web, api, "Consome", "HTTPS/JSON")
+    Rel(api, db, "Lê e escreve", "SQL (pg + Drizzle)")
+    Rel(worker, redis, "Fila", "Redis")
+    Rel(worker, db, "Escreve", "SQL")
+    Rel(bot, db, "Tabelas restritas", "SQL, role própria")
 ```
 
 ## 3. Camadas
 
-<!-- Padrão escolhido (hexagonal, camadas, MVC) e o que mora em cada camada.
-     Regra de dependência: domínio não conhece infraestrutura. Transforme em
-     regra de lint/arquitetura quando a stack permitir. -->
+Estrutura atual de `src/`:
+
+```
+src/
+  config/env.ts      leitura e validação do ambiente (falha no boot)
+  http/problem.ts    erros RFC 9457 e handlers globais
+  routes/            rotas HTTP (infra hoje; /v1 a partir da Etapa 2)
+  db/                client, schema (Drizzle), migrator, seed
+  app.ts             monta o Fastify (logger, swagger, rotas)
+  server.ts          ponto de entrada (porta, encerramento limpo)
+```
+
+À medida que as rotas de negócio entrarem, cada módulo (`auth`, `stores`,
+`inventory`, `customers`, `auctions`, `settlements`) segue as camadas abaixo.
+A regra de dependência é de cima para baixo e não se inverte.
 
 | Camada | Responsabilidade | Pode depender de |
 | --- | --- | --- |
-| **API (entrada)** | HTTP, validação de entrada, serialização | Aplicação |
-| **Aplicação** | Casos de uso, transações, orquestração | Domínio |
-| **Domínio** | Regras de negócio, sem I/O | — |
-| **Infraestrutura** | Banco, filas, APIs externas | Domínio (implementa as portas) |
+| **Rotas** | HTTP, schema de entrada e saída, autenticação, `x-store-id` | Serviços |
+| **Serviços** | Casos de uso, transações, regra de negócio (ex.: validar um lance) | Repositórios |
+| **Repositórios** | Queries Drizzle, **sempre** filtradas por `store_id` | Banco |
+| **Banco** | Schema, constraints e FKs compostas como última barreira | — |
 
-**Fluxo de uma requisição típica:** <!-- do cliente à persistência e de volta -->
+**Fluxo de uma requisição de negócio:** cliente → `/v1/...` com
+`Authorization` e `x-store-id` → autenticação (JWT) → middleware confere
+`store_members` → rota valida o schema → serviço aplica a regra dentro de uma
+transação → repositório consulta com `store_id` → resposta serializada pelo
+schema de saída, ou erro `problem+json`.
 
 ## 4. Contrato de API
 
@@ -84,10 +126,25 @@ sequenceDiagram
   com mudança incompatível que não pode ser feita de forma aditiva.
 - `GET /health` e `GET /ready` ficam **fora da versão e sem autenticação**:
   são contrato de infraestrutura.
-- **Formato de erro:** <!-- ex.: RFC 9457 (application/problem+json) -->
-- **Paginação:** <!-- cursor ou offset; parâmetros e limites -->
-- Ferramenta de geração: ver [`STACK.md`](STACK.md).
-- docs/shared do projeto: <!-- org/repo, ou "não há" -->
+- **Formato de erro:** RFC 9457 (`application/problem+json`), com um campo
+  extra `code` para o código de erro de negócio.
+- **Paginação:** por cursor. Parâmetros `cursor` e `limit` (limite máximo a
+  definir no primeiro endpoint de lista); a resposta devolve `next_cursor`.
+- **Rotas (decidido em 2026-10-17):** o doc 02 misturava o header
+  `x-store-id` (§4.1) com `/api/stores/:storeId/...` (§4.4). Vale só o header
+  `x-store-id`, para todas as rotas de negócio terem a mesma forma (seção 6),
+  sob `/v1/` e sem o prefixo `/api`. Ex.: `GET /v1/dashboard/operational?period=7`.
+- **Áreas de rotas** (todas sob `/v1`, exceto infraestrutura):
+  `/v1/auth` (login, refresh, logout, aceitar convite), `/v1/me` (perfil e
+  sessões), `/v1/stores` e rotas de negócio da loja (exigem `x-store-id`),
+  `/v1/admin` (só administrador da plataforma) e `/v1/public` (sem login,
+  por token no link; vitrine, acerto, consignador, solicitação de acesso).
+- Ferramenta de geração: `@fastify/swagger` (ver [`STACK.md`](STACK.md)).
+  `make openapi` roda `scripts/openapi.ts`, que monta o app sem banco e grava
+  `docs/api/openapi.yaml`.
+- docs/shared do projeto: `Project-PKA/shared`. Falta configurar a variable
+  `CONTRACT_REPO=Project-PKA/shared` e o `AUTOMATION_TOKEN` (ver
+  [`docs/secrets.md`](docs/secrets.md)).
 
 ## 5. Banco de dados
 
@@ -95,15 +152,152 @@ Regras de ORM, migrations e seeds em [`docs/database.md`](docs/database.md).
 
 ```mermaid
 erDiagram
-    ENTIDADE_EXEMPLO {
+    users ||--o{ refresh_tokens : "sessões"
+    users ||--o{ store_members : "pertence a"
+    users ||--o{ invitations : "convida"
+    stores ||--o{ invitations : "convites da loja"
+    stores ||--o| whatsapp_sessions : "credencial"
+    users ||--o{ invitations : "convida"
+    stores ||--o{ invitations : "convites da loja"
+    stores ||--o| whatsapp_sessions : "credencial"
+    users ||--o{ invitations : "convida"
+    stores ||--o{ invitations : "convites da loja"
+    stores ||--o| whatsapp_sessions : "credencial"
+    stores ||--o{ store_members : "equipe"
+    stores ||--o{ customers : "clientes e visitantes"
+    stores ||--o{ cards_inventory : "estoque"
+    stores ||--o{ auctions : "leilões"
+    stores ||--o{ bids : ""
+    stores ||--o{ settlements : "acertos"
+    tcgdex_catalog ||--o{ cards_inventory : "descreve"
+    customers ||--o{ cards_inventory : "consigna"
+    cards_inventory ||--o{ auctions : "é leiloada"
+    auctions ||--o{ bids : "recebe"
+    customers ||--o{ bids : "dá"
+    bids ||--o| auctions : "vence"
+    customers ||--o{ settlements : "paga"
+    settlements ||--|{ settlement_items : "compõe"
+    auctions ||--o| settlement_items : "entra em"
+    cards_inventory ||--o{ settlement_items : ""
+
+    users {
         uuid id PK
-        string status
-        timestamp created_at
-        timestamp updated_at
+        text email UK
+        text name
+        enum status "INVITED ACTIVE SUSPENDED"
+        bool is_platform_admin
+        bool can_create_stores
+        int store_limit
+        timestamptz last_login_at
+        text otp_hash "HMAC, nunca o código"
+        timestamptz otp_expires_at
+        int otp_attempts
+    }
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        text token_hash UK
+        timestamptz expires_at
+        timestamptz revoked_at
+        text user_agent
+        text ip
+    }
+    invitations {
+        uuid id PK
+        text token_hash UK
+        text email
+        uuid store_id FK "vazio = só conta"
+        enum role "OWNER STAFF"
+        jsonb permissions
+        uuid invited_by FK
+        enum status "PENDING ACCEPTED REVOKED"
+        timestamptz expires_at
+    }
+    whatsapp_sessions {
+        uuid store_id PK
+        text session_data "criptografado, só o contexto da loja lê"
+    }
+    stores {
+        uuid id PK
+        text name
+        text whatsapp_group_id
+        enum whatsapp_status "ONLINE OFFLINE QR_READY"
+        int inactivity_days_limit
+    }
+    store_members {
+        uuid id PK
+        uuid store_id FK
+        uuid user_id FK
+        enum role "OWNER STAFF"
+        jsonb permissions
+    }
+    tcgdex_catalog {
+        text id PK
+        text name "GIN trigram"
+        text card_number "GIN trigram"
+        text set_name
+        jsonb raw_data
+    }
+    customers {
+        uuid id PK
+        uuid store_id FK
+        text phone "único por loja"
+        text name
+        bool is_visitor
+        bool is_blacklisted
+        text cpf
+    }
+    cards_inventory {
+        uuid id PK
+        uuid store_id FK
+        text short_code "único por loja, sem #"
+        text tcgdex_id FK
+        enum condition "MINT NM SP MP HP DMG"
+        enum ownership_type "OWN CONSIGNED"
+        uuid consignor_id FK
+        enum status "AVAILABLE SCHEDULED AWAITING_CONFIRMATION SOLD"
+    }
+    auctions {
+        uuid id PK
+        uuid store_id FK
+        uuid card_id FK
+        enum type "FREE_BID POLL"
+        numeric initial_bid
+        numeric min_increment
+        numeric max_poll_value
+        uuid winning_bid_id FK
+        enum status "PENDING ACTIVE PAUSED_FOR_VALIDATION FINISHED CANCELLED"
+    }
+    bids {
+        uuid id PK
+        uuid store_id FK
+        uuid auction_id FK
+        uuid customer_id FK
+        numeric amount "único por leilão"
+        text raw_whatsapp_message
+    }
+    settlements {
+        uuid id PK
+        uuid store_id FK
+        uuid customer_id FK
+        numeric shipping_cost
+        numeric total_amount
+        enum status "PENDING PAID"
+    }
+    settlement_items {
+        uuid id PK
+        uuid settlement_id FK
+        uuid auction_id FK "único"
+        uuid card_id FK
+        numeric amount
     }
 ```
 
-> Placeholder: substituir pelas entidades reais assim que houver migrations.
+Integridade que o banco garante (além das FKs): FK composta `(id, store_id)`
+entre lojas, uma carta com no máximo um leilão em andamento, enquete com teto
+acima do lance inicial, carta consignada com dono e comissão, acerto `PAID`
+com data de pagamento e dois lances do mesmo valor no mesmo leilão não
+coexistem. Detalhes nas migrations `0002` a `0007`.
 
 ### Banco compartilhado
 
@@ -112,26 +306,103 @@ erDiagram
 
 | Serviço | Tabelas | Leitura/escrita | Usuário/role |
 | --- | --- | --- | --- |
-| <!-- --> | <!-- --> | <!-- --> | <!-- --> |
+| `whatsapp_microservice` | `stores`, `customers`, `cards_inventory`, `auctions`, `bids` (campos exatos a detalhar com o schema) | Leitura e escrita só onde o fluxo do bot exige | Role própria, a criar na migration inicial |
+
+Referência: [ADR 0007](https://github.com/Project-PKA/shared/blob/main/docs/adr/0007-banco-compartilhado-e-sessao-whatsapp-por-qr-code.md).
+`tcgdex_catalog` é global (sem `store_id`), exceção consciente à regra de
+filtrar por loja ([ADR 0009](https://github.com/Project-PKA/shared/blob/main/docs/adr/0009-postgresql-hibrido-e-sync-do-tcgdex.md)).
 
 ## 6. Autenticação e autorização
 
-**Status: A DECIDIR** (BOOTSTRAP etapa 7).
+**Status: decidido** (cross-repo: [ADR 0008](https://github.com/Project-PKA/shared/blob/main/docs/adr/0008-autenticacao-passwordless-e-multi-tenant.md)).
 
-<!--
-  - Quem autentica: este serviço ou um identity provider/gateway
-  - Sessão: JWT stateless ou sessão em banco/Redis; onde fica o refresh token
-  - Modelo de permissão: RBAC ou ABAC; onde a autorização é verificada
-  - Entre serviços: token repassado, token de serviço, mTLS
-  - Decisão cross-repo? então é ADR no docs/shared, referenciado aqui
--->
+- **Quem autentica:** este serviço, sem identity provider externo.
+- **Acesso por convite** ([ADR 0012](https://github.com/Project-PKA/shared/blob/main/docs/adr/0012-acesso-somente-por-convite-e-administracao-da-plataforma.md)):
+  não há cadastro aberto. O pedido de OTP para e-mail sem conta devolve a
+  mesma resposta e não envia código nem cria usuário. Usuário tem estado
+  (`INVITED`, `ACTIVE`, `SUSPENDED`); suspender impede o login e revoga as
+  sessões. Criar loja exige a permissão global `can_create_stores`, dentro
+  do `store_limit`.
+- **Login:** e-mail + OTP numérico por e-mail. O OTP é guardado como hash,
+  com expiração curta e limite de tentativas. Provedor de e-mail: A DECIDIR.
+- **Sessão:** access JWT de vida curta no header `Authorization`, mais refresh
+  token em cookie `httpOnly`. O refresh é rotacionado a cada uso e guardado
+  como hash no banco, para permitir revogar a sessão.
+- **Autorização:** RBAC por loja (`store_members`: `OWNER` ou `STAFF`, com
+  `permissions` em JSONB). Toda rota autenticada, exceto a de seleção de
+  loja, exige `x-store-id`; o middleware valida o acesso e toda query de
+  negócio filtra por `store_id`.
+- **Entre serviços:** não há chamada HTTP entre Backend e microservice por
+  enquanto; ambos usam o banco, cada um com sua role. Se surgir chamada
+  direta, vira ADR.
+- **Implementação** (`src/auth/`, `src/db/context.ts`): `AuthService` (OTP, JWT,
+  refresh, sessões), `InvitationService` (criar, mostrar, aceitar), hooks
+  `authenticate`, `requireStore`, `requirePermission`, `requireOwner` e
+  `requirePlatformAdmin`. As rotas usam `preValidation`, então quem não está
+  autenticado recebe 401 antes de qualquer erro de formato. O e-mail passa pela
+  interface `EmailSender`; o provedor real ainda não foi escolhido.
+- **Papéis do banco:** `owner` (migrations, seed e `db:create-admin`, com
+  `BYPASSRLS`) usa `MIGRATION_DATABASE_URL`; a API em execução usa
+  `DATABASE_URL`, o papel `app_api` do grupo `app_runtime`, **sem** `BYPASSRLS`.
+  `users`, `refresh_tokens` e `invitations` ficam fora do RLS (o login e o
+  convite acontecem antes de haver loja no contexto) e são protegidas por
+  código e teste.
+- **Implementação** (`src/auth/`, `src/db/context.ts`): `AuthService` (OTP, JWT,
+  refresh, sessões), `InvitationService` (criar, mostrar, aceitar), hooks
+  `authenticate`, `requireStore`, `requirePermission`, `requireOwner` e
+  `requirePlatformAdmin`. As rotas usam `preValidation`, então quem não está
+  autenticado recebe 401 antes de qualquer erro de formato. O e-mail passa pela
+  interface `EmailSender`; o provedor real ainda não foi escolhido.
+- **Papéis do banco:** `owner` (migrations, seed e `db:create-admin`, com
+  `BYPASSRLS`) usa `MIGRATION_DATABASE_URL`; a API em execução usa
+  `DATABASE_URL`, o papel `app_api` do grupo `app_runtime`, **sem** `BYPASSRLS`.
+  `users`, `refresh_tokens` e `invitations` ficam fora do RLS (o login e o
+  convite acontecem antes de haver loja no contexto) e são protegidas por
+  código e teste.
+- **Implementação** (`src/auth/`, `src/db/context.ts`): `AuthService` (OTP, JWT,
+  refresh, sessões), `InvitationService` (criar, mostrar, aceitar), hooks
+  `authenticate`, `requireStore`, `requirePermission`, `requireOwner` e
+  `requirePlatformAdmin`. As rotas usam `preValidation`, então quem não está
+  autenticado recebe 401 antes de qualquer erro de formato. O e-mail passa pela
+  interface `EmailSender`; o provedor real ainda não foi escolhido.
+- **Papéis do banco:** `owner` (migrations, seed e `db:create-admin`, com
+  `BYPASSRLS`) usa `MIGRATION_DATABASE_URL`; a API em execução usa
+  `DATABASE_URL`, o papel `app_api` do grupo `app_runtime`, **sem** `BYPASSRLS`.
+  `users`, `refresh_tokens` e `invitations` ficam fora do RLS (o login e o
+  convite acontecem antes de haver loja no contexto) e são protegidas por
+  código e teste.
+- **Segunda barreira: Row-Level Security** ([ADR 0011](https://github.com/Project-PKA/shared/blob/main/docs/adr/0011-row-level-security-como-segunda-barreira.md)),
+  entregue na Etapa 2. Toda query de negócio roda em transação que define
+  `app.store_id` (e `app.user_id` no login) com `set_config(..., true)`; sem
+  contexto o banco devolve zero linhas. As tabelas de loja usam `FORCE ROW
+  LEVEL SECURITY`, e o Backend conecta com o papel `app_runtime` (sem
+  `BYPASSRLS`, sem `SUPERUSER`); migrations e seed usam o papel `owner`. O
+  filtro por `store_id` no código **continua obrigatório**.
+- **Administrador da plataforma:** marca `is_platform_admin`, concedida só por
+  comando de linha (`db:create-admin`), nunca por API. As políticas de RLS dão
+  a esse papel leitura de `stores` e `store_members` e criação de loja, e
+  **nenhum acesso** a estoque, clientes, leilões, lances e acertos: a
+  fronteira do administrador é garantida no banco, não só na rota.
+- **Acesso público** (`/v1/public`): não usa sessão de usuário. Roda com um
+  papel de banco próprio que só executa funções `SECURITY DEFINER`
+  auditadas, que recebem o token do link e devolvem os campos permitidos
+  ([ADR 0014](https://github.com/Project-PKA/shared/blob/main/docs/adr/0014-paginas-publicas-por-link-e-vitrine.md)).
+- **Mudança aqui exige aprovação humana** (`AGENTS.md`, seção 6).
 
 ## 7. Gestão de secrets em produção
 
-**Status: A DECIDIR** (BOOTSTRAP etapa 8).
+**Status: decidido** (BOOTSTRAP etapa 8).
 
-<!-- Onde vivem (Environment secrets, cofre), quem acessa, como rotaciona,
-     como chegam ao processo em runtime. -->
+- **Onde vivem:** Secrets e Variables do **GitHub Environment** (`dev`,
+  `homolog`, `prod`), injetados no deploy via SSH. Sem cofre externo.
+- **Quem acessa:** quem tem permissão de admin no repositório. `homolog` e
+  `prod` exigem aprovação para o deploy.
+- **Rotação:** manual. Trocar o valor no Environment e refazer o deploy.
+  `WHATSAPP_SESSION_ENCRYPTION_KEY` é exceção: trocar invalida as sessões
+  salvas, então exige plano de migração.
+- **Lista de nomes e como gerar cada um:** [`docs/secrets.md`](docs/secrets.md).
+  Quem cria os secrets é a pessoa responsável, nunca o agente.
+- **Local:** valores em `.env.secrets.local` (ignorado pelo git).
 
 ## 8. Observabilidade
 
@@ -146,7 +417,8 @@ erDiagram
 Campos mínimos de log: `timestamp`, `level`, `service`, `trace_id`,
 `message`, `context`. Nunca segredo, token ou PII.
 
-<!-- Onde é coletado e visualizado (Grafana, Datadog, nuvem). -->
+Coleta e visualização: Prometheus e Grafana no mesmo `compose` da VPS
+(ver `STACK.md`, seção 6).
 
 ## 9. Decisões arquiteturais
 
@@ -154,6 +426,23 @@ Campos mínimos de log: `timestamp`, `level`, `service`, `trace_id`,
      ADR em docs/adr/ e aponte para ele. Decisão que afeta mais de um
      repositório vai para o docs/adr/ do docs/shared. -->
 
+Decisões que afetam só este repositório. As que cruzam repositórios estão nas
+ADRs do [`shared`](https://github.com/Project-PKA/shared/tree/main/docs/adr)
+(0002 a 0010).
+
 | Data | Decisão | Motivo | Alternativa descartada |
 | --- | --- | --- | --- |
-| <!-- --> | <!-- --> | <!-- --> | <!-- --> |
+| 2026-10-17 | Fastify + `@fastify/swagger` | OpenAPI gerado do código, validação por schema | Express |
+| 2026-10-17 | Drizzle com migrations SQL à mão (`up`/`down`) | Tipos do schema e SQL real para `pg_trgm`/GIN; regra do template exige `down` | Prisma (sem `down`) |
+| 2026-10-17 | BullMQ + Redis para jobs | Retry e reexecução do sync do TCGdex | `node-cron` |
+| 2026-10-17 | `short_code` sem `#` no banco | O `#` é só o prefixo da mensagem no grupo | Guardar com `#` |
+| 2026-10-17 | Lock da linha do leilão para decidir lances | Regra no código, simples de testar; o banco garante unicidade do valor | Trigger em PL/pgSQL |
+| 2026-10-17 | Acesso por convite e administrador da plataforma limitado pelo RLS | O adendo do design proíbe cadastro aberto; a fronteira do admin precisa valer no banco | Admin com acesso total às lojas |
+| 2026-10-17 | Páginas públicas só por funções `SECURITY DEFINER` e token de alta entropia | Não afrouxar o RLS para o público; dado mínimo | Rotas públicas lendo as tabelas direto |
+| 2026-10-17 | Link do consignador por consignador e loja, chave de 4 dígitos do CPF só como 2º fator | A chave sozinha tem 10 mil combinações | Chave de 4 dígitos como única proteção (desenho original) |
+| 2026-10-17 | Row-Level Security como segunda barreira de isolamento | Esquecer um filtro por `store_id` deixa de vazar dado entre lojas | Só filtro no código e FK composta |
+| 2026-10-17 | FK composta `(id, store_id)` entre tabelas de loja | Isolamento garantido pelo banco, não só pelo código | FK simples por `id` |
+| 2026-10-17 | UUID, enums nativos e `numeric(12,2)` | Sem ID previsível, estados fechados no banco, dinheiro sem ponto flutuante | `serial`, texto livre, `float` |
+| 2026-10-17 | OTP e refresh só em hash; tabelas `refresh_tokens` e `settlement_items` | Segurança (ADR 0008) e rastreio de acerto por carta | OTP em texto puro (doc 02 original) |
+| 2026-10-17 | Rotas só com `x-store-id`, sob `/v1` | Uma forma única para as rotas de negócio | `/api/stores/:storeId/...` |
+| 2026-10-17 | Erros em RFC 9457; paginação por cursor | Padrão aberto; estável com lances novos entrando | Formato próprio; offset |

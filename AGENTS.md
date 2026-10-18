@@ -1,253 +1,265 @@
 # AGENTS.md
 
-> **Este arquivo pertence a um repositório TEMPLATE.**
->
-> Se você está lendo isto dentro de um projeto criado a partir do template
-> — ou seja, o repositório tem nome próprio, tem produto, tem gente usando —
-> então **este arquivo está desatualizado por definição**, e reescrevê-lo é a
-> sua primeira tarefa.
+Contexto para pessoas e agentes de IA que trabalham neste repositório. Leia
+inteiro antes de mexer em qualquer coisa.
 
----
+## 1. Visão geral
 
-## Para agentes de IA: leia isto antes de qualquer coisa
+**pokemonAuction** (nome provisório) é um SaaS B2B multi-tenant para lojistas
+de Trading Card Games (Pokémon, entre outros) fazerem leilões de cartas em
+grupos de WhatsApp. Este repositório é a **API** (Node.js + TypeScript +
+Fastify + PostgreSQL com Drizzle): login, lojas e equipe, estoque, clientes,
+leilões, acertos, dashboards, e o **dono único do schema do banco**.
 
-### Se este repositório ainda É o template
+O que **não** está aqui:
 
-Você está no `template-backend`: a fundação de qualidade, CI/CD, segurança e
-documentação que todo backend recebe no primeiro commit.
+- A conversa com o WhatsApp (Baileys, sessões por QR Code, leitura de lances,
+  abertura e fechamento no horário): é o `Project-PKA/whatsapp_microservice`.
+  Ele usa este mesmo banco, com role própria.
+- A interface web: `Project-PKA/frontend_web` (ainda não iniciada).
+- Pagamento e envio: fora do MVP (ADR 0002). A plataforma **não vende nem
+  garante pagamento ou entrega** (ADR 0013): nenhuma tela, e-mail ou
+  mensagem pode usar linguagem de garantia ("anti-calote", "compra segura").
 
-Ele **não tem stack**. Não há linguagem, framework, ORM ou plataforma de
-deploy escolhida, e isso é intencional, não uma lacuna. A fundação conversa
-com a stack por um contrato de comandos (`Makefile` + `project.mk`).
-
-Regras aqui:
-
-- **Não adicione stack.** Nada de `package.json`, `pyproject.toml`, `go.mod`,
-  framework ou ORM. Se a mudança amarra o template a uma tecnologia, ela não
-  pertence a este repositório.
-- **Não adicione funcionalidade de produto.** Nenhum endpoint de negócio,
-  nenhum domínio.
-- Mudanças válidas: melhorar um workflow, um esqueleto de documentação, uma
-  regra; acrescentar uma receita a `DEPLOY.md` ou um exemplo a `project.mk`.
-- Convenções (branches, ambientes, labels, secrets) vêm do `CONVENCOES.md`
-  do `codex-base`. Não invente outras aqui.
-- Ao mexer aqui, pense no efeito em **todos** os projetos futuros.
-
-### Se este repositório FOI CRIADO a partir do template
-
-**Antes de escrever qualquer código, conduza o bootstrap:**
-[`BOOTSTRAP.md`](BOOTSTRAP.md). Ele traz as etapas de decisão (contexto,
-stack, banco, autenticação, secrets, contrato de API, deploy...), o que
-perguntar em cada uma e onde registrar a resposta.
-
-Rode `make doctor` primeiro: ele mostra o que já foi decidido e o que falta.
-
-**A última etapa do bootstrap é reescrever este arquivo** com o conteúdo real
-do projeto, seguindo o modelo abaixo. Este arquivo é o contexto que todo
-agente lê primeiro: enquanto ele falar do template, cada agente começa com a
-premissa errada.
-
-Como fazer: apague tudo acima da linha `<!-- INICIO DO MODELO -->`, preencha
-o modelo, apague os comentários de instrução e commite sozinho
-(`docs: define AGENTS.md do projeto`).
-
-Enquanto este arquivo não for reescrito, um agente deve **avisar quem pediu a
-tarefa** e oferecer a reescrita antes de seguir.
-
-### Faxina do primeiro commit
-
-| Arquivo | O que fazer |
-| --- | --- |
-| `AGENTS.md` | Reescrever (este arquivo) |
-| `README.md` | Reescrever para o produto |
-| `BOOTSTRAP.md`, `SETUP-GITHUB.md` | Apagar depois de concluir |
-| `project.mk` | Preencher; remover os blocos de exemplo que não usar |
-| `.tool-versions` | Fixar a versão do runtime |
-| `STACK.md`, `ARCHITECTURE.md`, `TESTING.md`, `DEPLOY.md` | Preencher os esqueletos |
-| `docker/Dockerfile.example` | Copiar para `./Dockerfile`, preencher e apagar a pasta `docker/` |
-| `docs/api/openapi.yaml` | Passar a ser gerado por `make openapi` |
-| `.github/CODEOWNERS`, `.github/ISSUE_TEMPLATE/config.yml` | Trocar os placeholders de organização e repositório (`make doctor` lista) |
-| `sonar-project.properties` | Organization, projectKey, caminho de cobertura |
-| `release-please-config.json` | Trocar `release-type` pelo da stack |
-| `scripts/deploy.sh` | Implementar com a receita de `DEPLOY.md` |
-
-**Não remova:** `Makefile`, `.githooks/`, `scripts/conventions.sh` e os
-validadores, os workflows, `CLAUDE.md`, `.editorconfig`, `.gitattributes`,
-os arquivos do release-please.
-
----
-
-<!-- INICIO DO MODELO — em um projeto real, tudo acima disto sai -->
-
-## Estrutura obrigatória do AGENTS.md do projeto
-
-As sete seções abaixo são obrigatórias, nesta ordem. O conteúdo entre
-`<!-- -->` é instrução de preenchimento e deve ser apagado.
-
----
-
-### 1. Visão geral
-
-<!--
-Em até 10 linhas, o que um dev novo (ou um agente sem contexto) precisa saber
-antes de tocar em qualquer arquivo:
-  - O que este serviço faz e para quem (quem consome a API).
-  - O papel DESTE repositório no sistema (quais serviços chama, quem depende dele).
-  - Em que estágio está: protótipo, produção, legado em manutenção.
-  - O que NÃO está aqui e as pessoas costumam procurar aqui.
-
-Mantenha SEMPRE a linha do docs/shared abaixo (ou diga que não há):
--->
-
-**docs/shared do projeto:** <!-- org/repo, ou "não há" -->. Antes de decisão de
+**docs/shared do projeto:** `Project-PKA/shared`. Antes de decisão de
 arquitetura ou de contrato de API, leia o `ARCHITECTURE.md`, as ADRs
 (`docs/adr/`) e o `GLOSSARY.md` de lá, de preferência clonado ao lado deste
-repositório (`../<nome-do-shared>`). Se não estiver clonado, peça para clonar.
-O contrato publicado lá é **gerado daqui** (`make openapi`): não o edite no
-shared.
+repositório (`../shared`). Se não estiver clonado, peça para clonar. O
+contrato publicado lá é **gerado daqui** (`make openapi`): não o edite no
+shared. Use os termos do `GLOSSARY.md` ao nomear campos e endpoints.
 
-### 2. Comandos
+**Escopo de produto:** `shared/docs/produto.md` (papéis, regras e mapa de
+telas). O acesso é **somente por convite**, existe uma área `/admin` para o
+administrador da plataforma, e há **páginas públicas** por link (vitrine,
+acerto do cliente, acompanhamento do consignador). O que falta e em que
+ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 
-Todos os comandos passam pelo contrato do `Makefile`. Os comandos reais de
-cada alvo ficam em `project.mk`, e é lá que se troca de ferramenta.
+**Estado atual:** Etapas 1 e 2a prontas: scaffold, schema com seed, RLS e papéis
+de banco, login por código, sessão com refresh rotacionado, convites, middleware
+de loja e RBAC, e as rotas `/v1/auth`, `/v1/me` e `/v1/store`. Faltam convites
+e equipe por rota (2b), a API `/v1/admin` (2c), estoque, clientes, leilões,
+acertos e painéis (Etapas 3 a 8 do roteiro). A VPS
+ainda não existe, então não há deploy.
+
+## 2. Comandos
+
+Todos passam pelo contrato do `Makefile`; os comandos reais ficam em
+`project.mk`.
 
 | Comando | O que faz | Observação |
 | --- | --- | --- |
-| `make setup` | Instala dependências e ativa os hooks | Primeira coisa após o clone |
-| `docker compose up -d db` | Sobe o banco local | |
-| `make migrate` / `make seed` | Aplica migrations / popula o banco | |
-| `make run` | Sobe a API | <!-- porta --> |
-| `make build` | Compila/empacota | |
-| `make lint` | Análise estática (inclui code smells) | `make lint-fix` corrige |
-| `make format` | Formata | `make format-check` só verifica |
-| `make typecheck` | Checagem de tipos | |
-| `make test` | Testes unitários e de integração | `make test-watch` em watch |
-| `make test-coverage` | Testes com cobertura | Mínimo <!-- % --> |
-| `make migration NAME=...` | Cria migration nova | Atualize o seed no mesmo PR |
+| `make setup` | `npm ci` e ativa os hooks | Primeira coisa após o clone |
+| `docker compose up -d db` | Sobe o Postgres local | Porta 5432 |
+| `make migrate` | Aplica as migrations pendentes | `npm run db:rollback` reverte a última |
+| `make seed` | Recria os dados de desenvolvimento | **Apaga o banco.** Recusa `APP_ENV` fora de `local`/`dev`/`test` |
+| `npm run db:provision-dev` | Cria o papel `app_api` (sem `BYPASSRLS`) para o `make run` | Só dev; roda uma vez depois do `make migrate` |
+| `npm run db:create-admin -- <email> [nome]` | Cria ou promove o administrador da plataforma | Único caminho para isso; usa `MIGRATION_DATABASE_URL` |
+| `make migration NAME=cria-x` | Cria `migrations/000N_cria-x/{up,down}.sql` | Atualize `src/db/schema.ts` e o seed no mesmo PR |
+| `make run` | API em modo watch | Porta 8080 |
+| `make build` | Compila para `dist/` | |
+| `make lint` | ESLint (inclui `sonarjs`) | `make lint-fix` corrige |
+| `make format` | Prettier | `make format-check` só verifica |
+| `make typecheck` | `tsc --noEmit` | |
+| `make test` | Vitest (unitário + integração) | **Exige Docker** (Testcontainers) |
+| `make test-coverage` | Com cobertura, piso 70% | Grava `coverage/lcov.info` |
 | `make openapi` | Gera `docs/api/openapi.yaml` do código | Commite o resultado |
 | `make validate` | Formato + lint + tipos + testes | **Rode antes de abrir PR** |
 | `make doctor` | O que está configurado e o que falta | |
 
-<!--
-Ajuste a tabela: remova as linhas dos alvos marcados como `skip` em
-project.mk e anote porta e meta de cobertura reais.
--->
-
 **Windows:** `make` não vem instalado. Use WSL, ou
-`winget install ezwinports.make`.
+`winget install ezwinports.make`. Sem `make`, os alvos equivalem a
+`npm run <script>` e `npx` (ver `project.mk`).
 
-### 3. Convenções
+## 3. Convenções
 
-<!--
-Regras que um agente deve seguir sem perguntar. Escreva as que o projeto
-realmente segue; apague as que não valerem. Prefira regra verificável a
-princípio abstrato. Sugestões do que cobrir:
+**Stack e versões** (`STACK.md`): Node 22 (`.tool-versions`), TypeScript 6
+(o `typescript-eslint` ainda não aceita o 7), Fastify 5, Drizzle ORM, Vitest.
 
-**Camadas** — o que mora em cada camada (ARCHITECTURE.md), quem pode importar
-  quem. (Transforme em regra de lint/arquitetura quando der.)
-**API** — endpoints de negócio sob /v1/; /health e /ready fora da versão;
-  formato de erro padrão; paginação.
-**Banco** — migration numerada e reversível; seed atualizado no mesmo PR;
-  nada de SQL concatenado.
-**Logs** — JSON estruturado com trace_id; nunca segredo ou PII.
-**Configuração** — leitura de ambiente em um único módulo, validada no boot.
-**Testes** — onde ficam; factories em vez de fixture compartilhada.
--->
+**Código**
 
-### 4. Regras de commit e PR
+- ESM puro (`"type": "module"`). Imports relativos terminam em `.js`, mesmo
+  em arquivo `.ts`.
+- `strict` e `noUncheckedIndexedAccess` ligados. Sem `any`, sem `@ts-ignore`.
+- Nomes: `camelCase` no TypeScript, `snake_case` no banco, `UPPER_SNAKE` nos
+  enums. Mensagens ao usuário e comentários em português; identificadores em
+  inglês, exceto termos de domínio do `GLOSSARY.md`.
+- Função com complexidade cognitiva acima de 15 reprova no lint: quebre.
+
+**API**
+
+- Rotas de negócio sob `/v1`. `GET /health`, `/ready` e `/metrics` ficam fora
+  da versão e sem autenticação.
+- Erros sempre em RFC 9457 (`application/problem+json`) via
+  `src/http/problem.ts`, com `code` para o erro de negócio. Nunca devolva
+  mensagem interna nem stack em erro 5xx.
+- Todo corpo e parâmetro tem **schema** na rota (ele valida a entrada e
+  gera o OpenAPI). Campo extra é descartado.
+- Listas paginadas por cursor (`cursor`, `limit`, resposta com `next_cursor`).
+- **Isolamento por loja:** toda rota autenticada de negócio exige
+  `x-store-id`, o middleware valida a participação em `store_members`, e
+  **toda query filtra por `store_id`**. A única tabela global é
+  `tcgdex_catalog`. Além do filtro, vale o **RLS do Postgres** (ADR 0011, a
+  partir da Etapa 2): query de negócio roda em transação com
+  `app.store_id` definido, e o filtro no código não é dispensado por isso.
+
+**Áreas da API:** `/v1/auth`, `/v1/me`, rotas da loja (com `x-store-id`),
+`/v1/admin` (só administrador da plataforma) e `/v1/public` (sem login, por
+token). O administrador **não** lê nem altera dados internos das lojas, e
+isso vale no banco (RLS), não só na rota. Rota pública nunca consulta tabela
+direto: usa função `SECURITY DEFINER` auditada (ADR 0014).
+
+**Autenticação e acesso a dados**
+
+- Rota autenticada usa `preValidation: [hooks.authenticate]` e, se for de uma
+  loja, `hooks.requireStore` (depois `requirePermission(...)` ou `requireOwner`).
+  É `preValidation` de propósito: 401 e 403 vêm antes de erro de validação.
+- **Todo acesso a tabela de loja passa por `withContext(db, { storeId, userId }, fn)`**
+  (`src/db/context.ts`). Fora dele o RLS devolve zero linhas. Nunca use
+  `db` direto em `customers`, `cards_inventory`, `auctions`, `bids`,
+  `settlements`, `settlement_items`, `stores` ou `store_members`.
+- Acesso é só por convite: pedir OTP para e-mail sem conta ativa responde
+  igual e não envia nada. Não crie rota que cadastre usuário aberto.
+- Resposta de erro de autenticação é genérica e idêntica (nada de "e-mail não
+  existe"). Segredo e token só em hash no banco.
+
+**Banco** (`docs/database.md`)
+
+- Migration SQL à mão, numerada, com `up.sql` **e** `down.sql` testados.
+  Migration aplicada nunca é editada (o runner confere o checksum).
+- IDs `uuid`; dinheiro `numeric(12,2)` (chega como `string`, nunca `number`);
+  datas `timestamptz`.
+- `short_code` da carta é guardado **sem o `#`**.
+- Regra que o Drizzle não expressa (CHECK, índice parcial, FK circular) mora
+  só no SQL. `test/schema.integration.test.ts` falha se `schema.ts` e o banco
+  divergirem.
+
+**Ambiente:** variável nova entra em três lugares: `.env.example`,
+`src/config/env.ts` (falha no boot se faltar) e nos Secrets/Variables do
+GitHub Environment (nomes em `docs/secrets.md`). `DATABASE_URL` é o papel da API
+(sujeito ao RLS); `MIGRATION_DATABASE_URL` é o dono do schema (migrations, seed,
+`db:create-admin`) e **nunca** vai para a API em execução.
+
+**Segurança** (`SECURITY.md` tem a lista completa): nunca registre em log
+telefone, e-mail, CPF, token ou mensagem de lance; segredo nunca em código,
+issue, PR ou chat.
+
+## 4. Regras de commit e PR
 
 **Branches:** `feature/`, `fix/`, `hotfix/`, `release/`, `chore/`, `docs/`,
 `refactor/` ou `test/` + slug em minúsculas. Por exemplo,
-`feature/cancelamento-parcial`.
+`feature/cadastro-de-cartas`.
 
 **Commits:** [Conventional Commits](https://www.conventionalcommits.org),
 `tipo(escopo): descrição no imperativo`.
 
 ```
-feat(pedidos): adiciona cancelamento parcial
-fix(auth): trata token expirado como 401
+feat(estoque): adiciona cadastro de carta com busca no catálogo
+fix(lances): rejeita lance abaixo do incremento mínimo
 feat(api)!: remove o campo legado de resposta
 ```
 
 Tipos: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`,
-`ci`, `chore`, `revert`.
+`ci`, `chore`, `revert`. As regras vivem em `scripts/conventions.sh` (hooks
+locais), cópia das regras centrais de `IgorOCosta/workflows` usadas pelo CI.
 
-As regras vivem em `scripts/conventions.sh` (hooks locais), que é uma cópia
-das regras centrais de IgorOCosta/workflows usadas pelo CI.
+**Issues e sprints:** o trabalho vem de issues organizadas em milestones
+("Sprint NN - ..."); veja [`shared/docs/processo.md`](https://github.com/Project-PKA/shared/blob/main/docs/processo.md). Antes de
+começar, leia a issue (critérios de aceite e segurança); ao terminar, comente o
+que foi feito e feche pela mensagem do PR (`Closes #N`). Issue com
+`decisao-pendente` ou `bloqueada` não se implementa: pergunte ou registre a
+decisão primeiro.
 
 **Pull requests**
 
 - O título também segue Conventional Commits, porque vira a mensagem do
   squash merge e alimenta o CHANGELOG e a versão (release-please).
-- Preencha o template inteiro.
+- Preencha o template inteiro, inclusive o checklist OWASP quando tocar
+  autenticação, dado pessoal ou entrada externa.
 - Vincule a issue com `Closes #N`.
 - PR pequeno. Refatoração ampla vai separada da mudança de comportamento.
 - Merge só com `ci-success` verde e aprovação de CODEOWNER.
 
-### 5. Checklist de conclusão de tarefa
+## 5. Checklist de conclusão de tarefa
 
 Uma tarefa **não está pronta** enquanto todos os itens abaixo não forem
 verdade. Rode os comandos; não suponha o resultado.
 
 - [ ] `make validate` passa
 - [ ] Teste novo cobrindo o comportamento adicionado ou o bug corrigido
-- [ ] Schema mudou: migration reversível **e** seed atualizado
+- [ ] Schema mudou: migration com `up` **e** `down`, `src/db/schema.ts` e seed atualizados;
+      tabela nova: `GRANT` ao `app_runtime` e, se for de loja, RLS com `FORCE`
+- [ ] Rota nova: schema de entrada e saída, `store_id` filtrado, autorização
+      checada no servidor e teste de acesso cruzado entre lojas
 - [ ] Contrato mudou: `make openapi` rodado e o arquivo commitado
-- [ ] Variável de ambiente nova documentada onde a seção 3 exige
-- [ ] Nenhum log de depuração, teste `only`/`skip`, ou segredo no código
+- [ ] Variável de ambiente nova nos três lugares da seção 3
+- [ ] Nenhum log com dado pessoal, teste `only`/`skip` ou segredo no código
+- [ ] `npm audit` sem vulnerabilidade nova
 - [ ] Documentação atualizada quando o comportamento ou a arquitetura mudou
 - [ ] Mensagem de commit e nome de branch nos padrões da seção 4
 
 Se algum item não se aplica, diga na descrição do PR por quê.
 
-### 6. Pontos que exigem aprovação humana
+## 6. Pontos que exigem aprovação humana
 
 Um agente **para e pergunta** antes de fazer qualquer coisa desta lista.
 Propor o diff e explicar o motivo está liberado; aplicar sem confirmação, não.
 
 - Migration destrutiva ou com dado em produção (drop, rename, backfill)
-- Mudança em autenticação, autorização ou gestão de secrets
+- Mudança em autenticação, autorização, sessão, criptografia ou secrets
 - Mudança **incompatível** no contrato de API
 - Adicionar, remover ou trocar dependência
 - Mudar `project.mk` de forma que altere o que o CI executa
 - Mudar `.github/workflows/**`, permissão de token ou regra de deploy
 - Rodar deploy para `homolog` ou `prod`
 - Afrouxar regra de qualidade (lint, cobertura, `skip`)
-- `git push --force`, reescrita de histórico, mexer em branch protegida
+- `git push --force`, reescrita de histórico, `push` direto na branch padrão ou
+  em branch protegida, e **merge de PR** (o `push` de branch de trabalho e o PR em
+  rascunho estão autorizados desde 2026-10-17)
 - Apagar teste, ou marcá-lo como `skip` para fazer o CI passar
-- Qualquer coisa que envolva dado real de usuário
+- Rodar o seed fora de ambiente de desenvolvimento
+- Qualquer coisa que envolva dado real de usuário (CPF, telefone, endereço)
+- Mudar regras de convite, o papel de administrador da plataforma, a
+  fronteira do administrador no RLS ou qualquer função `SECURITY DEFINER`
+  usada por rota pública
+- Criar ou alterar papéis de banco (`owner`, `app_runtime`, `bot`), políticas de RLS ou dar `BYPASSRLS` a qualquer papel
 
 **Regra geral:** se o erro sai caro, sai em produção ou é difícil de
 reverter, pergunte primeiro.
 
-### 7. Armadilhas conhecidas
+## 7. Armadilhas conhecidas
 
-<!--
-A seção mais útil com o tempo. Registre o que já fez alguém (ou algum agente)
-perder uma tarde. Uma linha por armadilha. Comece vazio e vá preenchendo.
--->
-
-- <!-- -->
-
----
-
-## Como a fundação funciona (referência)
-
-| Peça | Papel |
-| --- | --- |
-| `Makefile` | Contrato de comandos. Não se edita. |
-| `project.mk` | Os comandos reais. **O único ponto de acoplamento com a stack.** |
-| `scripts/conventions.sh` | Regras de branch e commit dos hooks (cópia das centrais) |
-| `.githooks/` | Hooks versionados, sem dependência de runtime |
-| `scripts/deploy.sh` | O único lugar que sabe onde a imagem roda |
-| `.github/workflows/ci.yml` | Portão de merge (`ci-success`). Falha e bloqueia. |
-| `.github/workflows/deploy.yml` | Build único da imagem e promoção entre ambientes |
-| `.github/workflows/publish-contract.yml` | Publica `docs/api/openapi.yaml` no docs/shared |
-| `.github/workflows/release.yml` | Versão e CHANGELOG a partir dos commits |
-| `.github/workflows/github-agent.yml` | Feedback: rotula, comenta, organiza. Nunca bloqueia. |
-| `IgorOCosta/workflows` (`@v1`) | Onde mora a lógica dos workflows e as regras centrais |
-| `CLAUDE.md` | Uma linha (`@AGENTS.md`): o Claude Code carrega este arquivo |
-
-**Um alvo `skip` em `project.mk` é uma decisão registrada**, revisitável,
-e não um esquecimento. `make doctor` mostra os três estados (configurado,
-`skip`, pendente).
+- **Node local antigo:** o projeto pede Node 22 (`.tool-versions`). Com Node
+  20 o `npm install` falha por `engines` e o Vitest 5 não roda. Use
+  `mise install` ou `asdf install`.
+- **`npm ci` no Windows com npm 10.8:** pode pular o binário opcional do
+  `rolldown` e o Vitest falha com "Cannot find module
+  './rolldown-binding.wasi.cjs'". Use npm 10.9 ou mais novo (vem com o Node
+  22 recente). No CI (Linux, Node 22) funciona; foi conferido num container.
+- **`make` no Windows:** não vem instalado (seção 2).
+- **Arquivos `.sql` no Windows:** nunca regrave um `.sql` com `Set-Content`
+  do PowerShell 5: ele grava ANSI ou BOM e o Postgres falha com "syntax error
+  at or near" um caractere invisível. Um teste confere UTF-8 sem BOM.
+- **Dois papéis de banco:** o container de desenvolvimento cria `app` como
+  superusuário, que **ignora o RLS**. Para a API enxergar o RLS de verdade, rode
+  `npm run db:provision-dev` e use `DATABASE_URL` com `app_api`. Teste de RLS
+  só vale com papel sem `BYPASSRLS`.
+- **E-mail com espaço no começo ou no fim** é recusado pela validação (400); o
+  frontend deve fazer `trim`. Maiúsculas são aceitas e normalizadas.
+- **Testes de integração precisam do Docker** rodando (Testcontainers). Na
+  primeira vez, baixar a imagem `postgres:17-alpine` leva alguns minutos.
+- **O Drizzle não gera `down`.** Escreva e teste o `down.sql` à mão; o teste
+  de reversibilidade desfaz tudo e confere que não sobrou tabela nem enum.
+- **`make seed` apaga tudo** (`TRUNCATE`). Só roda em `local`/`dev`/`test`.
+- **`tcgdex_catalog` não tem `store_id`**: é a exceção à regra de isolamento.
+  Qualquer outra tabela nova de negócio precisa de `store_id`.
+- **A FK composta `(id, store_id)`** em lances, leilões e acertos impede
+  referência entre lojas no banco. Ao criar tabela nova que aponte para uma
+  dessas, siga o mesmo padrão.
+- **Lances simultâneos:** a decisão é transação com `SELECT ... FOR UPDATE`
+  na linha do leilão, validando incremento e maior lance antes do `INSERT`.
+  O banco só garante que dois lances do mesmo valor não coexistem.
+- **`prom-client` está deprecado no npm** e o ESLint 9 saiu de suporte:
+  revisar antes de produção (`STACK.md`, seção 8).
+- **`BOOTSTRAP.md` e `SETUP-GITHUB.md` ainda existem** de propósito: o
+  bootstrap só termina com Dockerfile, CI verde, SonarCloud e Environments
+  configurados. Apague-os em commit próprio nesse momento.

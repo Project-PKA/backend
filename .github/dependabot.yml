@@ -44,21 +44,21 @@ updates:
   # ---- Descomente o da stack escolhida ---------------------------------------
   # Pacotes de producao com `chore`, e agrupados por tipo para reduzir ruido.
   #
-  # - package-ecosystem: npm          # ou: pip, uv, gomod, maven, gradle, nuget
-  #   directory: /
-  #   schedule:
-  #     interval: weekly
-  #     day: monday
-  #   open-pull-requests-limit: 5
-  #   labels: ['dependencias']
-  #   commit-message:
-  #     prefix: chore
-  #     prefix-development: chore
-  #     include: scope
-  #   groups:
-  #     dev-tooling:
-  #       dependency-type: development
-  #       update-types: ['minor', 'patch']
-  #     runtime:
-  #       dependency-type: production
-  #       update-types: ['minor', 'patch']
+  - package-ecosystem: npm          # ou: pip, uv, gomod, maven, gradle, nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: ['dependencias']
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+      include: scope
+    groups:
+      dev-tooling:
+        dependency-type: development
+        update-types: ['minor', 'patch']
+      runtime:
+        dependency-type: production
+        update-types: ['minor', 'patch']

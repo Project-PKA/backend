@@ -1,158 +1,88 @@
-# template-backend
+# pokemonAuction · Backend
 
-Repositório **template**: a fundação de qualidade, CI/CD, segurança e
-documentação que todo backend deve ter desde o primeiro commit.
+> Nome provisório. API do SaaS que permite a lojistas de Trading Card Games
+> (Pokémon e outros) fazerem leilões de cartas em grupos de WhatsApp.
 
-**Sem stack.** Não há linguagem, framework, ORM nem plataforma de deploy
-escolhida aqui. Isso é decidido no projeto novo, com o contexto do projeto
-novo. O que existe é tudo o que normalmente só aparece no terceiro mês,
-quando já é tarde: CI, convenções, governança, automação, deploy com
-promoção de imagem e os esqueletos de documentação.
+Plataforma web multi-tenant (várias lojas, dados 100% isolados) integrada a um
+bot de WhatsApp. O lojista cadastra a carta física no estoque (própria ou
+consignada), agenda o leilão, acompanha os lances que chegam no grupo e fecha
+o acerto com o comprador. O acesso é **somente por convite**. O escopo de produto
+(`docs/produto.md`), o contexto de negócio e as decisões estão no
+repositório [`Project-PKA/shared`](https://github.com/Project-PKA/shared).
 
----
+## Repositórios do projeto
 
-## Como isso funciona sem stack
+| Repositório | Papel |
+| --- | --- |
+| **Backend** (este) | API, autenticação, regras de negócio e **dono do schema** |
+| [`whatsapp_microservice`](https://github.com/Project-PKA/whatsapp_microservice) | Sessões de WhatsApp, leitura de lances, disparos e moderação do grupo |
+| [`frontend_web`](https://github.com/Project-PKA/frontend_web) | Painel do lojista e landing page |
+| [`shared`](https://github.com/Project-PKA/shared) | Contrato de API, ADRs e glossário |
 
-A fundação conversa com a stack por um **contrato de comandos**:
+## Stack
 
+Node.js 22 · TypeScript 6 · Fastify 5 · PostgreSQL 17 (`pg_trgm`, JSONB) ·
+Drizzle ORM · BullMQ + Redis (jobs, ainda não ligado) · Vitest + Testcontainers ·
+ESLint (`sonarjs`) + Prettier. O porquê de cada escolha está em
+[`STACK.md`](STACK.md).
+
+## Rodando localmente
+
+Requisitos: Node 22 (`mise install` lê o `.tool-versions`), Docker e `make`
+(no Windows: `winget install ezwinports.make` ou WSL).
+
+```bash
+cp .env.example .env
+make setup                   # instala dependências e ativa os hooks de git
+docker compose up -d db      # Postgres local
+make migrate                 # cria o schema (usa MIGRATION_DATABASE_URL)
+npm run db:provision-dev     # cria o papel app_api, que sofre o RLS
+make seed                    # dados de desenvolvimento (apaga o banco!)
+make run                     # API em http://localhost:8080 (usa DATABASE_URL)
 ```
-  CI, hooks, documentação
-            │
-            │  make setup · make lint · make test · make build · make openapi
-            ▼
-      Makefile            ← contrato. Você não edita.
-            │
-            ▼
-      project.mk          ← os comandos reais. O único acoplamento com a stack.
-            │
-            ▼
-   npm · uv · go · gradle · dotnet · o que for
+
+O provedor de e-mail local imprime o código de login no log da API (só em
+desenvolvimento). Contas do seed: `dono@example.com` (proprietário de duas
+lojas), `funcionario@example.com` e `admin@example.com`.
+
+Conferindo:
+
+```bash
+curl localhost:8080/health   # {"status":"ok"}
+curl localhost:8080/ready    # {"status":"ready"}  (503 se o banco cair)
 ```
 
-Nenhum workflow sabe qual é a sua stack. Um alvo ainda não configurado
-**falha com instrução explícita**, e um alvo que não se aplica recebe `skip`,
-que é uma decisão registrada, não um esquecimento:
+Antes de abrir PR: `make validate` (formato, lint, tipos e testes; os testes
+de integração sobem um Postgres em container, então o Docker precisa estar
+rodando).
 
-```
-$ make lint
+## Estado do projeto
 
-FALTA CONFIGURAR: LINT_CMD
+| Pronto | Falta (ver [`docs/roadmap.md`](docs/roadmap.md)) |
+| --- | --- |
+| Health, ready, metrics, erros `problem+json` | Convites e equipe por rota, criar loja (Etapa 2b) |
+| Schema (14 tabelas) com migrations `up`/`down`, RLS e seed | API `/v1/admin` e solicitações de acesso (Etapa 2c) |
+| Login por código, sessão com refresh rotacionado, convites, tenant e RBAC | Estoque, clientes |
+| Contrato OpenAPI gerado do código (13 rotas) | |
+| Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
+| | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |
+| | Dockerfile e deploy (a VPS ainda não existe) |
 
-  Defina LINT_CMD em project.mk
-  Nao se aplica a este projeto? use:  LINT_CMD = skip
-```
-
----
-
-## Como usar
-
-1. No GitHub: **Use this template → Create a new repository**. Não use fork:
-   ele mantém vínculo com o template, herda issues e PRs e aparece como
-   "forked from".
-2. Clone o repositório novo e peça ao agente de IA (ou siga sozinho):
-
-   ```
-   Leia o BOOTSTRAP.md e me conduza pelas etapas.
-   ```
-
-   Abra o Claude Code **dentro deste repositório**, com o docs/shared do
-   projeto clonado ao lado e acessível (no terminal:
-   `claude --add-dir ../<projeto>-shared`). O `CLAUDE.md` daqui é carregado
-   no início, e o agente lê as decisões de sistema de lá.
-
-   O [`BOOTSTRAP.md`](BOOTSTRAP.md) é um roteiro de doze etapas: contexto,
-   escala, stack, banco e seeds, qualidade, testes, autenticação, secrets,
-   observabilidade, contrato de API, deploy e fechamento. Em cada uma, ele
-   diz **o que perguntar** e **onde registrar a resposta**.
-3. Acompanhe com `make doctor`: ele mostra o que foi decidido, o que foi
-   dispensado (`skip`), o que falta e os placeholders restantes.
-4. Configure o GitHub com o [`SETUP-GITHUB.md`](SETUP-GITHUB.md): Environments,
-   branch protection, secrets da organização. Nenhum arquivo faz isso por você.
-
-Depois do bootstrap, o [`AGENTS.md`](AGENTS.md) descreve o projeto real:
-comandos, convenções e o que exige aprovação humana. Este README não duplica
-esse conteúdo.
-
----
-
-## O que vem pronto
-
-**CI/CD**
-
-- Um único check de merge (`ci-success`) agregando convenções, formato,
-  lint, tipos, testes com cobertura, build, **contrato de API em dia com o
-  código**, build da imagem Docker e SonarCloud com Quality Gate
-- **Build once, deploy many**: a imagem é construída uma vez no push em
-  `main` (GHCR, tag = SHA) e promovida para `dev` → `test` → `homolog` →
-  `prod`, com aprovação nos dois últimos. Rollback é reimplantar o SHA anterior.
-- Publicação isolada em `scripts/deploy.sh`, com receitas para Kubernetes,
-  Cloud Run, ECS e VPS em [`DEPLOY.md`](DEPLOY.md)
-- Versão e CHANGELOG automáticos (release-please); a release dispara o
-  deploy em `prod`
-- CodeQL em PR, push e semanalmente; Dependabot para Actions e Docker
-
-**Contrato de API**
-
-- `docs/api/openapi.yaml` gerado **do código** (`make openapi`); o CI falha
-  se o arquivo divergir
-- No merge, `publish-contract.yml` abre um PR com o contrato no docs/shared
-  do projeto, e de lá os consumidores regeneram os tipos
-
-**Banco de dados**
-
-- Postgres local desde o dia 1 (`docker compose up -d db`)
-- Regras de ORM (schema versionado + type safety), migrations
-  (expandir → contrair) e seeds cobrindo todos os estados:
-  [`docs/database.md`](docs/database.md)
-
-**Governança e automação**
-
-- Conventional Commits e nome de branch validados em **shell puro**, nas
-  mesmas regras, no hook local e no CI
-- Templates de issue e de PR (com checklist OWASP para mudança sensível),
-  CODEOWNERS
-- Agente do GitHub: rotula issues, adiciona ao Project, comenta o
-  diagnóstico do PR e a cobertura, fecha issues vinculadas
-
-**Documentação viva**
+## Documentação
 
 | Arquivo | Para que serve |
 | --- | --- |
-| [`AGENTS.md`](AGENTS.md) | Contexto para pessoas e agentes. **Comece por aqui.** |
-| [`BOOTSTRAP.md`](BOOTSTRAP.md) | Roteiro de decisões do projeto novo |
-| [`SETUP-GITHUB.md`](SETUP-GITHUB.md) | O que só dá para fazer na interface do GitHub |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Camadas, C4, ERD, auth, secrets, observabilidade, contrato |
-| [`STACK.md`](STACK.md) | Por que cada escolha foi feita |
+| [`AGENTS.md`](AGENTS.md) | Contexto para pessoas e agentes de IA. **Comece por aqui.** |
+| [`docs/roadmap.md`](docs/roadmap.md) | Roteiro de entrega revisado, mudanças de schema previstas e decisões em aberto |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Camadas, diagramas, banco, autenticação, secrets, observabilidade |
+| [`STACK.md`](STACK.md) | Por que cada ferramenta foi escolhida |
+| [`SECURITY.md`](SECURITY.md) | Reporte de vulnerabilidade e requisitos de segurança do projeto |
 | [`TESTING.md`](TESTING.md) | Estratégia de testes |
-| [`DEPLOY.md`](DEPLOY.md) | Ambientes, promoção de imagem e receitas por plataforma |
-| [`SECURITY.md`](SECURITY.md) | Report de vulnerabilidade e checklist OWASP |
-| [`docs/database.md`](docs/database.md) | ORM, migrations e seeds |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Fluxo de contribuição |
+| [`DEPLOY.md`](DEPLOY.md) | Ambientes e fluxo de deploy na VPS |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Branches, commits, PR e release |
+| [`docs/database.md`](docs/database.md) | Regras de ORM, migrations e seeds |
+| [`docs/secrets.md`](docs/secrets.md) | Nomes dos secrets e como obter cada um |
+| [`migrations/README.md`](migrations/README.md) | Como criar e reverter migrations |
 
----
-
-## Requisitos
-
-| Ferramenta | Para que | Obrigatório |
-| --- | --- | --- |
-| `git` | — | Sim |
-| `make` | Contrato de comandos | Sim |
-| Docker | Banco local e imagem | Sim |
-| `mise` ou `asdf` | Instalar o runtime de `.tool-versions` | Recomendado |
-
-**Windows:** `make` não vem instalado: `winget install ezwinports.make` (ou
-WSL). Os hooks e validadores rodam em `sh` e funcionam no Git Bash.
-
----
-
-## Manutenção do template
-
-Entra aqui: workflow, esqueleto de documentação, regra, receita de deploy,
-exemplo em `project.mk`. **Não entra:** stack, framework, ORM, dependência,
-plataforma de deploy fixa.
-
-As convenções (branches, ambientes, labels, secrets) são as do
-`CONVENCOES.md` do `codex-base`. Este template as implementa, não as define.
-O que é política comum (CI, convenções, agente, release) mora nos workflows
-centrais (`IgorOCosta/workflows`) e chega a todos os projetos pela tag `v1`. O resto
-é cópia: projetos já criados não recebem atualização automática.
+`BOOTSTRAP.md` e `SETUP-GITHUB.md` são roteiros temporários do setup inicial
+e serão apagados quando ele terminar.

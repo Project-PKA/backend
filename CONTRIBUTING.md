@@ -41,6 +41,13 @@ vivem horas ou poucos dias.
 Toda mudança que não seja trivial nasce de uma issue. Ela é o lugar de
 discutir **o quê** e **por quê**; o PR discute o **como**.
 
+O trabalho é organizado em **sprints** (milestones do GitHub), com rótulos de tipo,
+area, prioridade e tamanho. O processo completo, o que o agente pode fazer sozinho
+e o ciclo de uma sprint estão em
+[`shared/docs/processo.md`](https://github.com/Project-PKA/shared/blob/main/docs/processo.md).
+Pegue issues da sprint aberta, na ordem de prioridade, e comece pelas
+`decisao-pendente`.
+
 ### 2. Crie a branch
 
 ```
@@ -72,8 +79,8 @@ Valide com `make check-branch`.
 `build`, `ci`, `chore`, `revert`.
 
 ```
-feat(pedidos): adiciona cancelamento parcial
-fix(auth): trata token expirado como 401
+feat(estoque): adiciona cadastro de carta consignada
+fix(auth): trata código OTP expirado como 401
 feat(api)!: remove o campo legado de resposta
 ```
 
@@ -91,13 +98,14 @@ Não use `--no-verify`: o CI aplica as mesmas regras.
 
 ### 4. Mudou o schema ou a API?
 
-- **Schema:** `make migration NAME=...` e **atualize o seed no mesmo PR**
+- **Schema:** `make migration NAME=...`, escreva `up.sql` **e** `down.sql`, e
+  **atualize `src/db/schema.ts` e o seed no mesmo PR**
   ([`docs/database.md`](docs/database.md)). Mudança destrutiva segue
   expandir → contrair, em PRs separados.
 - **API:** `make openapi` e commite `docs/api/openapi.yaml`. O CI falha se ele
   divergir do código. Mudança incompatível é `feat!:` e precisa de aprovação
-  humana. Se o projeto tem docs/shared, discuta antes na issue
-  "Mudança de contrato de API" de lá.
+  humana. Discuta antes na issue "Mudança de contrato de API" do
+  [`shared`](https://github.com/Project-PKA/shared).
 
 ### 5. Antes de abrir o PR
 
@@ -116,6 +124,7 @@ Checklist completo em [`AGENTS.md`, seção 5](AGENTS.md#5-checklist-de-conclus�
   o checklist OWASP quando a mudança tocar autenticação, dado sensível ou
   entrada externa.
 - Vincule a issue com `Closes #N`.
+- Abra em **rascunho** e tire do rascunho quando o `ci-success` estiver verde.
 - PR pequeno.
 
 ### 7. Review e merge

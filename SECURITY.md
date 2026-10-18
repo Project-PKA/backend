@@ -4,27 +4,148 @@
 
 **Não abra issue pública.** Use
 [Security → Report a vulnerability](../../security/advisories/new) (GitHub
-Security Advisories, privado) ou o canal privado do time de plataforma.
+Security Advisories, privado).
 
 Inclua os passos para reproduzir, o impacto estimado e a versão/commit e o
-ambiente afetados. Tempo de primeira resposta: <!-- ex.: 2 dias úteis -->.
+ambiente afetados. Tempo de primeira resposta: **3 dias úteis** (a confirmar
+pelo responsável do projeto).
 
 ## Versões suportadas
 
 Só a última versão publicada (tag `vX.Y.Z` mais recente) recebe correção.
-<!-- Ajuste se o projeto mantiver mais de uma linha de versão. -->
+
+## Por que segurança pesa neste projeto
+
+O sistema tem **páginas públicas** (vitrine, acerto do cliente, acompanhamento do
+consignador) e uma **área de administração** acima das lojas. Além disso,
+guarda **dado pessoal de terceiros** (nome, telefone, CPF, e-mail e
+endereço de compradores e consignadores), é **multi-tenant** (uma falha de
+isolamento expõe a base de outra loja) e guarda a **credencial da sessão de
+WhatsApp** de cada loja. Essas coisas definem a lista abaixo.
 
 ## O que a fundação já cobre
 
 | Camada | Onde |
 | --- | --- |
 | SAST (injeção, SSRF, desserialização) | `codeql.yml` |
-| Dependências e imagem base vulneráveis | Dependabot + alerts |
+| Dependências vulneráveis | Dependabot (npm, Actions, Docker) e `npm audit` |
 | Segredo commitado | Secret scanning + push protection (`SETUP-GITHUB.md` A4) |
 | `.env` dentro da imagem | `.dockerignore` |
 | Qualidade e hotspots de segurança | SonarCloud, dentro do `ci-success` |
-| Credencial de deploy | OIDC por Environment, com aprovação em `homolog`/`prod` |
-| Revisão humana | Checklist abaixo, cobrado no template de PR |
+| Credencial de deploy | Secrets por Environment, com aprovação em `homolog`/`prod` |
+| Revisão humana | Checklist OWASP abaixo, cobrado no template de PR |
+
+## Requisitos de segurança do pokemonAuction
+
+Status: **feito** (já no código ou no banco), **Etapa N** (backlog do doc 02)
+ou **infra** (depende da VPS). Item pendente é requisito, não sugestão: a
+tarefa que o toca não está pronta sem ele.
+
+### Isolamento entre lojas (multi-tenant)
+
+| Requisito | Status |
+| --- | --- |
+| Toda tabela de negócio tem `store_id`; FK composta `(id, store_id)` impede lance, leilão, acerto ou carta apontar para outra loja | **feito** (migrations 0004 a 0007, com teste) |
+| Middleware valida `x-store-id` contra `store_members` em toda rota autenticada, **negando por padrão** (header ausente, malformado ou de loja alheia dão a mesma resposta 403) | **feito** (`requireStore`, com teste) |
+| Toda query de negócio filtra por `store_id`; teste de acesso cruzado entre lojas em cada rota nova (IDOR) | Etapa 2 em diante |
+| **Row-Level Security** do Postgres como segunda barreira, com `FORCE`, contexto por transação (`withContext`) e papéis `owner` e `app_runtime` ([ADR 0011](https://github.com/Project-PKA/shared/blob/main/docs/adr/0011-row-level-security-como-segunda-barreira.md)); teste de acesso cruzado com o papel real, **sem** `BYPASSRLS` | **feito** (migration 0009 e `test/rls.integration.test.ts`); o papel `bot` entra na Etapa 5 |
+
+### Autenticação e sessão (ADR 0008)
+
+| Requisito | Status |
+| --- | --- |
+| OTP e refresh token guardados só como **hash** HMAC com segredo próprio, amarrado ao e-mail (OTP) e a um domínio (`refresh`, `invitation`) | **feito** (`src/auth/crypto.ts`, com teste) |
+| OTP gerado com `crypto.randomInt`, 6 dígitos, **expira em 10 min**, **5 tentativas** e comparação em tempo constante (custo igual com ou sem conta) | **feito** |
+| Resposta de login **idêntica** exista a conta ou não (sem enumeração de e-mail); e-mail sem conta **não recebe código e não cria usuário** (acesso só por convite, ADR 0012). O envio do e-mail não é aguardado, para o tempo de resposta não revelar a conta | **feito** (limite residual: pequena diferença de tempo no acesso ao banco, contida pelo rate limit) |
+| Usuário `SUSPENDED` não loga e perde o acesso na hora (o estado é conferido a cada requisição); `INVITED` só entra pelo convite | **feito**; a rota que suspende e revoga as sessões vem na Etapa 2c (`revokeAllSessions` já existe) |
+| Rate limit por IP no pedido e na verificação do OTP, mais intervalo mínimo por e-mail e contagem de tentativas | **feito** (429 em `problem+json`); depende de `TRUST_PROXY=true` atrás do proxy |
+| JWT de acesso curto (15 min), algoritmo fixo no servidor (HS256, nunca `none`), `exp`, `iss` e `aud` verificados | **feito** (teste com `alg: none`, assinatura alheia e token vencido) |
+| Refresh token rotacionado a cada uso; **reuso de token já trocado revoga todas as sessões da pessoa**; logout revoga | **feito** (duas abas renovando ao mesmo tempo podem disparar a revogação: o usuário só precisa entrar de novo) |
+| Cookie do refresh: `HttpOnly`, `Secure` (fora de desenvolvimento), `SameSite=Strict`, restrito a `/v1/auth` | **feito** |
+| RBAC verificado **no servidor** em cada ação (`requirePermission`, `requireOwner`); nunca confiar no que o frontend esconde | **feito** (hooks); cada rota nova precisa aplicá-los |
+
+### Dados pessoais e LGPD
+
+| Requisito | Status |
+| --- | --- |
+| Nenhum telefone, e-mail, CPF, token, cookie, header `Authorization` ou texto de lance em log | **parcial**: `Authorization`, `Cookie` e `Set-Cookie` são redigidos e um teste manual confirmou que o token não aparece. O provedor `log` de e-mail imprime o código (só em desenvolvimento; recusado em homolog e prod). Falta revisar os logs de cada rota nova |
+| `bids.raw_whatsapp_message` e dados de visitante tratados como pessoais: política de retenção e exclusão | pendente (decisão de negócio) |
+| Base legal do tratamento, atendimento a direitos do titular (acesso, correção, exclusão) e papel de controlador/operador entre SaaS e loja | pendente (decisão de negócio) |
+| Validação de CPF, telefone e CEP na entrada | Etapa 4 |
+| Seed usa só dados fictícios e **recusa rodar** fora de `local`/`dev`/`test` | **feito** |
+
+### Sessão do WhatsApp e bot (ADR 0007)
+
+| Requisito | Status |
+| --- | --- |
+| `whatsapp_sessions.session_data` (tabela própria, só visível com o contexto da própria loja, nem o administrador a lê) guardado **criptografado** (AES-256-GCM, chave `WHATSAPP_SESSION_ENCRYPTION_KEY` fora do banco) | tabela e isolamento **feitos**; a criptografia entra na Etapa 5 |
+| Role do banco do bot com **privilégio mínimo**: só as tabelas e colunas que o fluxo exige, sem DDL, sem `SUPERUSER` | Etapa 5 |
+| Decisão de lance dentro de transação com lock da linha do leilão; valor, incremento e blacklist validados no servidor | Etapa 5 |
+| O ID da carta e o texto da mensagem são tratados como entrada não confiável (regex estrita, tamanho máximo, sem eval/SQL concatenado) | Etapa 5 |
+| Risco aceito: banimento do número e violação dos termos do WhatsApp (ADR 0007) | aceito |
+
+### API e aplicação
+
+| Requisito | Status |
+| --- | --- |
+| Entrada validada por schema; campo extra descartado | **feito** (Ajv `removeAdditional`) |
+| Erro 5xx nunca devolve mensagem interna nem stack | **feito** (`src/http/problem.ts`, com teste) |
+| SQL só parametrizado (Drizzle ou `pg` com `$1`); nunca concatenar entrada | **feito** até aqui; vale para todo código novo |
+| Cabeçalhos de segurança (`@fastify/helmet`), CORS com **lista explícita de origens** (nunca `*`) e rate limit global | **feito** (com teste) |
+| Limite de corpo e timeouts de requisição configurados de propósito (hoje valem os padrões do Fastify: 1 MB e sem timeout de handler) | pendente |
+| `/metrics` **não** exposto na internet: só rede interna ou autenticado | infra |
+| Upload de foto: tipo e tamanho validados, nome gerado pelo servidor, sem caminho vindo do usuário | Etapa 3 |
+| Sync do TCGdex busca **só** a URL fixa do repositório oficial (sem SSRF) e valida o formato antes do `INSERT` | Etapa 3 |
+| `npm audit` limpo | **feito** (0 vulnerabilidades) |
+
+### Infraestrutura (VPS)
+
+| Requisito | Status |
+| --- | --- |
+| HTTPS em tudo; Postgres e Redis **sem porta pública** (o `compose.yaml` publica a 5432 só para uso local) | infra |
+| SSH por chave, sem senha, usuário de deploy sem root; firewall fechado exceto 80/443/SSH | infra |
+| App conecta com usuário **sem** `SUPERUSER`; migrations com credencial separada, usada só no deploy | infra |
+| Backup do banco automático, criptografado e com **restauração testada** | infra |
+| Secrets só nos GitHub Environments, rotação documentada (`docs/secrets.md`) | **feito** (documento); valores a criar |
+
+### Convites, administração e contas (ADR 0012)
+
+| Requisito | Status |
+| --- | --- |
+| Token de convite aleatório de alta entropia (256 bits), guardado só como hash, com **expiração**, uso único e revogação; vai no fragmento do link (`#token=`), que não chega ao log do servidor nem ao `Referer` | **feito** |
+| `is_platform_admin` só por comando de linha (`npm run db:create-admin`), **nunca** por API ou tela; sem "primeiro usuário vira admin" | **feito** |
+| Fronteira do administrador no banco: lê `stores` e `store_members`, cria loja, e **não acessa** estoque, clientes, leilões, lances, acertos nem a sessão do WhatsApp (teste com o papel real) | **feito** |
+| Toda ação do administrador e toda transferência de propriedade vai para o log de atividades, que o proprietário não consegue editar | Etapa 2b e 2c |
+| Nunca deixar uma loja sem proprietário; remover o último `OWNER` é recusado | Etapa 2b |
+| Criar loja só com `can_create_stores` e abaixo do `store_limit`, verificado no servidor e dentro de transação (sem corrida) | Etapa 2b (colunas já existem) |
+| Formulário público "Solicitar acesso": limite por IP, campo-isca, validação e tamanho máximo; não cria usuário nem loja | Etapa 2c |
+| Conta de administrador com proteção reforçada: sessão curta e avaliação de segundo fator | pendente |
+
+### Páginas públicas (ADR 0014)
+
+| Requisito | Status |
+| --- | --- |
+| Token do link com 128 bits ou mais, guardado só como hash, com expiração e revogação; resposta **igual** para inválido, expirado e revogado | Etapa 6 |
+| Limite de tentativas e **bloqueio temporário** em qualquer segredo digitado (chave do consignador), por link e por IP, **desde o primeiro dia** | Etapa 6 |
+| Chave de 4 dígitos do CPF só como **segundo fator** sobre o token; link por consignador e loja; sem CPF cadastrado, sem link | Etapa 6 |
+| Acesso público por papel de banco próprio, executando só funções `SECURITY DEFINER` auditadas; nenhuma política de RLS afrouxada | Etapa 6 e 8 |
+| Dado mínimo na resposta: telefone sempre parcial; nunca CPF, e-mail ou endereço de terceiros | Etapa 6 e 8 |
+| `Referrer-Policy: no-referrer` e `noindex` nas páginas com token | Etapa 6 |
+| Vitrine só com lojas que optaram; limite de leitura contra coleta em massa; o link do grupo de WhatsApp fica público e a loja é avisada | Etapa 8 |
+| Consentimento LGPD registrado (quem, quando, versão do texto, IP); CPF validado no servidor | Etapa 6 |
+| Upload do comprovante: tipo e tamanho validados, nome gerado pelo servidor, fora da raiz pública, entrega só a quem tem permissão na loja | Etapa 6 |
+| "Já paguei" só notifica; **nunca** marca o acerto como pago (ADR 0013) | Etapa 6 |
+| Texto de interface sem linguagem de garantia ("anti-calote", "compra segura") | Etapa 6 em diante |
+
+### Decisões de segurança em aberto
+
+1. **Criptografia de CPF e telefone em repouso** (além do disco da VPS):
+   protege contra vazamento de backup, ao custo de não poder buscar por ele
+   direto. Decidir com a revisão de LGPD.
+2. **Segundo fator para o administrador da plataforma:** a conta mais
+   valiosa do sistema. Avaliar antes de produção.
+3. **Provedor de e-mail do OTP** (entregabilidade e, por ser porta de entrada,
+   também segurança).
 
 ## Checklist OWASP Top 10
 
@@ -32,10 +153,11 @@ Use ao revisar qualquer mudança que toque autenticação, dados sensíveis ou
 entrada externa (o template de PR já cobra):
 
 1. **Broken Access Control:** autorização verificada em todo endpoint novo
-   ou alterado; sem acesso a recurso de outro usuário por troca de ID (IDOR).
+   ou alterado; sem acesso a recurso de outra loja ou outro usuário por troca
+   de ID (IDOR).
 2. **Cryptographic Failures:** TLS em trânsito; dado sensível criptografado em
-   repouso quando aplicável; senha com hash forte (argon2/bcrypt); nenhum
-   segredo em log ou código.
+   repouso quando aplicável; OTP e refresh só em hash; nenhum segredo em log
+   ou código.
 3. **Injection:** toda entrada externa validada; SQL só parametrizado ou via
    ORM; nada de comando de sistema montado com entrada.
 4. **Insecure Design:** limite de payload, rate limiting e timeouts desde o
@@ -46,8 +168,8 @@ entrada externa (o template de PR já cobra):
    passa pela aprovação humana (`AGENTS.md`, seção 6).
 7. **Identification and Authentication Failures:** sessão e tokens seguem o
    `ARCHITECTURE.md` (seção 6); expiração e revogação funcionam.
-8. **Software and Data Integrity Failures:** webhook com assinatura
-   verificada; imagem só a construída pelo CI (build once).
+8. **Software and Data Integrity Failures:** imagem só a construída pelo CI
+   (build once); migration aplicada não é editada (checksum).
 9. **Security Logging and Monitoring Failures:** login, falha de autorização
    e mudança de permissão logados de forma estruturada, sem dado sensível.
 10. **SSRF:** nenhuma requisição a URL/host vindo de entrada externa sem
@@ -55,4 +177,4 @@ entrada externa (o template de PR já cobra):
 
 ## Gestão de secrets
 
-Ver `ARCHITECTURE.md`, seção 7.
+Ver `ARCHITECTURE.md`, seção 7, e [`docs/secrets.md`](docs/secrets.md).

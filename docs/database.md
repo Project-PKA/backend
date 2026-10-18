@@ -1,9 +1,14 @@
 # Banco de dados: ORM, migrations e seeds
 
-> Regras que valem para qualquer stack. O ORM e a ferramenta de migration
-> reais são escolhidos no [`BOOTSTRAP.md`](../BOOTSTRAP.md) e registrados em
-> [`STACK.md`](../STACK.md). Os comandos ficam em `project.mk`:
+> Regras do banco deste projeto: PostgreSQL 17 com **Drizzle** e migrations SQL
+> escritas à mão (`up.sql` e `down.sql`). A justificativa está em
+> [`STACK.md`](../STACK.md), seção 3. Os comandos ficam em `project.mk`:
 > `MIGRATE_CMD`, `MIGRATION_CMD` e `SEED_CMD`.
+>
+> Específico do projeto: `src/db/schema.ts` dá os tipos e precisa acompanhar
+> cada migration (um teste compara os dois); `src/db/migrator.ts` aplica,
+> reverte e confere o checksum; `src/db/seed.ts` é determinístico e o
+> `seed-cli` recusa rodar fora de `local`/`dev`/`test`.
 
 ## 1. O que o ORM precisa entregar
 
@@ -27,6 +32,20 @@ escolha precisa de justificativa em `STACK.md`.
 
 Prisma, Drizzle e sqlc já nascem gerando tipos do schema. Com JPA ou GORM
 puro, esse cuidado vira item de revisão de PR.
+
+## 1.1. Tabela nova de loja
+
+Toda tabela de negócio nova (com `store_id`) exige, **na mesma migration**:
+
+- `GRANT` mínimo ao `app_runtime` (as tabelas não herdam privilégio);
+- `ENABLE` e `FORCE ROW LEVEL SECURITY` e a política `store_isolation`, como
+  nas migrations `0009_rls-e-papeis`;
+- FK composta `(id, store_id)` para tudo que ela referencia de outra tabela de loja;
+- teste de acesso cruzado em `test/rls.integration.test.ts`, com o papel real.
+
+O acesso passa por `withContext` (`src/db/context.ts`). Tabela global (como
+`tcgdex_catalog`) ou de autenticação (`users`, `refresh_tokens`, `invitations`)
+fica fora do RLS e precisa dizer isso na migration.
 
 ## 2. Migrations
 
