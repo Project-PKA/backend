@@ -34,6 +34,8 @@ export interface RateLimitConfig {
   publicAccess: number;
   /** Pedidos de acesso da landing por minuto e por IP. */
   accessRequest: number;
+  /** Leituras da vitrine pública por minuto e por IP. */
+  showcase: number;
 }
 
 export interface HttpLimits {
@@ -196,6 +198,7 @@ export function loadEnv(source: Source = process.env): Env {
       otpVerify: integer(source, 'RATE_LIMIT_OTP_VERIFY_PER_MINUTE', 10, 1, 1000),
       publicAccess: integer(source, 'RATE_LIMIT_PUBLIC_PER_MINUTE', 20, 1, 1000),
       accessRequest: integer(source, 'RATE_LIMIT_ACCESS_REQUEST_PER_MINUTE', 3, 1, 100),
+      showcase: integer(source, 'RATE_LIMIT_SHOWCASE_PER_MINUTE', 30, 1, 1000),
     },
     http: {
       bodyLimitBytes: integer(source, 'BODY_LIMIT_BYTES', 262_144, 1024, 10_485_760),

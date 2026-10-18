@@ -8,6 +8,7 @@ import type {
   AdminStore,
   AdminUser,
   InvitationKind,
+  PlanRequestView,
 } from '../admin/service.js';
 import type { AuthHooks } from '../auth/hooks.js';
 import { DEFAULT_LIMIT, pageQuerySchema } from '../http/pagination.js';
@@ -102,6 +103,7 @@ const storeResponse = {
     'city',
     'plan',
     'member_limit',
+    'card_limit',
     'members_count',
     'whatsapp_status',
     'owner',
@@ -113,6 +115,7 @@ const storeResponse = {
     city: { type: 'string', nullable: true },
     plan: { type: 'string' },
     member_limit: { type: 'integer' },
+    card_limit: { type: 'integer', nullable: true, description: 'Sem valor = ilimitado' },
     members_count: { type: 'integer' },
     whatsapp_status: { type: 'string', enum: ['ONLINE', 'OFFLINE', 'QR_READY'] },
     owner: {
@@ -195,6 +198,7 @@ const toStoreJson = (s: AdminStore) => ({
   city: s.city,
   plan: s.plan,
   member_limit: s.memberLimit,
+  card_limit: s.cardLimit,
   members_count: s.membersCount,
   whatsapp_status: s.whatsappStatus,
   owner: s.owner,
@@ -241,6 +245,7 @@ const FAILURES: Record<AdminFailure, [number, string]> = {
   ALREADY_OWNER: [409, 'Esta pessoa já é proprietária da loja'],
   NOT_PENDING: [409, 'O convite não está mais pendente'],
   TOO_SOON: [429, 'Aguarde um pouco antes de reenviar o convite'],
+  LIMIT_BELOW_USAGE: [422, 'O limite de membros não pode ficar abaixo dos membros atuais da loja'],
 };
 
 const sendFailure = (reply: FastifyReply, reason: AdminFailure) => {
@@ -498,6 +503,7 @@ export function adminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
             city: { type: 'string', minLength: 1, maxLength: 80, nullable: true },
             plan: { type: 'string', pattern: '^[A-Z][A-Z0-9_]{1,19}$' },
             member_limit: { type: 'integer', minimum: 1, maximum: 1000 },
+            card_limit: { type: 'integer', minimum: 1, maximum: 1000000, nullable: true },
             owner_user_id: { type: 'string', format: 'uuid' },
             owner_email: { type: 'string', format: 'email', maxLength: 254 },
             access_request_id: { type: 'string', format: 'uuid' },
@@ -522,6 +528,7 @@ export function adminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
         city?: string | null;
         plan?: string;
         member_limit?: number;
+        card_limit?: number | null;
         owner_user_id?: string;
         owner_email?: string;
         access_request_id?: string;
@@ -537,6 +544,7 @@ export function adminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
         ...(body.city === undefined ? {} : { city: body.city }),
         ...(body.plan === undefined ? {} : { plan: body.plan }),
         ...(body.member_limit === undefined ? {} : { memberLimit: body.member_limit }),
+        ...(body.card_limit === undefined ? {} : { cardLimit: body.card_limit }),
         owner:
           body.owner_user_id === undefined
             ? { email: body.owner_email ?? '' }
@@ -579,6 +587,159 @@ export function adminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
       const result = await admin.transferOwnership(actor(request), id, newOwner);
       if (!result.ok) return sendFailure(reply, result.reason);
       return toStoreJson(result.value);
+    },
+  );
+
+  // --- Plano ------------------------------------------------------------------------------------
+
+  const planRequestResponse = {
+    type: 'object',
+    required: ['id', 'store', 'requested_plan', 'message', 'status', 'decided_at', 'created_at'],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      store: {
+        type: 'object',
+        required: ['id', 'name', 'current_plan'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          name: { type: 'string' },
+          current_plan: { type: 'string' },
+        },
+      },
+      requested_plan: { type: 'string', nullable: true },
+      message: { type: 'string', nullable: true },
+      status: { type: 'string', enum: ['PENDING', 'APPLIED', 'REFUSED'] },
+      decided_at: { type: 'string', format: 'date-time', nullable: true },
+      created_at: { type: 'string', format: 'date-time' },
+    },
+  } as const;
+
+  const toPlanRequestJson = (r: PlanRequestView) => ({
+    id: r.id,
+    store: { id: r.store.id, name: r.store.name, current_plan: r.store.currentPlan },
+    requested_plan: r.requestedPlan,
+    message: r.message,
+    status: r.status,
+    decided_at: r.decidedAt?.toISOString() ?? null,
+    created_at: r.createdAt.toISOString(),
+  });
+
+  const planFields = {
+    plan: { type: 'string', pattern: '^[A-Z][A-Z0-9_]{1,19}$' },
+    member_limit: { type: 'integer', minimum: 1, maximum: 1000 },
+    card_limit: { type: 'integer', minimum: 1, maximum: 1000000, nullable: true },
+  } as const;
+
+  app.patch(
+    '/v1/admin/stores/:id/plan',
+    {
+      preValidation: guard,
+      schema: {
+        operationId: 'adminSetStorePlan',
+        tags: ['admin'],
+        summary:
+          'Muda o plano e os limites da loja (membros e cartas; `card_limit: null` = ilimitado)',
+        security,
+        params: uuidParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          minProperties: 1,
+          properties: planFields,
+        },
+        response: { 200: storeResponse, ...failures },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        plan?: string;
+        member_limit?: number;
+        card_limit?: number | null;
+      };
+      const result = await admin.setStorePlan(actor(request), id, {
+        ...(body.plan === undefined ? {} : { plan: body.plan }),
+        ...(body.member_limit === undefined ? {} : { memberLimit: body.member_limit }),
+        ...(body.card_limit === undefined ? {} : { cardLimit: body.card_limit }),
+      });
+      if (!result.ok) return sendFailure(reply, result.reason);
+      return toStoreJson(result.value);
+    },
+  );
+
+  app.get(
+    '/v1/admin/plan-requests',
+    {
+      preValidation: guard,
+      schema: {
+        operationId: 'adminListPlanRequests',
+        tags: ['admin'],
+        summary: 'Pedidos de mudança de plano das lojas',
+        security,
+        querystring: {
+          ...pageQuerySchema,
+          properties: {
+            ...pageQuerySchema.properties,
+            status: { type: 'string', enum: ['PENDING', 'APPLIED', 'REFUSED'] },
+          },
+        },
+        response: { 200: pageOf(planRequestResponse), ...failures },
+      },
+    },
+    async (request, reply) => {
+      const q = request.query as { status?: PlanRequestView['status'] };
+      const result = await admin.listPlanRequests(actor(request), {
+        ...pageOptions(request),
+        ...(q.status === undefined ? {} : { status: q.status }),
+      });
+      if (result === 'INVALID_CURSOR') return invalidCursor(reply);
+      return { items: result.items.map(toPlanRequestJson), next_cursor: result.nextCursor };
+    },
+  );
+
+  app.post(
+    '/v1/admin/plan-requests/:id/resolve',
+    {
+      preValidation: guard,
+      schema: {
+        operationId: 'adminResolvePlanRequest',
+        tags: ['admin'],
+        summary: 'Aplica (muda o plano da loja) ou recusa o pedido',
+        description:
+          'Em `APPLY` sem `plan`, vale o plano pedido pela loja. Os limites só mudam se enviados.',
+        security,
+        params: uuidParams,
+        body: {
+          type: 'object',
+          required: ['decision'],
+          additionalProperties: false,
+          properties: { decision: { type: 'string', enum: ['APPLY', 'REFUSE'] }, ...planFields },
+        },
+        response: { 204: { type: 'null' }, ...failures },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        decision: 'APPLY' | 'REFUSE';
+        plan?: string;
+        member_limit?: number;
+        card_limit?: number | null;
+      };
+      const result = await admin.resolvePlanRequest(
+        actor(request),
+        id,
+        body.decision === 'REFUSE'
+          ? { kind: 'REFUSE' }
+          : {
+              kind: 'APPLY',
+              ...(body.plan === undefined ? {} : { plan: body.plan }),
+              ...(body.member_limit === undefined ? {} : { memberLimit: body.member_limit }),
+              ...(body.card_limit === undefined ? {} : { cardLimit: body.card_limit }),
+            },
+      );
+      if (!result.ok) return sendFailure(reply, result.reason);
+      return reply.status(204).send();
     },
   );
 
@@ -738,12 +899,19 @@ export function adminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
             properties: {
               kpis: {
                 type: 'object',
-                required: ['active_users', 'stores', 'pending_invitations', 'new_access_requests'],
+                required: [
+                  'active_users',
+                  'stores',
+                  'pending_invitations',
+                  'new_access_requests',
+                  'pending_plan_requests',
+                ],
                 properties: {
                   active_users: { type: 'integer' },
                   stores: { type: 'integer' },
                   pending_invitations: { type: 'integer' },
                   new_access_requests: { type: 'integer' },
+                  pending_plan_requests: { type: 'integer' },
                 },
               },
               disconnected_stores: {
@@ -772,6 +940,7 @@ export function adminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
           stores: o.stores,
           pending_invitations: o.pendingInvitations,
           new_access_requests: o.newAccessRequests,
+          pending_plan_requests: o.pendingPlanRequests,
         },
         disconnected_stores: o.disconnectedStores.map((s) => ({
           id: s.id,

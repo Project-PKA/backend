@@ -134,6 +134,11 @@ const FAILURES: Record<CardFailure, [number, string, string]> = {
   CATALOG_CARD_NOT_FOUND: [422, 'Carta não encontrada no catálogo', 'CATALOG_CARD_NOT_FOUND'],
   CONSIGNOR_NOT_FOUND: [422, 'Consignador não encontrado nesta loja', 'CONSIGNOR_NOT_FOUND'],
   SHORT_CODE_TAKEN: [409, 'Já existe uma carta com este ID curto', 'SHORT_CODE_TAKEN'],
+  CARD_LIMIT: [
+    409,
+    'A loja atingiu o limite de cartas do plano. Fale com a administração',
+    'CARD_LIMIT_REACHED',
+  ],
   OWNERSHIP_INVALID: [
     422,
     'Carta própria não tem consignador nem comissão; consignada exige os dois',

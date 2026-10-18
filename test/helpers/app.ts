@@ -23,6 +23,7 @@ export function testEnv(overrides: NodeJS.ProcessEnv = {}): Env {
     RATE_LIMIT_OTP_VERIFY_PER_MINUTE: '1000',
     RATE_LIMIT_PUBLIC_PER_MINUTE: '1000',
     RATE_LIMIT_ACCESS_REQUEST_PER_MINUTE: '100',
+    RATE_LIMIT_SHOWCASE_PER_MINUTE: '1000',
     ...overrides,
   });
 }

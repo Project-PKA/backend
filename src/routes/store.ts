@@ -40,6 +40,12 @@ const storeResponse = {
     whatsapp_status: { type: 'string', enum: ['ONLINE', 'OFFLINE', 'QR_READY'] },
     inactivity_days_limit: { type: 'integer', nullable: true },
     pix_key: { type: 'string', nullable: true, description: 'Chave PIX mostrada ao comprador' },
+    showcase_enabled: { type: 'boolean', description: 'Vitrine pública ligada (opt-in)' },
+    whatsapp_invite_url: {
+      type: 'string',
+      nullable: true,
+      description: 'Link do grupo; fica público com a vitrine ligada',
+    },
   },
 } as const;
 
@@ -101,6 +107,8 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
         whatsapp_status: result.store.whatsappStatus,
         inactivity_days_limit: result.store.inactivityDaysLimit,
         pix_key: result.store.pixKey,
+        showcase_enabled: result.store.showcaseEnabled,
+        whatsapp_invite_url: result.store.whatsappInviteUrl,
         role: 'OWNER',
       });
     },
@@ -145,6 +153,8 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
         whatsapp_status: store.whatsappStatus,
         inactivity_days_limit: store.inactivityDaysLimit,
         pix_key: store.pixKey,
+        showcase_enabled: store.showcaseEnabled,
+        whatsapp_invite_url: store.whatsappInviteUrl,
         role: tenant.role,
         permissions: tenant.permissions,
       };
@@ -175,16 +185,32 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
               description: 'Dias sem interação até o bot remover o membro do grupo. `null` desliga',
             },
             pix_key: { type: 'string', nullable: true, minLength: 1, maxLength: 140 },
+            whatsapp_invite_url: {
+              type: 'string',
+              nullable: true,
+              pattern: '^https://chat\\.whatsapp\\.com/[A-Za-z0-9]{10,40}$',
+              description: 'Link de convite do grupo (https://chat.whatsapp.com/...)',
+            },
+            showcase_enabled: {
+              type: 'boolean',
+              description:
+                'Liga a vitrine pública. Exige o link do grupo e `acknowledge_public_group_link: true`',
+            },
+            acknowledge_public_group_link: {
+              type: 'boolean',
+              description: 'Confirma que o link do grupo ficará público na vitrine',
+            },
           },
         },
         response: {
           200: storeResponse,
           401: problemSchema,
           403: problemSchema,
+          422: problemSchema,
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const auth = request.auth;
       const tenant = request.tenant;
       if (auth === null || tenant === null) throw new Error('hooks não definiram o contexto');
@@ -192,6 +218,9 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
         name?: string;
         inactivity_days_limit?: number | null;
         pix_key?: string | null;
+        whatsapp_invite_url?: string | null;
+        showcase_enabled?: boolean;
+        acknowledge_public_group_link?: boolean;
       };
       const updated = await storesService.update(
         { storeId: tenant.storeId, userId: auth.userId },
@@ -201,15 +230,46 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
             ? {}
             : { inactivityDaysLimit: body.inactivity_days_limit }),
           ...(body.pix_key === undefined ? {} : { pixKey: body.pix_key }),
+          ...(body.whatsapp_invite_url === undefined
+            ? {}
+            : { whatsappInviteUrl: body.whatsapp_invite_url }),
+          ...(body.showcase_enabled === undefined
+            ? {}
+            : { showcaseEnabled: body.showcase_enabled }),
+          ...(body.acknowledge_public_group_link === undefined
+            ? {}
+            : { acknowledgePublicGroupLink: body.acknowledge_public_group_link }),
         },
       );
-      if (updated === null) throw new Error('loja do contexto não encontrada');
+      if (!updated.ok) {
+        if (updated.reason === 'NOT_FOUND') throw new Error('loja do contexto não encontrada');
+        return updated.reason === 'INVITE_URL_REQUIRED'
+          ? sendProblem(
+              reply,
+              buildProblem(
+                422,
+                'Informe o link do grupo de WhatsApp para ligar a vitrine',
+                'INVITE_URL_REQUIRED',
+              ),
+            )
+          : sendProblem(
+              reply,
+              buildProblem(
+                422,
+                'Confirme que o link do grupo ficará público na vitrine',
+                'SHOWCASE_ACK_REQUIRED',
+              ),
+            );
+      }
+      const store = updated.store;
       return {
-        id: updated.id,
-        name: updated.name,
-        whatsapp_status: updated.whatsappStatus,
-        inactivity_days_limit: updated.inactivityDaysLimit,
-        pix_key: updated.pixKey,
+        id: store.id,
+        name: store.name,
+        whatsapp_status: store.whatsappStatus,
+        inactivity_days_limit: store.inactivityDaysLimit,
+        pix_key: store.pixKey,
+        showcase_enabled: store.showcaseEnabled,
+        whatsapp_invite_url: store.whatsappInviteUrl,
       };
     },
   );

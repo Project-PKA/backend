@@ -7,7 +7,7 @@ import { withContext, type Db, type Tx } from '../db/context.js';
 import * as schema from '../db/schema.js';
 import { decodeCursor, toPage, type Page } from '../http/pagination.js';
 
-const { cardsInventory, tcgdexCatalog, customers, auctions, bids } = schema;
+const { cardsInventory, tcgdexCatalog, customers, auctions, bids, stores } = schema;
 
 export type Condition = (typeof schema.cardCondition.enumValues)[number];
 export type Ownership = (typeof schema.ownershipType.enumValues)[number];
@@ -71,7 +71,11 @@ export interface UpdateCardInput {
 }
 
 export type CardFailure =
-  'CATALOG_CARD_NOT_FOUND' | 'CONSIGNOR_NOT_FOUND' | 'SHORT_CODE_TAKEN' | 'OWNERSHIP_INVALID';
+  | 'CATALOG_CARD_NOT_FOUND'
+  | 'CONSIGNOR_NOT_FOUND'
+  | 'SHORT_CODE_TAKEN'
+  | 'OWNERSHIP_INVALID'
+  | 'CARD_LIMIT';
 
 export type CreateResult = { ok: true; card: InventoryCard } | { ok: false; reason: CardFailure };
 export type UpdateResult =
@@ -175,6 +179,9 @@ export class InventoryService {
       if (failure !== null) return { ok: false, reason: failure } as const;
 
       await lockStore(tx, context.storeId);
+      if (await this.atCardLimit(tx, context.storeId)) {
+        return { ok: false, reason: 'CARD_LIMIT' } as const;
+      }
       const shortCode = input.shortCode ?? (await nextShortCode(tx, context.storeId));
       const [taken] = await tx
         .select({ id: cardsInventory.id })
@@ -213,6 +220,21 @@ export class InventoryService {
       if (card === null) throw new Error('a carta criada não foi encontrada');
       return { ok: true, card } as const;
     });
+  }
+
+  /** O plano da loja (definido pela administração) limita o total de cartas; sem valor, ilimitado. */
+  private async atCardLimit(tx: Tx, storeId: string): Promise<boolean> {
+    const [store] = await tx
+      .select({ limit: stores.cardLimit })
+      .from(stores)
+      .where(eq(stores.id, storeId))
+      .limit(1);
+    if (store?.limit == null) return false;
+    const [total] = await tx
+      .select({ n: sql<string>`count(*)` })
+      .from(cardsInventory)
+      .where(eq(cardsInventory.storeId, storeId));
+    return Number(total?.n ?? 0) >= store.limit;
   }
 
   private async checkReferences(
