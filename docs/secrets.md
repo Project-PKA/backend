@@ -29,6 +29,7 @@ Um valor diferente em cada Environment. Nunca reutilize o de `prod` fora dele.
 | Nome | Tipo | Para quê | Como gerar |
 | --- | --- | --- | --- |
 | `DATABASE_URL` | secret | Conexão da **API em execução** com o Postgres, pelo papel `app_api` (grupo `app_runtime`, **sem** `BYPASSRLS`). É este papel que sofre o RLS | Montada com a senha do `app_api` |
+| `DB_BOT_PASSWORD` | secret | Senha do login do bot de WhatsApp (`bot_api`, grupo `bot_runtime`, sem BYPASSRLS). Opcional: sem ela a provisão não cria o login do bot | Gerador de senha, 24+ caracteres (`openssl rand -hex 32`) |
 | `DB_APP_PASSWORD` | secret | Senha do papel de login `app_api`, criado na provisão do ambiente (`CREATE ROLE app_api LOGIN ... IN ROLE app_runtime`) | Gerador de senha, 32+ caracteres |
 | `MIGRATION_DATABASE_URL` | secret | Conexão do **dono do schema** (com `BYPASSRLS`): só migrations, seed de desenvolvimento e `db:create-admin`, durante o deploy. A API em execução nunca a recebe | Montada com a senha do dono |
 | `DB_PASSWORD` | secret | Senha do dono do schema | Gerador de senha, 32+ caracteres |

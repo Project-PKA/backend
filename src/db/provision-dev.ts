@@ -17,10 +17,15 @@ if (url === undefined || url === '') {
 const name = process.env['DEV_API_ROLE'] ?? 'app_api';
 const password = process.env['DEV_API_PASSWORD'] ?? 'app_api';
 
+const botName = process.env['DEV_BOT_ROLE'] ?? 'bot_api';
+const botPassword = process.env['DEV_BOT_PASSWORD'] ?? 'bot_api';
+
 const pool = createPool(url);
 try {
   await provisionLoginRole(pool, { name, password });
   console.log(`Papel de login "${name}" pronto (grupo app_runtime).`);
+  await provisionLoginRole(pool, { name: botName, password: botPassword, group: 'bot_runtime' });
+  console.log(`Papel de login "${botName}" pronto (grupo bot_runtime, para o bot de WhatsApp).`);
 } finally {
   await pool.end();
 }

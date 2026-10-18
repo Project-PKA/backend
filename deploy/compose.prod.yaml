@@ -65,6 +65,7 @@ services:
     environment:
       MIGRATION_DATABASE_URL: postgresql://${DB_OWNER_USER:-owner}:${DB_OWNER_PASSWORD}@db:5432/${DB_NAME:-app}
       DB_APP_PASSWORD: ${DB_APP_PASSWORD:?defina DB_APP_PASSWORD}
+      DB_BOT_PASSWORD: ${DB_BOT_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
