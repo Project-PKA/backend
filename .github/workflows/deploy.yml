@@ -288,9 +288,14 @@ jobs:
           DEPLOY_ENV: ${{ needs.resolve.outputs.environment }}
           IMAGE: ${{ needs.resolve.outputs.image }}
           APP_BASE_URL: ${{ vars.APP_BASE_URL }}
-          # Repasse aqui os secrets/variables que scripts/deploy.sh usa.
-          # Ex.: KUBE_CONFIG, CLOUD_RUN_SERVICE, SSH_HOST, SSH_PRIVATE_KEY.
-          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          # Os que scripts/deploy.sh usa (VPS com docker compose por SSH; docs/secrets.md, seção 3).
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_USER: ${{ vars.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          GHCR_PULL_USER: ${{ vars.GHCR_PULL_USER }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
         run: make deploy
 
       - name: Smoke test (GET /health)

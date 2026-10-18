@@ -1,0 +1,132 @@
+# =============================================================================
+# compose de homolog e produção (VPS). NÃO é o `compose.yaml` da raiz: aquele é só de desenvolvimento.
+#
+# Vai para a VPS pelo `scripts/deploy.sh` (junto com o Caddyfile). A configuração real vem de dois
+# arquivos que ficam NA VPS e nunca passam pelo repositório:
+#   .env        segredos e variáveis do ambiente (modelo: deploy/env.example); o compose o lê
+#               para interpolar e a API só recebe o que está listado em `environment`
+#   image.env   a imagem implantada (IMAGE=ghcr.io/...:<sha>), escrita pelo deploy
+#
+# Só o Caddy publica porta (80 e 443). Postgres, Redis e a API ficam na rede interna.
+# =============================================================================
+name: pokemon-auction
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      # Dono do schema (superusuário do container): só as migrations e o provisionamento o usam.
+      # A API conecta como app_api, SEM BYPASSRLS (ADR 0011).
+      POSTGRES_USER: ${DB_OWNER_USER:-owner}
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD:?defina DB_OWNER_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-app}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_OWNER_USER:-owner} -d ${DB_NAME:-app}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD}", "--appendonly", "yes"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  # Roda as migrations com a MESMA imagem que vai ser implantada (perfil `tools`).
+  migrate:
+    image: ${IMAGE:?defina IMAGE}
+    profiles: [tools]
+    command: ["node", "dist/db/cli.js", "up"]
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://${DB_OWNER_USER:-owner}:${DB_OWNER_PASSWORD}@db:5432/${DB_NAME:-app}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal]
+
+  # Cria ou atualiza o papel de login da API (idempotente). Roda depois das migrations.
+  provision:
+    image: ${IMAGE:?defina IMAGE}
+    profiles: [tools]
+    command: ["node", "dist/db/provision-cli.js"]
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://${DB_OWNER_USER:-owner}:${DB_OWNER_PASSWORD}@db:5432/${DB_NAME:-app}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?defina DB_APP_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal]
+
+  api:
+    image: ${IMAGE:?defina IMAGE}
+    restart: unless-stopped
+    init: true
+    # Lista EXPLÍCITA (nada de env_file): a API não pode receber a senha do dono do schema nem a
+    # senha do backup. Variável opcional nova (RATE_LIMIT_*, CATALOG_LANGUAGES...) entra aqui.
+    environment:
+      PORT: "8080"
+      TRUST_PROXY: "true"
+      APP_ENV: ${APP_ENV:?defina APP_ENV}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:?defina APP_PUBLIC_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS:?defina CORS_ORIGINS}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-log}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina JWT_ACCESS_SECRET}
+      REFRESH_TOKEN_PEPPER: ${REFRESH_TOKEN_PEPPER:?defina REFRESH_TOKEN_PEPPER}
+      OTP_HASH_SECRET: ${OTP_HASH_SECRET:?defina OTP_HASH_SECRET}
+      DATABASE_URL: postgresql://app_api:${DB_APP_PASSWORD}@db:5432/${DB_NAME:-app}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Sem `ports`: só o Caddy fala com a API.
+    expose:
+      - "8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?defina APP_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    networks: [internal]
+
+volumes:
+  db_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:

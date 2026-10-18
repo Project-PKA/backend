@@ -1,0 +1,14 @@
+# Proxy reverso da API. O Caddy emite e renova o certificado HTTPS sozinho (precisa de DNS
+# apontando para a VPS e das portas 80 e 443 abertas).
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	# /metrics é só da rede interna (Prometheus): nunca na internet.
+	@metrics path /metrics /metrics/*
+	respond @metrics 404
+
+	# A API confia no X-Forwarded-For que o Caddy define (TRUST_PROXY=true).
+	reverse_proxy api:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}
