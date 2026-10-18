@@ -29,6 +29,8 @@ fila, API externa) e poucos testes de ponta a ponta pela API.
 
 ## O que já está coberto
 
+- **Clientes (Sprint 04):** validação de telefone, CPF e CEP (unitário), cadastro com telefone único por loja (inclusive simultâneo), visitante que vira cliente, CPF mascarado na resposta e fora do log, blacklist que bloqueia o lance, filtro de inativos, perfil (acertos e lances) e carteira de consignação com o líquido calculado. Acesso cruzado entre lojas em todas as rotas.
+
 - **Leilões (Sprint 05):** criar/editar/cancelar/estender, `place_bid` (incremento, blacklist, período, outra loja), 20 lances simultâneos (o maior vence, nenhum fura o incremento), mesmo valor simultâneo (só um passa), enquete no teto (pausa sem encerrar, aprovar e manter aberta), virada de relógio (abre, encerra, vencedor) e acesso cruzado entre lojas. O relógio é manipulado mexendo nas datas do leilão no banco.
 
 - **Catálogo e estoque (Sprint 03):** normalização de texto, cliente do TCGdex (host fixo, id inválido, resposta grande), sync idempotente que preserva a raridade e recusa resposta parcial, busca (acento, número, `%`), estoque com acesso cruzado entre lojas, código curto sob concorrência, edição e exclusão bloqueadas em leilão. O TCGdex é sempre falso nos testes (`fetch` injetado). O agendamento do BullMQ foi conferido à mão com um Redis em container; falta teste automatizado (precisaria de dependência de teste nova).

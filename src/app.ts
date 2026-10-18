@@ -11,6 +11,7 @@ import { collectDefaultMetrics, Registry } from 'prom-client';
 
 import type { EmailSender } from './auth/email.js';
 import { createAuthHooks } from './auth/hooks.js';
+import { CustomerService } from './customers/service.js';
 import { AuctionService } from './auctions/service.js';
 import { CatalogService } from './catalog/service.js';
 import { InventoryService } from './inventory/service.js';
@@ -23,6 +24,7 @@ import { errorHandler, notFoundHandler } from './http/problem.js';
 import { authRoutes } from './routes/auth.js';
 import { infraRoutes } from './routes/infra.js';
 import { activityRoutes } from './routes/activity.js';
+import { customerRoutes } from './routes/customers.js';
 import { auctionRoutes } from './routes/auctions.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { inventoryRoutes } from './routes/inventory.js';
@@ -53,6 +55,7 @@ export interface BuiltApp {
   catalog: CatalogService;
   inventory: InventoryService;
   auctions: AuctionService;
+  customers: CustomerService;
 }
 
 const TRACEPARENT = /^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/;
@@ -148,6 +151,10 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
         },
         { name: 'team', description: 'Equipe e convites da loja (só o proprietário altera)' },
         { name: 'catalog', description: 'Catálogo de cartas (busca e detalhe)' },
+        {
+          name: 'customers',
+          description: 'Clientes, visitantes, blacklist e carteira de consignação',
+        },
         { name: 'auctions', description: 'Leilões, lances e enquetes' },
         { name: 'inventory', description: 'Estoque da loja (cartas próprias e consignadas)' },
       ],
@@ -199,6 +206,18 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   inventoryRoutes(app, { hooks, inventory });
   const auctions = new AuctionService(deps.db, deps.now);
   auctionRoutes(app, { hooks, auctions });
+  const customers = new CustomerService(deps.db);
+  customerRoutes(app, { hooks, customers });
 
-  return { app, auth, invitations, stores: storesService, team, catalog, inventory, auctions };
+  return {
+    app,
+    auth,
+    invitations,
+    stores: storesService,
+    team,
+    catalog,
+    inventory,
+    auctions,
+    customers,
+  };
 }
