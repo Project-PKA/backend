@@ -3823,6 +3823,2951 @@ paths:
                     type: string
                   code:
                     type: string
+  /v1/auctions:
+    post:
+      operationId: createAuction
+      summary: Cria o leilão de uma carta (agendado, ou já em andamento se sem
+        start_time)
+      tags:
+        - auctions
+      description: 'Sem `start_time` o leilão abre agora. "Deixar para depois" é não
+        chamar esta rota: a carta segue disponível.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - card_id
+                - type
+                - end_time
+                - initial_bid
+                - min_increment
+              additionalProperties: false
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - FREE_BID
+                    - POLL
+                end_time:
+                  type: string
+                  format: date-time
+                initial_bid:
+                  type: string
+                  pattern: ^[0-9]{1,10}(\.[0-9]{1,2})?$
+                  description: 'Reais, ex.: "25.50"'
+                min_increment:
+                  type: string
+                  pattern: ^[0-9]{1,10}(\.[0-9]{1,2})?$
+                  description: 'Reais, ex.: "25.50"'
+                max_poll_value:
+                  type: string
+                  pattern: ^[0-9]{1,10}(\.[0-9]{1,2})?$
+                  description: Só enquete. Acima do lance inicial
+                  nullable: true
+                card_id:
+                  type: string
+                  format: uuid
+                start_time:
+                  type: string
+                  format: date-time
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: &a6
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - card
+                  - type
+                  - status
+                  - start_time
+                  - end_time
+                  - initial_bid
+                  - min_increment
+                  - max_poll_value
+                  - ceiling_alert
+                  - current_bid
+                  - bid_count
+                  - leader
+                  - winning_bid_id
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  card:
+                    type: object
+                    required:
+                      - id
+                      - short_code
+                      - language
+                      - condition
+                      - catalog
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      short_code:
+                        type: string
+                      language:
+                        type: string
+                      condition:
+                        type: string
+                      catalog:
+                        type: object
+                        required:
+                          - id
+                          - name
+                          - names
+                          - number
+                          - set_id
+                          - set_name
+                          - image_url
+                          - image_high_url
+                          - rarity
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          names:
+                            type: object
+                            additionalProperties:
+                              type: string
+                            description: Nome em cada idioma sincronizado
+                          number:
+                            type: string
+                          set_id:
+                            type: string
+                            nullable: true
+                          set_name:
+                            type: string
+                          image_url:
+                            type: string
+                            nullable: true
+                            description: Miniatura (origem do catálogo; não é copiada)
+                          image_high_url:
+                            type: string
+                            nullable: true
+                          rarity:
+                            type: string
+                            nullable: true
+                            description: Preenchida na primeira consulta da carta
+                  type:
+                    type: string
+                    enum:
+                      - FREE_BID
+                      - POLL
+                  status:
+                    type: string
+                    enum:
+                      - PENDING
+                      - ACTIVE
+                      - PAUSED_FOR_VALIDATION
+                      - FINISHED
+                      - CANCELLED
+                  start_time:
+                    type: string
+                    format: date-time
+                  end_time:
+                    type: string
+                    format: date-time
+                  initial_bid:
+                    type: string
+                  min_increment:
+                    type: string
+                  max_poll_value:
+                    type: string
+                    nullable: true
+                  ceiling_alert:
+                    type: boolean
+                    description: Enquete que atingiu o teto e espera o lojista
+                  current_bid:
+                    type: string
+                    nullable: true
+                  bid_count:
+                    type: integer
+                  leader:
+                    type: object
+                    nullable: true
+                    required:
+                      - id
+                      - name
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                  winning_bid_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+    get:
+      operationId: listAuctions
+      summary: Lista os leilões, do mais novo para o mais antigo
+      tags:
+        - auctions
+      parameters:
+        - schema:
+            type: string
+            maxLength: 300
+          in: query
+          name: cursor
+          required: false
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          in: query
+          name: limit
+          required: false
+        - schema:
+            type: string
+            enum:
+              - PENDING
+              - ACTIVE
+              - PAUSED_FOR_VALIDATION
+              - FINISHED
+              - CANCELLED
+          in: query
+          name: status
+          required: false
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a6
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - next_cursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - card
+                        - type
+                        - status
+                        - start_time
+                        - end_time
+                        - initial_bid
+                        - min_increment
+                        - max_poll_value
+                        - ceiling_alert
+                        - current_bid
+                        - bid_count
+                        - leader
+                        - winning_bid_id
+                        - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        card:
+                          type: object
+                          required:
+                            - id
+                            - short_code
+                            - language
+                            - condition
+                            - catalog
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            short_code:
+                              type: string
+                            language:
+                              type: string
+                            condition:
+                              type: string
+                            catalog:
+                              type: object
+                              required:
+                                - id
+                                - name
+                                - names
+                                - number
+                                - set_id
+                                - set_name
+                                - image_url
+                                - image_high_url
+                                - rarity
+                              properties:
+                                id:
+                                  type: string
+                                name:
+                                  type: string
+                                names:
+                                  type: object
+                                  additionalProperties:
+                                    type: string
+                                  description: Nome em cada idioma sincronizado
+                                number:
+                                  type: string
+                                set_id:
+                                  type: string
+                                  nullable: true
+                                set_name:
+                                  type: string
+                                image_url:
+                                  type: string
+                                  nullable: true
+                                  description: Miniatura (origem do catálogo; não é copiada)
+                                image_high_url:
+                                  type: string
+                                  nullable: true
+                                rarity:
+                                  type: string
+                                  nullable: true
+                                  description: Preenchida na primeira consulta da carta
+                        type:
+                          type: string
+                          enum:
+                            - FREE_BID
+                            - POLL
+                        status:
+                          type: string
+                          enum:
+                            - PENDING
+                            - ACTIVE
+                            - PAUSED_FOR_VALIDATION
+                            - FINISHED
+                            - CANCELLED
+                        start_time:
+                          type: string
+                          format: date-time
+                        end_time:
+                          type: string
+                          format: date-time
+                        initial_bid:
+                          type: string
+                        min_increment:
+                          type: string
+                        max_poll_value:
+                          type: string
+                          nullable: true
+                        ceiling_alert:
+                          type: boolean
+                          description: Enquete que atingiu o teto e espera o lojista
+                        current_bid:
+                          type: string
+                          nullable: true
+                        bid_count:
+                          type: integer
+                        leader:
+                          type: object
+                          nullable: true
+                          required:
+                            - id
+                            - name
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                        winning_bid_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+                  next_cursor:
+                    type: string
+                    nullable: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auctions/affected:
+    get:
+      operationId: listAffectedAuctions
+      summary: Leilões em andamento afetados por um WhatsApp desconectado
+      tags:
+        - auctions
+      description: Vazio quando o WhatsApp da loja está ONLINE. Lances enviados
+        durante a queda podem não ter sido registrados.
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a6
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - whatsapp_status
+                  - items
+                properties:
+                  whatsapp_status:
+                    type: string
+                    enum:
+                      - ONLINE
+                      - OFFLINE
+                      - QR_READY
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - card
+                        - type
+                        - status
+                        - start_time
+                        - end_time
+                        - initial_bid
+                        - min_increment
+                        - max_poll_value
+                        - ceiling_alert
+                        - current_bid
+                        - bid_count
+                        - leader
+                        - winning_bid_id
+                        - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        card:
+                          type: object
+                          required:
+                            - id
+                            - short_code
+                            - language
+                            - condition
+                            - catalog
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            short_code:
+                              type: string
+                            language:
+                              type: string
+                            condition:
+                              type: string
+                            catalog:
+                              type: object
+                              required:
+                                - id
+                                - name
+                                - names
+                                - number
+                                - set_id
+                                - set_name
+                                - image_url
+                                - image_high_url
+                                - rarity
+                              properties:
+                                id:
+                                  type: string
+                                name:
+                                  type: string
+                                names:
+                                  type: object
+                                  additionalProperties:
+                                    type: string
+                                  description: Nome em cada idioma sincronizado
+                                number:
+                                  type: string
+                                set_id:
+                                  type: string
+                                  nullable: true
+                                set_name:
+                                  type: string
+                                image_url:
+                                  type: string
+                                  nullable: true
+                                  description: Miniatura (origem do catálogo; não é copiada)
+                                image_high_url:
+                                  type: string
+                                  nullable: true
+                                rarity:
+                                  type: string
+                                  nullable: true
+                                  description: Preenchida na primeira consulta da carta
+                        type:
+                          type: string
+                          enum:
+                            - FREE_BID
+                            - POLL
+                        status:
+                          type: string
+                          enum:
+                            - PENDING
+                            - ACTIVE
+                            - PAUSED_FOR_VALIDATION
+                            - FINISHED
+                            - CANCELLED
+                        start_time:
+                          type: string
+                          format: date-time
+                        end_time:
+                          type: string
+                          format: date-time
+                        initial_bid:
+                          type: string
+                        min_increment:
+                          type: string
+                        max_poll_value:
+                          type: string
+                          nullable: true
+                        ceiling_alert:
+                          type: boolean
+                          description: Enquete que atingiu o teto e espera o lojista
+                        current_bid:
+                          type: string
+                          nullable: true
+                        bid_count:
+                          type: integer
+                        leader:
+                          type: object
+                          nullable: true
+                          required:
+                            - id
+                            - name
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                        winning_bid_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auctions/extend:
+    post:
+      operationId: extendAllAuctions
+      summary: Estende o fim de todos os leilões em andamento
+      tags:
+        - auctions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                minutes:
+                  type: integer
+                  minimum: 1
+                  maximum: 1440
+                  default: 30
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a6
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - extended
+                properties:
+                  extended:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auctions/{id}:
+    get:
+      operationId: getAuction
+      summary: "Sala de lances: o leilão e os lances (maior primeiro)"
+      tags:
+        - auctions
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a6
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - auction
+                  - bids
+                properties:
+                  auction:
+                    type: object
+                    required:
+                      - id
+                      - card
+                      - type
+                      - status
+                      - start_time
+                      - end_time
+                      - initial_bid
+                      - min_increment
+                      - max_poll_value
+                      - ceiling_alert
+                      - current_bid
+                      - bid_count
+                      - leader
+                      - winning_bid_id
+                      - created_at
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      card:
+                        type: object
+                        required:
+                          - id
+                          - short_code
+                          - language
+                          - condition
+                          - catalog
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          short_code:
+                            type: string
+                          language:
+                            type: string
+                          condition:
+                            type: string
+                          catalog:
+                            type: object
+                            required:
+                              - id
+                              - name
+                              - names
+                              - number
+                              - set_id
+                              - set_name
+                              - image_url
+                              - image_high_url
+                              - rarity
+                            properties:
+                              id:
+                                type: string
+                              name:
+                                type: string
+                              names:
+                                type: object
+                                additionalProperties:
+                                  type: string
+                                description: Nome em cada idioma sincronizado
+                              number:
+                                type: string
+                              set_id:
+                                type: string
+                                nullable: true
+                              set_name:
+                                type: string
+                              image_url:
+                                type: string
+                                nullable: true
+                                description: Miniatura (origem do catálogo; não é copiada)
+                              image_high_url:
+                                type: string
+                                nullable: true
+                              rarity:
+                                type: string
+                                nullable: true
+                                description: Preenchida na primeira consulta da carta
+                      type:
+                        type: string
+                        enum:
+                          - FREE_BID
+                          - POLL
+                      status:
+                        type: string
+                        enum:
+                          - PENDING
+                          - ACTIVE
+                          - PAUSED_FOR_VALIDATION
+                          - FINISHED
+                          - CANCELLED
+                      start_time:
+                        type: string
+                        format: date-time
+                      end_time:
+                        type: string
+                        format: date-time
+                      initial_bid:
+                        type: string
+                      min_increment:
+                        type: string
+                      max_poll_value:
+                        type: string
+                        nullable: true
+                      ceiling_alert:
+                        type: boolean
+                        description: Enquete que atingiu o teto e espera o lojista
+                      current_bid:
+                        type: string
+                        nullable: true
+                      bid_count:
+                        type: integer
+                      leader:
+                        type: object
+                        nullable: true
+                        required:
+                          - id
+                          - name
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          name:
+                            type: string
+                      winning_bid_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
+                  bids:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - amount
+                        - created_at
+                        - customer
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        amount:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        customer:
+                          type: object
+                          required:
+                            - id
+                            - name
+                            - phone_masked
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                            phone_masked:
+                              type: string
+                              description: Telefone com o miolo oculto
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+    patch:
+      operationId: updateAuction
+      summary: Edita ou reagenda o leilão
+      tags:
+        - auctions
+      description: "Pendente: qualquer campo. Em andamento: só `end_time`, e nunca
+        para antes de agora."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - FREE_BID
+                    - POLL
+                end_time:
+                  type: string
+                  format: date-time
+                initial_bid:
+                  type: string
+                  pattern: ^[0-9]{1,10}(\.[0-9]{1,2})?$
+                  description: 'Reais, ex.: "25.50"'
+                min_increment:
+                  type: string
+                  pattern: ^[0-9]{1,10}(\.[0-9]{1,2})?$
+                  description: 'Reais, ex.: "25.50"'
+                max_poll_value:
+                  type: string
+                  pattern: ^[0-9]{1,10}(\.[0-9]{1,2})?$
+                  description: Só enquete. Acima do lance inicial
+                  nullable: true
+                start_time:
+                  type: string
+                  format: date-time
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a6
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - card
+                  - type
+                  - status
+                  - start_time
+                  - end_time
+                  - initial_bid
+                  - min_increment
+                  - max_poll_value
+                  - ceiling_alert
+                  - current_bid
+                  - bid_count
+                  - leader
+                  - winning_bid_id
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  card:
+                    type: object
+                    required:
+                      - id
+                      - short_code
+                      - language
+                      - condition
+                      - catalog
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      short_code:
+                        type: string
+                      language:
+                        type: string
+                      condition:
+                        type: string
+                      catalog:
+                        type: object
+                        required:
+                          - id
+                          - name
+                          - names
+                          - number
+                          - set_id
+                          - set_name
+                          - image_url
+                          - image_high_url
+                          - rarity
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          names:
+                            type: object
+                            additionalProperties:
+                              type: string
+                            description: Nome em cada idioma sincronizado
+                          number:
+                            type: string
+                          set_id:
+                            type: string
+                            nullable: true
+                          set_name:
+                            type: string
+                          image_url:
+                            type: string
+                            nullable: true
+                            description: Miniatura (origem do catálogo; não é copiada)
+                          image_high_url:
+                            type: string
+                            nullable: true
+                          rarity:
+                            type: string
+                            nullable: true
+                            description: Preenchida na primeira consulta da carta
+                  type:
+                    type: string
+                    enum:
+                      - FREE_BID
+                      - POLL
+                  status:
+                    type: string
+                    enum:
+                      - PENDING
+                      - ACTIVE
+                      - PAUSED_FOR_VALIDATION
+                      - FINISHED
+                      - CANCELLED
+                  start_time:
+                    type: string
+                    format: date-time
+                  end_time:
+                    type: string
+                    format: date-time
+                  initial_bid:
+                    type: string
+                  min_increment:
+                    type: string
+                  max_poll_value:
+                    type: string
+                    nullable: true
+                  ceiling_alert:
+                    type: boolean
+                    description: Enquete que atingiu o teto e espera o lojista
+                  current_bid:
+                    type: string
+                    nullable: true
+                  bid_count:
+                    type: integer
+                  leader:
+                    type: object
+                    nullable: true
+                    required:
+                      - id
+                      - name
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                  winning_bid_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auctions/{id}/cancel:
+    post:
+      operationId: cancelAuction
+      summary: Cancela o leilão (pendente, em andamento ou aguardando validação)
+      tags:
+        - auctions
+      description: A carta volta a ficar disponível; os lances ficam no histórico.
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a6
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - card
+                  - type
+                  - status
+                  - start_time
+                  - end_time
+                  - initial_bid
+                  - min_increment
+                  - max_poll_value
+                  - ceiling_alert
+                  - current_bid
+                  - bid_count
+                  - leader
+                  - winning_bid_id
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  card:
+                    type: object
+                    required:
+                      - id
+                      - short_code
+                      - language
+                      - condition
+                      - catalog
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      short_code:
+                        type: string
+                      language:
+                        type: string
+                      condition:
+                        type: string
+                      catalog:
+                        type: object
+                        required:
+                          - id
+                          - name
+                          - names
+                          - number
+                          - set_id
+                          - set_name
+                          - image_url
+                          - image_high_url
+                          - rarity
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          names:
+                            type: object
+                            additionalProperties:
+                              type: string
+                            description: Nome em cada idioma sincronizado
+                          number:
+                            type: string
+                          set_id:
+                            type: string
+                            nullable: true
+                          set_name:
+                            type: string
+                          image_url:
+                            type: string
+                            nullable: true
+                            description: Miniatura (origem do catálogo; não é copiada)
+                          image_high_url:
+                            type: string
+                            nullable: true
+                          rarity:
+                            type: string
+                            nullable: true
+                            description: Preenchida na primeira consulta da carta
+                  type:
+                    type: string
+                    enum:
+                      - FREE_BID
+                      - POLL
+                  status:
+                    type: string
+                    enum:
+                      - PENDING
+                      - ACTIVE
+                      - PAUSED_FOR_VALIDATION
+                      - FINISHED
+                      - CANCELLED
+                  start_time:
+                    type: string
+                    format: date-time
+                  end_time:
+                    type: string
+                    format: date-time
+                  initial_bid:
+                    type: string
+                  min_increment:
+                    type: string
+                  max_poll_value:
+                    type: string
+                    nullable: true
+                  ceiling_alert:
+                    type: boolean
+                    description: Enquete que atingiu o teto e espera o lojista
+                  current_bid:
+                    type: string
+                    nullable: true
+                  bid_count:
+                    type: integer
+                  leader:
+                    type: object
+                    nullable: true
+                    required:
+                      - id
+                      - name
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                  winning_bid_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auctions/{id}/resolve:
+    post:
+      operationId: resolveAuctionPoll
+      summary: "Decide a enquete que atingiu o teto: aprovar o encerramento ou manter
+        aberta"
+      tags:
+        - auctions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - decision
+              additionalProperties: false
+              properties:
+                decision:
+                  type: string
+                  enum:
+                    - APPROVE
+                    - KEEP_OPEN
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a6
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - card
+                  - type
+                  - status
+                  - start_time
+                  - end_time
+                  - initial_bid
+                  - min_increment
+                  - max_poll_value
+                  - ceiling_alert
+                  - current_bid
+                  - bid_count
+                  - leader
+                  - winning_bid_id
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  card:
+                    type: object
+                    required:
+                      - id
+                      - short_code
+                      - language
+                      - condition
+                      - catalog
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      short_code:
+                        type: string
+                      language:
+                        type: string
+                      condition:
+                        type: string
+                      catalog:
+                        type: object
+                        required:
+                          - id
+                          - name
+                          - names
+                          - number
+                          - set_id
+                          - set_name
+                          - image_url
+                          - image_high_url
+                          - rarity
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          names:
+                            type: object
+                            additionalProperties:
+                              type: string
+                            description: Nome em cada idioma sincronizado
+                          number:
+                            type: string
+                          set_id:
+                            type: string
+                            nullable: true
+                          set_name:
+                            type: string
+                          image_url:
+                            type: string
+                            nullable: true
+                            description: Miniatura (origem do catálogo; não é copiada)
+                          image_high_url:
+                            type: string
+                            nullable: true
+                          rarity:
+                            type: string
+                            nullable: true
+                            description: Preenchida na primeira consulta da carta
+                  type:
+                    type: string
+                    enum:
+                      - FREE_BID
+                      - POLL
+                  status:
+                    type: string
+                    enum:
+                      - PENDING
+                      - ACTIVE
+                      - PAUSED_FOR_VALIDATION
+                      - FINISHED
+                      - CANCELLED
+                  start_time:
+                    type: string
+                    format: date-time
+                  end_time:
+                    type: string
+                    format: date-time
+                  initial_bid:
+                    type: string
+                  min_increment:
+                    type: string
+                  max_poll_value:
+                    type: string
+                    nullable: true
+                  ceiling_alert:
+                    type: boolean
+                    description: Enquete que atingiu o teto e espera o lojista
+                  current_bid:
+                    type: string
+                    nullable: true
+                  bid_count:
+                    type: integer
+                  leader:
+                    type: object
+                    nullable: true
+                    required:
+                      - id
+                      - name
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                  winning_bid_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auctions/{id}/extend:
+    post:
+      operationId: extendAuction
+      summary: Estende o fim de um leilão em andamento
+      tags:
+        - auctions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                minutes:
+                  type: integer
+                  minimum: 1
+                  maximum: 1440
+                  default: 30
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a6
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - card
+                  - type
+                  - status
+                  - start_time
+                  - end_time
+                  - initial_bid
+                  - min_increment
+                  - max_poll_value
+                  - ceiling_alert
+                  - current_bid
+                  - bid_count
+                  - leader
+                  - winning_bid_id
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  card:
+                    type: object
+                    required:
+                      - id
+                      - short_code
+                      - language
+                      - condition
+                      - catalog
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      short_code:
+                        type: string
+                      language:
+                        type: string
+                      condition:
+                        type: string
+                      catalog:
+                        type: object
+                        required:
+                          - id
+                          - name
+                          - names
+                          - number
+                          - set_id
+                          - set_name
+                          - image_url
+                          - image_high_url
+                          - rarity
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          names:
+                            type: object
+                            additionalProperties:
+                              type: string
+                            description: Nome em cada idioma sincronizado
+                          number:
+                            type: string
+                          set_id:
+                            type: string
+                            nullable: true
+                          set_name:
+                            type: string
+                          image_url:
+                            type: string
+                            nullable: true
+                            description: Miniatura (origem do catálogo; não é copiada)
+                          image_high_url:
+                            type: string
+                            nullable: true
+                          rarity:
+                            type: string
+                            nullable: true
+                            description: Preenchida na primeira consulta da carta
+                  type:
+                    type: string
+                    enum:
+                      - FREE_BID
+                      - POLL
+                  status:
+                    type: string
+                    enum:
+                      - PENDING
+                      - ACTIVE
+                      - PAUSED_FOR_VALIDATION
+                      - FINISHED
+                      - CANCELLED
+                  start_time:
+                    type: string
+                    format: date-time
+                  end_time:
+                    type: string
+                    format: date-time
+                  initial_bid:
+                    type: string
+                  min_increment:
+                    type: string
+                  max_poll_value:
+                    type: string
+                    nullable: true
+                  ceiling_alert:
+                    type: boolean
+                    description: Enquete que atingiu o teto e espera o lojista
+                  current_bid:
+                    type: string
+                    nullable: true
+                  bid_count:
+                    type: integer
+                  leader:
+                    type: object
+                    nullable: true
+                    required:
+                      - id
+                      - name
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                  winning_bid_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/auctions/{id}/bids:
+    post:
+      operationId: registerBid
+      summary: Registra um lance manualmente (a regra é a mesma que o bot usa)
+      tags:
+        - auctions
+      description: Recusas voltam como `problem+json` com `code` `BID_<MOTIVO>`; em
+        `BID_BID_TOO_LOW` o `detail` traz o valor mínimo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - customer_id
+                - amount
+              additionalProperties: false
+              properties:
+                customer_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: string
+                  pattern: ^[0-9]{1,10}(\.[0-9]{1,2})?$
+                  description: 'Reais, ex.: "25.50"'
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a6
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - bid_id
+                  - amount
+                  - auction_status
+                  - ceiling_reached
+                properties:
+                  bid_id:
+                    type: string
+                    format: uuid
+                  amount:
+                    type: string
+                  auction_status:
+                    type: string
+                    enum:
+                      - PENDING
+                      - ACTIVE
+                      - PAUSED_FOR_VALIDATION
+                      - FINISHED
+                      - CANCELLED
+                  ceiling_reached:
+                    type: boolean
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
 tags:
   - name: infra
     description: Health check, readiness e métricas
@@ -3836,5 +6781,7 @@ tags:
     description: Equipe e convites da loja (só o proprietário altera)
   - name: catalog
     description: Catálogo de cartas (busca e detalhe)
+  - name: auctions
+    description: Leilões, lances e enquetes
   - name: inventory
     description: Estoque da loja (cartas próprias e consignadas)

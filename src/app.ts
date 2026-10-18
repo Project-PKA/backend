@@ -11,6 +11,7 @@ import { collectDefaultMetrics, Registry } from 'prom-client';
 
 import type { EmailSender } from './auth/email.js';
 import { createAuthHooks } from './auth/hooks.js';
+import { AuctionService } from './auctions/service.js';
 import { CatalogService } from './catalog/service.js';
 import { InventoryService } from './inventory/service.js';
 import { createTcgdexClient, type TcgdexClient } from './catalog/tcgdex.js';
@@ -22,6 +23,7 @@ import { errorHandler, notFoundHandler } from './http/problem.js';
 import { authRoutes } from './routes/auth.js';
 import { infraRoutes } from './routes/infra.js';
 import { activityRoutes } from './routes/activity.js';
+import { auctionRoutes } from './routes/auctions.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { meRoutes } from './routes/me.js';
@@ -50,6 +52,7 @@ export interface BuiltApp {
   team: TeamService;
   catalog: CatalogService;
   inventory: InventoryService;
+  auctions: AuctionService;
 }
 
 const TRACEPARENT = /^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/;
@@ -145,6 +148,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
         },
         { name: 'team', description: 'Equipe e convites da loja (só o proprietário altera)' },
         { name: 'catalog', description: 'Catálogo de cartas (busca e detalhe)' },
+        { name: 'auctions', description: 'Leilões, lances e enquetes' },
         { name: 'inventory', description: 'Estoque da loja (cartas próprias e consignadas)' },
       ],
       components: {
@@ -193,6 +197,8 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   catalogRoutes(app, { hooks, catalog });
   const inventory = new InventoryService(deps.db);
   inventoryRoutes(app, { hooks, inventory });
+  const auctions = new AuctionService(deps.db, deps.now);
+  auctionRoutes(app, { hooks, auctions });
 
-  return { app, auth, invitations, stores: storesService, team, catalog, inventory };
+  return { app, auth, invitations, stores: storesService, team, catalog, inventory, auctions };
 }
