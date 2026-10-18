@@ -17,7 +17,7 @@ leilões, acertos, dashboards, e o **dono único do schema do banco**.
 
 O que **não** está aqui:
 
-- A conversa com o WhatsApp (Baileys, sessões por QR Code, leitura de lances,
+- A conversa com o WhatsApp (neonize em Python, sessões por QR Code, leitura de lances,
   abertura e fechamento no horário): é o `Project-PKA/whatsapp_microservice`.
   Ele usa este mesmo banco, com role própria.
 - A interface web: `Project-PKA/frontend_web` (ainda não iniciada).

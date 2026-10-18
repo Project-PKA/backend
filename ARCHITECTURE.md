@@ -59,7 +59,7 @@ C4Container
 
     Person(lojista, "Lojista / Funcionário")
     Container_Ext(web, "frontend_web", "A decidir", "Painel do lojista")
-    Container_Ext(bot, "whatsapp_microservice", "Node.js + Baileys", "Sessões de WhatsApp")
+    Container_Ext(bot, "whatsapp_microservice", "Python + neonize", "Sessões de WhatsApp (adiado)")
     System_Boundary(s1, "Backend") {
         Container(api, "API", "Node.js 22, TypeScript, Fastify 5", "Rotas /v1, /health, /ready, /metrics")
         Container(worker, "Jobs", "BullMQ", "Sync TCGdex (03:00), limpeza de inativos (ainda não ligado)")
@@ -446,7 +446,7 @@ ADRs do [`shared`](https://github.com/Project-PKA/shared/tree/main/docs/adr)
 | 2026-10-17 | Drizzle com migrations SQL à mão (`up`/`down`) | Tipos do schema e SQL real para `pg_trgm`/GIN; regra do template exige `down` | Prisma (sem `down`) |
 | 2026-10-17 | BullMQ + Redis para jobs | Retry e reexecução do sync do TCGdex | `node-cron` |
 | 2026-10-17 | `short_code` sem `#` no banco | O `#` é só o prefixo da mensagem no grupo | Guardar com `#` |
-| 2026-10-17 | Lock da linha do leilão para decidir lances | Regra no código, simples de testar; o banco garante unicidade do valor | Trigger em PL/pgSQL |
+| 2026-10-17 | Decisão de lance numa função do banco (`place_bid`) com trava da linha do leilão | Bot em Python e API em Node: a regra existe uma vez só, no dado ([ADR 0016](https://github.com/Project-PKA/shared/blob/main/docs/adr/0016-decisao-de-lance-em-funcao-do-banco.md)) | Mesma regra escrita em duas linguagens; trigger |
 | 2026-10-17 | Acesso por convite e administrador da plataforma limitado pelo RLS | O adendo do design proíbe cadastro aberto; a fronteira do admin precisa valer no banco | Admin com acesso total às lojas |
 | 2026-10-17 | Páginas públicas só por funções `SECURITY DEFINER` e token de alta entropia | Não afrouxar o RLS para o público; dado mínimo | Rotas públicas lendo as tabelas direto |
 | 2026-10-17 | Link do consignador por consignador e loja, chave de 4 dígitos do CPF só como 2º fator | A chave sozinha tem 10 mil combinações | Chave de 4 dígitos como única proteção (desenho original) |

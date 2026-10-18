@@ -72,7 +72,7 @@ padrão**, "cartas sem leilão" (derivado), detalhe com histórico, upload de fo
 **Etapa 4: clientes.** Base, visitantes, blacklist, inatividade, perfil 360 e
 **carteira de consignação**. Geração do link do consignador fica na Etapa 6.
 
-**Etapa 5: leilões e bot.** Criação a partir do cadastro da carta (**agendar,
+**Etapa 5: leilões e bot.** O bot é **Python + neonize** e fica **adiado** até haver conta de WhatsApp para testar ([ADR 0015](https://github.com/Project-PKA/shared/blob/main/docs/adr/0015-bot-em-python-com-neonize.md)); o motor de leilões e a função `place_bid` ([ADR 0016](https://github.com/Project-PKA/shared/blob/main/docs/adr/0016-decisao-de-lance-em-funcao-do-banco.md)) seguem no Backend e são testados sem WhatsApp. Criação a partir do cadastro da carta (**agendar,
 lançar agora ou deixar para depois**), editar e cancelar, **aprovar enquete**
 (aprovar encerramento ou manter aberto), **estender leilões** (+30 min por linha
 e "estender todos"), decisão de lance com lock da linha do leilão, e o alerta
