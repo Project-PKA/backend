@@ -40,6 +40,10 @@ updates:
     commit-message:
       prefix: build
       include: scope
+    ignore:
+      # A versão major do Node acompanha o `.tool-versions` e o `engines`: troca com decisão, não por bot.
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
 
   # ---- Descomente o da stack escolhida ---------------------------------------
   # Pacotes de producao com `chore`, e agrupados por tipo para reduzir ruido.
@@ -55,6 +59,16 @@ updates:
       prefix: chore
       prefix-development: chore
       include: scope
+    ignore:
+      # Majors que a stack ainda não aceita (STACK.md): trocar com teste e decisão, não por bot.
+      - dependency-name: typescript        # typescript-eslint ainda não aceita o 7
+        update-types: ['version-update:semver-major']
+      - dependency-name: eslint            # os plugins (sonarjs, typescript-eslint) ainda não aceitam o 10
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/node'     # precisa acompanhar o Node do runtime (22)
+        update-types: ['version-update:semver-major']
     groups:
       dev-tooling:
         dependency-type: development
