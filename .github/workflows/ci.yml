@@ -47,10 +47,8 @@ jobs:
     with:
       contract-path: docs/api/openapi.yaml
       docker: true
-      # SonarCloud DESLIGADO de proposito (decisao do dono, 2026-10-17): ainda nao ha conta
-      # nem SONAR_TOKEN. Reativar = apagar a linha `sonar: false`, criar o secret e
-      # preencher sonar-project.properties (issue Backend#6; shared/OWNER.md, A4).
-      sonar: false
+      # SonarCloud ligado (organizacao e projeto em sonar-project.properties). Precisa do secret
+      # SONAR_TOKEN e da "Automatic Analysis" desligada no SonarCloud (shared/OWNER.md, A4).
       # Java/Kotlin: o scanner do Sonar exige os binarios compilados.
       sonar-needs-build: false
     secrets:
