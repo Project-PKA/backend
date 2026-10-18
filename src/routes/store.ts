@@ -39,6 +39,7 @@ const storeResponse = {
     name: { type: 'string' },
     whatsapp_status: { type: 'string', enum: ['ONLINE', 'OFFLINE', 'QR_READY'] },
     inactivity_days_limit: { type: 'integer', nullable: true },
+    pix_key: { type: 'string', nullable: true, description: 'Chave PIX mostrada ao comprador' },
   },
 } as const;
 
@@ -99,6 +100,7 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
         name: result.store.name,
         whatsapp_status: result.store.whatsappStatus,
         inactivity_days_limit: result.store.inactivityDaysLimit,
+        pix_key: result.store.pixKey,
         role: 'OWNER',
       });
     },
@@ -142,6 +144,7 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
         name: store.name,
         whatsapp_status: store.whatsappStatus,
         inactivity_days_limit: store.inactivityDaysLimit,
+        pix_key: store.pixKey,
         role: tenant.role,
         permissions: tenant.permissions,
       };
@@ -171,6 +174,7 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
               maximum: 3650,
               description: 'Dias sem interação até o bot remover o membro do grupo. `null` desliga',
             },
+            pix_key: { type: 'string', nullable: true, minLength: 1, maxLength: 140 },
           },
         },
         response: {
@@ -184,7 +188,11 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
       const auth = request.auth;
       const tenant = request.tenant;
       if (auth === null || tenant === null) throw new Error('hooks não definiram o contexto');
-      const body = request.body as { name?: string; inactivity_days_limit?: number | null };
+      const body = request.body as {
+        name?: string;
+        inactivity_days_limit?: number | null;
+        pix_key?: string | null;
+      };
       const updated = await storesService.update(
         { storeId: tenant.storeId, userId: auth.userId },
         {
@@ -192,6 +200,7 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
           ...(body.inactivity_days_limit === undefined
             ? {}
             : { inactivityDaysLimit: body.inactivity_days_limit }),
+          ...(body.pix_key === undefined ? {} : { pixKey: body.pix_key }),
         },
       );
       if (updated === null) throw new Error('loja do contexto não encontrada');
@@ -200,6 +209,7 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
         name: updated.name,
         whatsapp_status: updated.whatsappStatus,
         inactivity_days_limit: updated.inactivityDaysLimit,
+        pix_key: updated.pixKey,
       };
     },
   );

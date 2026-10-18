@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { eq, sql } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type pg from 'pg';
@@ -36,6 +38,7 @@ export const KIND = {
   settlement: 8,
   item: 9,
   shipment: 13,
+  link: 14,
   token: 10,
   invitation: 11,
   activity: 12,
@@ -58,6 +61,9 @@ export const SEED_IDS = {
 } as const;
 
 const TABLES_TO_CLEAR = [
+  'public_links',
+  'lgpd_consents',
+  'public_ip_failures',
   'shipments',
   'activity_log',
   'invitations',
@@ -223,6 +229,8 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
     'auctions',
     'settlements',
     'shipments',
+    'public_links',
+    'lgpd_consents',
   ];
   for (const table of created) {
     await db.execute(sql.raw(`UPDATE ${table} SET created_at = '${SEED_TIME}'`));
@@ -311,6 +319,7 @@ async function insertAll(db: Tx): Promise<void> {
       whatsappGroupId: '120363000000000001@g.us',
       whatsappStatus: 'ONLINE',
       inactivityDaysLimit: 30,
+      pixKey: 'pix@cartasdoze.example.com',
     },
     { id: SEED_IDS.storeB, name: 'Pokémon Açaí', whatsappStatus: 'QR_READY' },
     { id: SEED_IDS.storeC, name: 'Loja Isolada', whatsappStatus: 'OFFLINE' },
@@ -739,6 +748,56 @@ async function insertAuctions(db: Tx): Promise<void> {
   }
 
   await insertSettlements(db);
+  await insertPublicLinks(db);
+}
+
+/**
+ * Tokens FIXOS, só para desenvolvimento (43 caracteres, como os reais). Nunca existem em produção: o
+ * seed recusa rodar fora de local, dev e test.
+ */
+export const SEED_LINK_TOKENS = {
+  settlement: 'dev-settlement-link-token'.padEnd(43, 'A'),
+  revokedSettlement: 'dev-revoked-link-token'.padEnd(43, 'B'),
+  consignor: 'dev-consignor-link-token'.padEnd(43, 'C'),
+} as const;
+
+const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
+
+async function insertPublicLinks(db: Tx): Promise<void> {
+  const A = SEED_IDS.storeA;
+  await db.insert(schema.publicLinks).values([
+    // Acerto pendente do cliente 17.
+    {
+      id: uid(KIND.link, 1),
+      storeId: A,
+      kind: 'SETTLEMENT',
+      settlementId: uid(KIND.settlement, 2),
+      tokenHash: sha256(SEED_LINK_TOKENS.settlement),
+      expiresAt: at('2098-01-01T00:00:00Z'),
+      createdBy: SEED_IDS.userOwner,
+    },
+    // Revogado.
+    {
+      id: uid(KIND.link, 2),
+      storeId: A,
+      kind: 'SETTLEMENT',
+      settlementId: uid(KIND.settlement, 1),
+      tokenHash: sha256(SEED_LINK_TOKENS.revokedSettlement),
+      expiresAt: at('2098-01-01T00:00:00Z'),
+      revokedAt: at('2026-09-10T00:00:00Z'),
+      createdBy: SEED_IDS.userOwner,
+    },
+    // Consignador (cliente 1: a chave são os 4 primeiros dígitos do CPF, "0000").
+    {
+      id: uid(KIND.link, 3),
+      storeId: A,
+      kind: 'CONSIGNOR',
+      customerId: uid(KIND.customer, 1),
+      tokenHash: sha256(SEED_LINK_TOKENS.consignor),
+      expiresAt: at('2098-01-01T00:00:00Z'),
+      createdBy: SEED_IDS.userOwner,
+    },
+  ]);
 }
 
 async function insertSettlements(db: Tx): Promise<void> {

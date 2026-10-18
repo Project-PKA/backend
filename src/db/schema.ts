@@ -11,6 +11,7 @@ import {
   boolean,
   foreignKey,
   index,
+  inet,
   integer,
   jsonb,
   numeric,
@@ -42,6 +43,7 @@ export const auctionStatus = pgEnum('auction_status', [
   'CANCELLED',
 ]);
 export const settlementStatus = pgEnum('settlement_status', ['PENDING', 'PAID']);
+export const publicLinkKind = pgEnum('public_link_kind', ['SETTLEMENT', 'CONSIGNOR']);
 export const shipmentStatus = pgEnum('shipment_status', ['TO_SHIP', 'SHIPPED', 'DELIVERED']);
 export const userStatus = pgEnum('user_status', ['INVITED', 'ACTIVE', 'SUSPENDED']);
 export const invitationStatus = pgEnum('invitation_status', ['PENDING', 'ACCEPTED', 'REVOKED']);
@@ -95,6 +97,8 @@ export const stores = pgTable('stores', {
   whatsappGroupId: text('whatsapp_group_id'),
   whatsappStatus: whatsappStatus('whatsapp_status').notNull().default('OFFLINE'),
   inactivityDaysLimit: integer('inactivity_days_limit'),
+  /** Chave PIX mostrada ao comprador na página do acerto. */
+  pixKey: text('pix_key'),
   createdAt: createdAt(),
 });
 
@@ -399,6 +403,80 @@ export const shipments = pgTable(
     index('shipments_store_status_idx').on(t.storeId, t.status),
   ],
 );
+
+// --- Páginas públicas (0015) -------------------------------------------------
+/** Link público (acerto do comprador ou acompanhamento do consignador). O token só existe em hash. */
+export const publicLinks = pgTable(
+  'public_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    storeId: uuid('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    kind: publicLinkKind('kind').notNull(),
+    settlementId: uuid('settlement_id'),
+    customerId: uuid('customer_id'),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    failedAttempts: integer('failed_attempts').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('public_links_id_store_key').on(t.id, t.storeId),
+    unique('public_links_token_hash_key').on(t.tokenHash),
+    foreignKey({
+      name: 'public_links_settlement_fkey',
+      columns: [t.settlementId, t.storeId],
+      foreignColumns: [settlements.id, settlements.storeId],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'public_links_customer_fkey',
+      columns: [t.customerId, t.storeId],
+      foreignColumns: [customers.id, customers.storeId],
+    }),
+    index('public_links_store_kind_idx').on(t.storeId, t.kind, t.createdAt),
+  ],
+);
+
+/** Consentimento LGPD de quem preenche o acerto: quem, quando, versão do texto e IP. */
+export const lgpdConsents = pgTable(
+  'lgpd_consents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    storeId: uuid('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    customerId: uuid('customer_id').notNull(),
+    settlementId: uuid('settlement_id').notNull(),
+    textVersion: text('text_version').notNull(),
+    ip: inet('ip'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'lgpd_consents_customer_fkey',
+      columns: [t.customerId, t.storeId],
+      foreignColumns: [customers.id, customers.storeId],
+    }),
+    foreignKey({
+      name: 'lgpd_consents_settlement_fkey',
+      columns: [t.settlementId, t.storeId],
+      foreignColumns: [settlements.id, settlements.storeId],
+    }).onDelete('cascade'),
+    index('lgpd_consents_customer_idx').on(t.customerId),
+  ],
+);
+
+/** Falhas de acesso público por IP (em hash). Sem nenhum grant: só as funções do banco usam. */
+export const publicIpFailures = pgTable('public_ip_failures', {
+  ipHash: text('ip_hash').primaryKey(),
+  failures: integer('failures').notNull().default(0),
+  windowStartedAt: timestamp('window_started_at', { withTimezone: true }).notNull().defaultNow(),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+});
 
 // --- Log de atividades (0010) ---------------------------------------------------
 /** Imutável para a aplicação (só INSERT e SELECT) e legível só pelo proprietário. */
