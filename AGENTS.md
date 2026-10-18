@@ -3,6 +3,10 @@
 Contexto para pessoas e agentes de IA que trabalham neste repositório. Leia
 inteiro antes de mexer em qualquer coisa.
 
+> **Leia antes, no `shared`:** [`OWNER.md`](https://github.com/Project-PKA/shared/blob/main/OWNER.md)
+> é o canal com o dono: decisões e ações que ele ainda precisa tomar. Se um item de lá
+> bloqueia a sua tarefa, pare e avise; não escolha por ele. O que depender do dono se escreve lá.
+
 ## 1. Visão geral
 
 **pokemonAuction** (nome provisório) é um SaaS B2B multi-tenant para lojistas
