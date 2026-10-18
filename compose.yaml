@@ -22,6 +22,22 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    # Senha mesmo em desenvolvimento, para o código nunca depender de Redis aberto.
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-app}", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-app}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   app:
     profiles: [app]
     build: .
@@ -34,9 +50,13 @@ services:
       # Dentro da rede do compose o banco é "db", não "localhost". A API usa o papel
       # app_api (sem BYPASSRLS), para o RLS valer. Crie-o antes: `npm run db:provision-dev`.
       DATABASE_URL: postgresql://${DB_APP_USER:-app_api}:${DB_APP_PASSWORD:-app_api}@db:5432/${DB_NAME:-app}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-app}@redis:6379
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:
   db_data:
+  redis_data:
