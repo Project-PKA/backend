@@ -1,5 +1,6 @@
 import { buildApp } from './app.js';
-import { LogEmailSender } from './auth/email.js';
+import { LogEmailSender, type EmailSender } from './auth/email.js';
+import { SmtpEmailSender } from './auth/smtp.js';
 import { loadEnv } from './config/env.js';
 import { checkDatabase, createPool } from './db/client.js';
 import { createTcgdexClient } from './catalog/tcgdex.js';
@@ -15,7 +16,10 @@ const db = createDb(pool);
 // O provedor "log" só existe em desenvolvimento (loadEnv recusa em homolog e prod).
 // eslint-disable-next-line prefer-const -- o logger do app só existe depois de montá-lo
 let built: Awaited<ReturnType<typeof buildApp>>;
-const email = new LogEmailSender(() => built.app.log);
+const email: EmailSender =
+  env.smtp === null
+    ? new LogEmailSender(() => built.app.log)
+    : new SmtpEmailSender(env.smtp, () => built.app.log);
 let jobs: CatalogJobs | undefined;
 let auctionJobs: { close: () => Promise<void> } | undefined;
 let maintenanceJobs: { close: () => Promise<void> } | undefined;

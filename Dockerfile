@@ -49,6 +49,10 @@ COPY --chown=node:node package.json ./
 # O deploy roda as migrations com ESTA imagem: `node dist/db/cli.js up`.
 COPY --chown=node:node migrations ./migrations
 
+# Pasta dos arquivos enviados (volume em runtime). Criada aqui para o volume herdar o dono `node`.
+RUN mkdir -p /app/storage && chown node:node /app/storage
+ENV STORAGE_DIR=/app/storage
+
 # Usuário não root (a imagem oficial do Node já traz `node`, uid 1000).
 USER node
 

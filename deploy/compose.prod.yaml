@@ -84,6 +84,12 @@ services:
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:?defina APP_PUBLIC_URL}
       CORS_ORIGINS: ${CORS_ORIGINS:?defina CORS_ORIGINS}
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-log}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      STORAGE_DIR: /app/storage
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina JWT_ACCESS_SECRET}
       REFRESH_TOKEN_PEPPER: ${REFRESH_TOKEN_PEPPER:?defina REFRESH_TOKEN_PEPPER}
       OTP_HASH_SECRET: ${OTP_HASH_SECRET:?defina OTP_HASH_SECRET}
@@ -94,6 +100,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # Fotos das cartas e comprovantes: ficam neste volume, no disco da VPS (entram no backup.sh).
+    volumes:
+      - storage_data:/app/storage
     # Sem `ports`: só o Caddy fala com a API.
     expose:
       - "8080"
@@ -125,6 +134,7 @@ services:
 volumes:
   db_data:
   redis_data:
+  storage_data:
   caddy_data:
   caddy_config:
 

@@ -11,12 +11,14 @@ import type {
   InventoryService,
   UpdateCardInput,
 } from '../inventory/service.js';
+import { MAX_PHOTO_BYTES, MAX_PHOTOS_PER_CARD, type PhotoService } from '../inventory/photos.js';
 import { catalogCardSchema, toCatalogJson } from './catalog.js';
 import { storeHeader } from './store.js';
 
 export interface InventoryRouteDeps {
   hooks: AuthHooks;
   inventory: InventoryService;
+  photos: PhotoService;
 }
 
 const security = [{ bearerAuth: [] }];
@@ -169,18 +171,18 @@ function sendFailure(
   return sendProblem(reply, buildProblem(status, detail, code));
 }
 
+function contextOf(request: { auth: unknown; tenant: unknown }) {
+  const auth = request.auth as { userId: string } | null;
+  const tenant = request.tenant as { storeId: string } | null;
+  if (auth === null || tenant === null) throw new Error('hooks não definiram o contexto');
+  return { storeId: tenant.storeId, userId: auth.userId };
+}
+
 export function inventoryRoutes(app: FastifyInstance, deps: InventoryRouteDeps): void {
-  const { hooks, inventory } = deps;
+  const { hooks, inventory, photos } = deps;
   const member = [hooks.authenticate, hooks.requireStore];
   const manage = [...member, hooks.requirePermission('can_manage_inventory')];
   const erase = [...member, hooks.requirePermission('can_delete')];
-
-  const contextOf = (request: { auth: unknown; tenant: unknown }) => {
-    const auth = request.auth as { userId: string } | null;
-    const tenant = request.tenant as { storeId: string } | null;
-    if (auth === null || tenant === null) throw new Error('hooks não definiram o contexto');
-    return { storeId: tenant.storeId, userId: auth.userId };
-  };
 
   app.post(
     '/v1/cards',
@@ -418,6 +420,154 @@ export function inventoryRoutes(app: FastifyInstance, deps: InventoryRouteDeps):
       const { id } = request.params as { id: string };
       const result = await inventory.remove(contextOf(request), id);
       if (!result.ok) return sendFailure(reply, result.reason);
+      await photos.discard(contextOf(request).storeId, id, result.photos);
+      return reply.status(204).send();
+    },
+  );
+
+  app.register((scope, _options, done) => {
+    photoRoutes(scope, { hooks, photos });
+    done();
+  });
+}
+
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const photoParams = {
+  type: 'object',
+  required: ['id', 'photoId'],
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    photoId: { type: 'string', pattern: '^[0-9a-f-]{36}\\.(jpg|png|webp)$' },
+  },
+} as const;
+
+const photoNotFound = (reply: FastifyReply) =>
+  sendProblem(reply, buildProblem(404, 'Foto não encontrada', 'PHOTO_NOT_FOUND'));
+
+/**
+ * Fotos da carta. O corpo é a imagem crua (sem multipart): `PUT` com `Content-Type` image/jpeg,
+ * image/png ou image/webp. O tipo real vem dos primeiros bytes; o nome é gerado aqui.
+ * Fica em escopo próprio para o parser de imagem e o limite de 5 MB valerem só nestas rotas.
+ */
+function photoRoutes(app: FastifyInstance, deps: { hooks: AuthHooks; photos: PhotoService }): void {
+  const { hooks, photos } = deps;
+  const member = [hooks.authenticate, hooks.requireStore];
+  const manage = [...member, hooks.requirePermission('can_manage_inventory')];
+
+  // Só imagem: sem JSON nem texto nestas rotas (o texto viraria string em vez de Buffer).
+  app.removeAllContentTypeParsers();
+  app.addContentTypeParser(
+    IMAGE_TYPES,
+    { parseAs: 'buffer', bodyLimit: MAX_PHOTO_BYTES },
+    (_request, body, done) => {
+      done(null, body);
+    },
+  );
+
+  app.put(
+    '/v1/cards/:id/photos',
+    {
+      preValidation: manage,
+      bodyLimit: MAX_PHOTO_BYTES,
+      schema: {
+        operationId: 'addCardPhoto',
+        tags: ['inventory'],
+        summary: `Envia uma foto da carta (corpo = a imagem; até ${String(MAX_PHOTOS_PER_CARD)} por carta)`,
+        description:
+          'Corpo binário `image/jpeg`, `image/png` ou `image/webp`, até 5 MB. O tipo é conferido pelo conteúdo.',
+        security,
+        headers: storeHeader,
+        params: uuidParams,
+        response: {
+          201: {
+            type: 'object',
+            required: ['photo', 'photos'],
+            properties: {
+              photo: { type: 'string', description: 'Id da foto recém-enviada' },
+              photos: { type: 'array', items: { type: 'string' } },
+            },
+          },
+          400: problemSchema,
+          401: problemSchema,
+          403: problemSchema,
+          404: problemSchema,
+          409: problemSchema,
+          413: problemSchema,
+          415: problemSchema,
+          422: problemSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const result = await photos.add(contextOf(request), id, request.body as Buffer);
+      if (result.ok) {
+        return reply.status(201).send({ photo: result.photoId, photos: result.photos });
+      }
+      if (result.reason === 'NOT_FOUND') {
+        return sendProblem(reply, buildProblem(404, 'Carta não encontrada', 'CARD_NOT_FOUND'));
+      }
+      if (result.reason === 'PHOTO_LIMIT') {
+        const detail = `A carta já tem ${String(MAX_PHOTOS_PER_CARD)} fotos`;
+        return sendProblem(reply, buildProblem(409, detail, 'PHOTO_LIMIT_REACHED'));
+      }
+      return sendProblem(
+        reply,
+        buildProblem(422, 'O arquivo não é uma imagem JPEG, PNG ou WebP', 'PHOTO_INVALID'),
+      );
+    },
+  );
+
+  app.get(
+    '/v1/cards/:id/photos/:photoId',
+    {
+      preValidation: member,
+      schema: {
+        operationId: 'getCardPhoto',
+        tags: ['inventory'],
+        summary: 'Baixa uma foto da carta (exige login e a loja da carta)',
+        security,
+        headers: storeHeader,
+        params: photoParams,
+        response: { 401: problemSchema, 403: problemSchema, 404: problemSchema },
+      },
+    },
+    async (request, reply) => {
+      const { id, photoId } = request.params as { id: string; photoId: string };
+      const result = await photos.read(contextOf(request), id, photoId);
+      if (!result.ok) return photoNotFound(reply);
+      return reply
+        .header('Content-Type', result.contentType)
+        .header('Cache-Control', 'private, max-age=3600')
+        .header('X-Content-Type-Options', 'nosniff')
+        .header('Content-Disposition', 'inline')
+        .send(result.data);
+    },
+  );
+
+  app.delete(
+    '/v1/cards/:id/photos/:photoId',
+    {
+      preValidation: manage,
+      schema: {
+        operationId: 'deleteCardPhoto',
+        tags: ['inventory'],
+        summary: 'Remove uma foto da carta',
+        security,
+        headers: storeHeader,
+        params: photoParams,
+        response: {
+          204: { type: 'null' },
+          401: problemSchema,
+          403: problemSchema,
+          404: problemSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { id, photoId } = request.params as { id: string; photoId: string };
+      const result = await photos.remove(contextOf(request), id, photoId);
+      if (!result.ok) return photoNotFound(reply);
       return reply.status(204).send();
     },
   );
