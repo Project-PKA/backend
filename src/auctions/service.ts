@@ -531,6 +531,37 @@ export class AuctionService {
     });
   }
 
+  /**
+   * Vira o relógio de **todas** as lojas (abre e encerra leilões). Quem agenda chama isto. Só lê a
+   * lista de lojas com o contexto de administrador; cada loja é virada no próprio contexto (RLS),
+   * e a falha de uma não impede as outras.
+   */
+  async advanceAll(): Promise<{
+    stores: number;
+    opened: number;
+    finished: number;
+    failed: number;
+  }> {
+    const list = await withContext(this.db, { isPlatformAdmin: true }, (tx) =>
+      tx.select({ id: stores.id }).from(stores),
+    );
+    const summary = { stores: list.length, opened: 0, finished: 0, failed: 0 };
+    for (const { id } of list) {
+      try {
+        const result = await withContext(this.db, { storeId: id }, (tx) =>
+          tx.execute<{ opened: number; finished: number }>(
+            sql`SELECT * FROM advance_auctions(${id}::uuid)`,
+          ),
+        );
+        summary.opened += result.rows[0]?.opened ?? 0;
+        summary.finished += result.rows[0]?.finished ?? 0;
+      } catch {
+        summary.failed += 1;
+      }
+    }
+    return summary;
+  }
+
   /** A regra de lance vive no banco (`place_bid`, ADR 0016); aqui só se chama e se traduz. */
   async placeBid(
     context: Context,

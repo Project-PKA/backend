@@ -4,6 +4,7 @@ import { loadEnv } from './config/env.js';
 import { checkDatabase, createPool } from './db/client.js';
 import { createTcgdexClient } from './catalog/tcgdex.js';
 import { createDb } from './db/context.js';
+import { startAuctionJobs } from './jobs/auctions.js';
 import { startCatalogJobs, type CatalogJobs } from './jobs/catalog.js';
 
 const env = loadEnv();
@@ -15,6 +16,7 @@ const db = createDb(pool);
 let built: Awaited<ReturnType<typeof buildApp>>;
 const email = new LogEmailSender(() => built.app.log);
 let jobs: CatalogJobs | undefined;
+let auctionJobs: { close: () => Promise<void> } | undefined;
 built = await buildApp({
   env,
   db,
@@ -24,23 +26,27 @@ built = await buildApp({
     await jobs?.ping();
   },
 });
-const { app, auth, invitations } = built;
+const { app, auth, invitations, auctions } = built;
 if (env.redisUrl === null) {
-  app.log.warn('REDIS_URL ausente: o sync noturno do catálogo não está agendado');
+  app.log.warn(
+    'REDIS_URL ausente: o sync do catálogo e a virada dos leilões no horário não estão agendados',
+  );
 } else {
+  const jobLog = {
+    info: (o: Record<string, unknown>, m: string) => {
+      app.log.info(o, m);
+    },
+    warn: (o: Record<string, unknown>, m: string) => {
+      app.log.warn(o, m);
+    },
+  };
+  auctionJobs = await startAuctionJobs({ redisUrl: env.redisUrl, auctions, log: jobLog });
   jobs = await startCatalogJobs({
     redisUrl: env.redisUrl,
     db,
     client: createTcgdexClient(),
     languages: env.catalogLanguages,
-    log: {
-      info: (o, m) => {
-        app.log.info(o, m);
-      },
-      warn: (o, m) => {
-        app.log.warn(o, m);
-      },
-    },
+    log: jobLog,
   });
 }
 
@@ -48,6 +54,7 @@ async function shutdown(signal: string): Promise<void> {
   app.log.info({ signal }, 'encerrando');
   await app.close();
   await jobs?.close();
+  await auctionJobs?.close();
   await Promise.all([auth.flush(), invitations.flush()]);
   await pool.end();
   process.exit(0);
