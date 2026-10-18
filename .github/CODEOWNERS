@@ -1,53 +1,46 @@
 # =============================================================================
 # CODEOWNERS
 #
-# Owners sao adicionados automaticamente como reviewers dos PRs que tocam
-# seus arquivos. Combinado com "Require review from Code Owners" na branch
-# protection, vira regra de merge (SETUP-GITHUB.md, secao B3).
+# Owners são adicionados automaticamente como reviewers dos PRs que tocam seus
+# arquivos. Com "Require review from Code Owners" na branch protection, vira
+# regra de merge (SETUP-GITHUB.md, seção B3).
 #
-# SUBSTITUA os placeholders por times ou usuarios reais:
-#   times:    @minha-org/time-backend   (o time precisa ter acesso ao repo)
-#   pessoas:  @usuario
+# ATENÇÃO: o autor de um PR não pode aprovar o próprio PR. Enquanto houver uma
+# única pessoa, NÃO exija aprovação de CODEOWNER na branch protection (exija só o
+# `ci-success`), senão nada mergeia. Veja shared/OWNER.md, decisão D8.
 #
-# Vale a ULTIMA regra que casa com o arquivo — as mais especificas ficam no
-# fim. Acrescente as pastas do codigo depois de definir a estrutura
-# (ARCHITECTURE.md).
+# Vale a ÚLTIMA regra que casa com o arquivo: as mais específicas ficam no fim.
+# Quando entrar mais gente, troque @IgorOCosta por times (@Project-PKA/time-backend)
+# nas áreas sensíveis.
 # =============================================================================
 
-# Padrao para tudo que nao casar com nenhuma regra abaixo.
-*                           @SUA-ORG/time-backend
+# Padrão para tudo que não casar com nenhuma regra abaixo.
+*                           @IgorOCosta
 
-# ----------------------------------------------------------------------------
-# Infra do repositorio: CI/CD, seguranca e automacao.
-# ----------------------------------------------------------------------------
-/.github/                   @SUA-ORG/time-plataforma
-/scripts/deploy.sh          @SUA-ORG/time-plataforma
-/docker/                    @SUA-ORG/time-plataforma
-/Dockerfile                 @SUA-ORG/time-plataforma
-/compose.yaml               @SUA-ORG/time-plataforma
-/sonar-project.properties   @SUA-ORG/time-plataforma
+# Infra do repositório: CI/CD, segurança e automação.
+/.github/                   @IgorOCosta
+/scripts/deploy.sh          @IgorOCosta
+/Dockerfile                 @IgorOCosta
+/compose.yaml               @IgorOCosta
+/sonar-project.properties   @IgorOCosta
 
-# ----------------------------------------------------------------------------
-# Contrato de comandos e convencoes: mudar aqui afeta todo mundo.
-# ----------------------------------------------------------------------------
-/Makefile                   @SUA-ORG/time-plataforma
-/project.mk                 @SUA-ORG/time-backend
-/.tool-versions             @SUA-ORG/time-backend
-/.githooks/                 @SUA-ORG/time-plataforma
-/scripts/conventions.sh     @SUA-ORG/time-plataforma
+# Contrato de comandos e convenções: mudar aqui afeta todo mundo.
+/Makefile                   @IgorOCosta
+/project.mk                 @IgorOCosta
+/.tool-versions             @IgorOCosta
+/.githooks/                 @IgorOCosta
+/scripts/conventions.sh     @IgorOCosta
 
-# ----------------------------------------------------------------------------
-# Areas sensiveis: schema, contrato publico e autenticacao.
-# ----------------------------------------------------------------------------
-/migrations/                @SUA-ORG/time-backend
-/docs/api/openapi.yaml      @SUA-ORG/time-backend @SUA-ORG/time-frontend
+# Áreas sensíveis: schema, contrato público, autenticação e isolamento (RLS).
+/migrations/                @IgorOCosta
+/src/auth/                  @IgorOCosta
+/src/db/                    @IgorOCosta
+/docs/api/openapi.yaml      @IgorOCosta
 
-# ----------------------------------------------------------------------------
-# Documentacao viva e contrato com agentes de IA.
-# ----------------------------------------------------------------------------
-/AGENTS.md                  @SUA-ORG/time-backend
-/ARCHITECTURE.md            @SUA-ORG/time-backend
-/STACK.md                   @SUA-ORG/time-backend
-/TESTING.md                 @SUA-ORG/time-backend
-/DEPLOY.md                  @SUA-ORG/time-plataforma
-/SECURITY.md                @SUA-ORG/time-plataforma
+# Documentação viva e contrato com agentes de IA.
+/AGENTS.md                  @IgorOCosta
+/ARCHITECTURE.md            @IgorOCosta
+/STACK.md                   @IgorOCosta
+/TESTING.md                 @IgorOCosta
+/DEPLOY.md                  @IgorOCosta
+/SECURITY.md                @IgorOCosta
