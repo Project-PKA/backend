@@ -71,8 +71,11 @@ A etapa fica em três entregas, nesta ordem:
 permissão. **Falta:** upload de fotos, que depende da decisão de
 armazenamento (D3 no `OWNER.md`).
 
-**Etapa 4: clientes.** Base, visitantes, blacklist, inatividade, perfil 360 e
-**carteira de consignação**. Geração do link do consignador fica na Etapa 6.
+**Etapa 4: clientes.** *Pronta, menos a exclusão LGPD.* Base com visitantes e clientes, blacklist
+(com motivo), filtro de inativos pelo limite da loja, perfil 360 (acertos, histórico de lances) e
+**carteira de consignação** (líquido = lance menos comissão, exige `can_view_finance`). **Falta:** exclusão
+e anonimização (#43, depende da política de retenção, D2 no `OWNER.md`) e a remoção de inativos do
+grupo, que é do bot (a API só lista quem está inativo). Geração do link do consignador fica na Etapa 6.
 
 **Etapa 5: leilões e bot.** *Backend pronto; falta o bot e o agendador.* Feito: criar (agendar ou lançar agora), editar, cancelar, estender um ou todos, aprovar enquete, lance manual e alerta de WhatsApp caído, tudo sobre `place_bid` e `advance_auctions` (migration 0013). **Falta:** o papel `bot_runtime` com RLS (#44) e quem varre as lojas no horário. Descrição original: O bot é **Python + neonize** e fica **adiado** até haver conta de WhatsApp para testar ([ADR 0015](https://github.com/Project-PKA/shared/blob/main/docs/adr/0015-bot-em-python-com-neonize.md)); o motor de leilões e a função `place_bid` ([ADR 0016](https://github.com/Project-PKA/shared/blob/main/docs/adr/0016-decisao-de-lance-em-funcao-do-banco.md)) seguem no Backend e são testados sem WhatsApp. Criação a partir do cadastro da carta (**agendar,
 lançar agora ou deixar para depois**), editar e cancelar, **aprovar enquete**

@@ -66,7 +66,8 @@ rodando).
 | Criar e editar loja, equipe, convites, log de atividades | Painéis (7), vitrine, planos e perfil (8) |
 | Catálogo TCGdex (sync às 03:00 com BullMQ, busca sem acento) e estoque (cadastro, lista, detalhe, edição, exclusão) | |
 | Leilões: criar, editar, cancelar, estender, aprovar enquete, lance (`place_bid`) e alerta de WhatsApp caído | Bot de WhatsApp (neonize) e o papel `bot_runtime` |
-| Contrato OpenAPI gerado do código (40 operações) | |
+| Clientes e visitantes (CPF, telefone e CEP validados), blacklist, perfil e carteira de consignação | Exclusão LGPD (#43, depende da D2) |
+| Contrato OpenAPI gerado do código (49 operações) | |
 | Testes com Postgres real, 70% de cobertura mínima | Leilões, bot, acertos, envios e páginas públicas |
 | | Painéis (Home ao vivo e Financeiro), vitrine, planos, perfil |
 | | Dockerfile e deploy (a VPS ainda não existe) |

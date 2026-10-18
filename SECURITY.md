@@ -71,7 +71,8 @@ tarefa que o toca não está pronta sem ele.
 | Nenhum telefone, e-mail, CPF, token, cookie, header `Authorization` ou texto de lance em log | **parcial**: `Authorization`, `Cookie` e `Set-Cookie` são redigidos e um teste manual confirmou que o token não aparece. O provedor `log` de e-mail imprime o código (só em desenvolvimento; recusado em homolog e prod). Falta revisar os logs de cada rota nova |
 | `bids.raw_whatsapp_message` e dados de visitante tratados como pessoais: política de retenção e exclusão | pendente (decisão de negócio) |
 | Base legal do tratamento, atendimento a direitos do titular (acesso, correção, exclusão) e papel de controlador/operador entre SaaS e loja | pendente (decisão de negócio) |
-| Validação de CPF, telefone e CEP na entrada | Etapa 4 |
+| Validação de CPF (dígitos verificadores), telefone e CEP na entrada; guardados só com dígitos | **feito** (com teste) |
+| CPF nunca devolvido inteiro (só `•••.•••.•••-NN`), nunca em log; o log de atividades guarda só os nomes dos campos alterados | **feito** (com teste) |
 | Seed usa só dados fictícios e **recusa rodar** fora de `local`/`dev`/`test` | **feito** |
 
 ### Sessão do WhatsApp e bot (ADR 0007)
