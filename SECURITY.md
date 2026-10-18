@@ -94,8 +94,10 @@ tarefa que o toca não está pronta sem ele.
 | Cabeçalhos de segurança (`@fastify/helmet`), CORS com **lista explícita de origens** (nunca `*`) e rate limit global | **feito** (com teste) |
 | Limite de corpo (256 KB) e timeouts de requisição (30 s) e de handler (20 s) explícitos e configuráveis; corpo grande dá 413 em `problem+json` | **feito** |
 | `/metrics` **não** exposto na internet: só rede interna ou autenticado | infra |
-| Upload de foto: tipo e tamanho validados, nome gerado pelo servidor, sem caminho vindo do usuário | Etapa 3 |
-| Sync do TCGdex busca **só** a URL fixa do repositório oficial (sem SSRF) e valida o formato antes do `INSERT` | Etapa 3 |
+| Upload de foto: tipo e tamanho validados, nome gerado pelo servidor, sem caminho vindo do usuário | pendente (decisão D3 de armazenamento) |
+| Sync do TCGdex busca **só** a URL fixa do repositório oficial (sem SSRF) e valida o formato antes do `INSERT` | **feito** (`src/catalog/tcgdex.ts`: só GET, host fixo, sem redirecionamento, limite de tamanho, id e idioma validados; resposta parcial é recusada; com teste) |
+| Busca do catálogo: curinga do `LIKE` (`%`, `_`) nunca vem da entrada; mínimo de 2 caracteres e no máximo 6 termos | **feito** (com teste) |
+| Estoque: toda rota filtra por `store_id` e passa pelo RLS; carta de outra loja responde 404 igual a inexistente; edição e exclusão só fora de leilão; origem sem valor padrão | **feito** (com teste de acesso cruzado) |
 | `npm audit` limpo | **feito** (0 vulnerabilidades) |
 
 ### Infraestrutura (VPS)
