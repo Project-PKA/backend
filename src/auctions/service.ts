@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 
 import { recordActivity } from '../audit/activity.js';
+import { notify } from '../notifications/service.js';
 import { toCatalogCard, type CatalogCard } from '../catalog/service.js';
 import { withContext, type Db, type Tx } from '../db/context.js';
 import * as schema from '../db/schema.js';
@@ -590,6 +591,11 @@ export class AuctionService {
           targetId: input.auctionId,
           details: { bid_id: row.bid_id, ceiling_reached: row.ceiling_reached },
         });
+        if (row.ceiling_reached) {
+          await notify(tx, context.storeId, 'POLL_CEILING_REACHED', {
+            auction_id: input.auctionId,
+          });
+        }
       }
       return {
         outcome: row.outcome,

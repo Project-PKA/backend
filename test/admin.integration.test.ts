@@ -949,6 +949,7 @@ describe('painel da plataforma (GET /v1/admin/dashboard)', () => {
       stores: 3,
       pending_invitations: Number(expected.rows[0]?.invitations),
       new_access_requests: 1,
+      pending_plan_requests: 1,
     });
     expect(
       body.disconnected_stores

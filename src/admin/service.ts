@@ -7,7 +7,15 @@ import { withContext, type Db, type Tx } from '../db/context.js';
 import * as schema from '../db/schema.js';
 import { decodeCursor, toPage, type Page } from '../http/pagination.js';
 
-const { users, stores, storeMembers, invitations, accessRequests, adminActivityLog } = schema;
+const {
+  users,
+  stores,
+  storeMembers,
+  invitations,
+  accessRequests,
+  adminActivityLog,
+  planChangeRequests,
+} = schema;
 
 /** Quem age é sempre o administrador; o contexto dele é o que o RLS reconhece. */
 interface Admin {
@@ -41,6 +49,7 @@ export interface AdminStore {
   city: string | null;
   plan: string;
   memberLimit: number;
+  cardLimit: number | null;
   membersCount: number;
   whatsappStatus: 'ONLINE' | 'OFFLINE' | 'QR_READY';
   owner: { id: string; email: string; name: string | null } | null;
@@ -48,6 +57,16 @@ export interface AdminStore {
 }
 
 export type InvitationKind = 'ACCOUNT' | 'OWNER' | 'STAFF';
+
+export interface PlanRequestView {
+  id: string;
+  createdAt: Date;
+  store: { id: string; name: string; currentPlan: string };
+  requestedPlan: string | null;
+  message: string | null;
+  status: (typeof schema.planRequestStatus.enumValues)[number];
+  decidedAt: Date | null;
+}
 
 export interface AdminInvitation {
   id: string;
@@ -85,7 +104,8 @@ export type AdminFailure =
   | 'REQUEST_NOT_PENDING'
   | 'ALREADY_OWNER'
   | 'NOT_PENDING'
-  | 'TOO_SOON';
+  | 'TOO_SOON'
+  | 'LIMIT_BELOW_USAGE';
 
 export type AdminResult<T> = { ok: true; value: T } | { ok: false; reason: AdminFailure };
 
@@ -94,6 +114,7 @@ export interface CreateStoreInput {
   city?: string | null;
   plan?: string;
   memberLimit?: number;
+  cardLimit?: number | null;
   owner: { userId: string } | { email: string };
   accessRequestId?: string;
 }
@@ -103,6 +124,7 @@ export interface Overview {
   stores: number;
   pendingInvitations: number;
   newAccessRequests: number;
+  pendingPlanRequests: number;
   disconnectedStores: {
     id: string;
     name: string;
@@ -348,6 +370,7 @@ export class AdminService {
       city: string | null;
       plan: string;
       member_limit: number;
+      card_limit: number | null;
       members: string;
       whatsapp_status: 'ONLINE' | 'OFFLINE' | 'QR_READY';
       created_at: Date;
@@ -355,7 +378,7 @@ export class AdminService {
       owner_email: string | null;
       owner_name: string | null;
     }>(sql`
-      SELECT s.id, s.name, s.city, s.plan, s.member_limit, s.whatsapp_status, s.created_at,
+      SELECT s.id, s.name, s.city, s.plan, s.member_limit, s.card_limit, s.whatsapp_status, s.created_at,
              (SELECT count(*) FROM store_members m WHERE m.store_id = s.id) AS members,
              o.user_id AS owner_id, u.email AS owner_email, u.name AS owner_name
         FROM stores s
@@ -373,6 +396,7 @@ export class AdminService {
       city: r.city,
       plan: r.plan,
       memberLimit: r.member_limit,
+      cardLimit: r.card_limit,
       membersCount: Number(r.members),
       whatsappStatus: r.whatsapp_status,
       owner:
@@ -463,6 +487,7 @@ export class AdminService {
         city: input.city ?? null,
         ...(input.plan === undefined ? {} : { plan: input.plan }),
         ...(input.memberLimit === undefined ? {} : { memberLimit: input.memberLimit }),
+        ...(input.cardLimit === undefined ? {} : { cardLimit: input.cardLimit }),
       });
       if (ownerId !== null) {
         await tx
@@ -589,6 +614,157 @@ export class AdminService {
       const [row] = await this.storeRows(tx, sql`s.id = ${storeId}::uuid`, 1);
       if (row === undefined) throw new Error('a loja não foi encontrada');
       return ok(row);
+    });
+  }
+
+  // --- Plano --------------------------------------------------------------------------------
+
+  /** Muda o plano e os limites da loja (não há autoatendimento). Sem `cardLimit` o valor não muda; `null` = ilimitado. */
+  async setStorePlan(
+    admin: Admin,
+    storeId: string,
+    input: { plan?: string; memberLimit?: number; cardLimit?: number | null },
+  ): Promise<AdminResult<AdminStore>> {
+    return withContext(this.db, { ...adminContext(admin), storeId }, async (tx) =>
+      this.applyPlan(tx, admin, storeId, input),
+    );
+  }
+
+  private async applyPlan(
+    tx: Tx,
+    admin: Admin,
+    storeId: string,
+    input: { plan?: string; memberLimit?: number; cardLimit?: number | null },
+  ): Promise<AdminResult<AdminStore>> {
+    const [store] = await tx
+      .select({ id: stores.id })
+      .from(stores)
+      .where(eq(stores.id, storeId))
+      .for('update');
+    if (store === undefined) return fail('NOT_FOUND');
+    if (input.memberLimit !== undefined) {
+      const [members] = await tx
+        .select({ n: sql<string>`count(*)` })
+        .from(storeMembers)
+        .where(eq(storeMembers.storeId, storeId));
+      if (input.memberLimit < Number(members?.n ?? 0)) return fail('LIMIT_BELOW_USAGE');
+    }
+    await tx
+      .update(stores)
+      .set({
+        ...(input.plan === undefined ? {} : { plan: input.plan }),
+        ...(input.memberLimit === undefined ? {} : { memberLimit: input.memberLimit }),
+        ...(input.cardLimit === undefined ? {} : { cardLimit: input.cardLimit }),
+      })
+      .where(eq(stores.id, storeId));
+    await tx.insert(schema.activityLog).values({
+      storeId,
+      actorUserId: admin.userId,
+      action: 'plan.changed',
+      targetType: 'store',
+      targetId: storeId,
+      details: { by_platform_admin: true, changed: Object.keys(input) },
+    });
+    await this.log(
+      tx,
+      admin,
+      'store.plan_changed',
+      { type: 'store', id: storeId },
+      {
+        plan: input.plan ?? null,
+        member_limit: input.memberLimit ?? null,
+        card_limit: input.cardLimit ?? null,
+      },
+    );
+    const [row] = await this.storeRows(tx, sql`s.id = ${storeId}::uuid`, 1);
+    if (row === undefined) throw new Error('a loja não foi encontrada');
+    return ok(row);
+  }
+
+  async listPlanRequests(
+    admin: Admin,
+    query: { limit: number; cursor?: string; status?: PlanRequestView['status'] },
+  ): Promise<Page<PlanRequestView> | 'INVALID_CURSOR'> {
+    const position = query.cursor === undefined ? null : decodeCursor(query.cursor);
+    if (query.cursor !== undefined && position === null) return 'INVALID_CURSOR';
+    const rows = await withContext(this.db, adminContext(admin), (tx) =>
+      tx
+        .select({ request: planChangeRequests, storeName: stores.name, currentPlan: stores.plan })
+        .from(planChangeRequests)
+        .innerJoin(stores, eq(stores.id, planChangeRequests.storeId))
+        .where(
+          and(
+            query.status === undefined ? undefined : eq(planChangeRequests.status, query.status),
+            position === null
+              ? undefined
+              : sql`(${planChangeRequests.createdAt}, ${planChangeRequests.id}) < (${position.createdAt.toISOString()}::timestamptz, ${position.id}::uuid)`,
+          ),
+        )
+        .orderBy(desc(planChangeRequests.createdAt), desc(planChangeRequests.id))
+        .limit(query.limit + 1),
+    );
+    return toPage(
+      rows.map(({ request, storeName, currentPlan }) => ({
+        id: request.id,
+        createdAt: request.createdAt,
+        store: { id: request.storeId, name: storeName, currentPlan },
+        requestedPlan: request.requestedPlan,
+        message: request.message,
+        status: request.status,
+        decidedAt: request.decidedAt,
+      })),
+      query.limit,
+    );
+  }
+
+  /** Decide o pedido: aplicar muda o plano da loja na mesma transação; recusar só encerra. */
+  async resolvePlanRequest(
+    admin: Admin,
+    id: string,
+    decision:
+      | { kind: 'REFUSE' }
+      | { kind: 'APPLY'; plan?: string; memberLimit?: number; cardLimit?: number | null },
+  ): Promise<AdminResult<null>> {
+    const [found] = await withContext(this.db, adminContext(admin), (tx) =>
+      tx.select().from(planChangeRequests).where(eq(planChangeRequests.id, id)).limit(1),
+    );
+    if (found === undefined) return fail('NOT_FOUND');
+    return withContext(this.db, { ...adminContext(admin), storeId: found.storeId }, async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(planChangeRequests)
+        .where(eq(planChangeRequests.id, id))
+        .for('update');
+      if (current === undefined) return fail('NOT_FOUND');
+      if (current.status !== 'PENDING') return fail('REQUEST_NOT_PENDING');
+
+      if (decision.kind === 'APPLY') {
+        const plan = decision.plan ?? current.requestedPlan ?? undefined;
+        const applied = await this.applyPlan(tx, admin, current.storeId, {
+          ...(plan === undefined ? {} : { plan }),
+          ...(decision.memberLimit === undefined ? {} : { memberLimit: decision.memberLimit }),
+          ...(decision.cardLimit === undefined ? {} : { cardLimit: decision.cardLimit }),
+        });
+        if (!applied.ok) return applied;
+      }
+      await tx
+        .update(planChangeRequests)
+        .set({
+          status: decision.kind === 'APPLY' ? 'APPLIED' : 'REFUSED',
+          decidedBy: admin.userId,
+          decidedAt: this.now(),
+        })
+        .where(eq(planChangeRequests.id, id));
+      await this.log(
+        tx,
+        admin,
+        'plan_request.decided',
+        { type: 'plan_request', id },
+        {
+          decision: decision.kind,
+        },
+      );
+      return ok(null);
     });
   }
 
@@ -771,11 +947,13 @@ export class AdminService {
         stores: string;
         pending_invitations: string;
         new_requests: string;
+        plan_requests: string;
       }>(sql`
         SELECT (SELECT count(*) FROM users WHERE status = 'ACTIVE') AS active_users,
                (SELECT count(*) FROM stores) AS stores,
                (SELECT count(*) FROM invitations WHERE status = 'PENDING' AND expires_at > now()) AS pending_invitations,
-               (SELECT count(*) FROM access_requests WHERE status = 'PENDING') AS new_requests
+               (SELECT count(*) FROM access_requests WHERE status = 'PENDING') AS new_requests,
+               (SELECT count(*) FROM plan_change_requests WHERE status = 'PENDING') AS plan_requests
       `);
       const t = totals.rows[0];
       const down = await tx
@@ -794,6 +972,7 @@ export class AdminService {
         stores: Number(t?.stores ?? 0),
         pendingInvitations: Number(t?.pending_invitations ?? 0),
         newAccessRequests: Number(t?.new_requests ?? 0),
+        pendingPlanRequests: Number(t?.plan_requests ?? 0),
         disconnectedStores: down.map((s) => ({
           id: s.id,
           name: s.name,

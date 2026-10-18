@@ -17,6 +17,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -43,6 +44,7 @@ export const auctionStatus = pgEnum('auction_status', [
   'CANCELLED',
 ]);
 export const settlementStatus = pgEnum('settlement_status', ['PENDING', 'PAID']);
+export const planRequestStatus = pgEnum('plan_request_status', ['PENDING', 'APPLIED', 'REFUSED']);
 export const accessRequestStatus = pgEnum('access_request_status', [
   'PENDING',
   'REFUSED',
@@ -70,6 +72,15 @@ export const users = pgTable(
     canCreateStores: boolean('can_create_stores').notNull().default(false),
     storeLimit: integer('store_limit').notNull().default(0),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    /** Preferências do perfil. Só `pt-BR` e `en`; moeda só `BRL` por enquanto. */
+    language: text('language').notNull().default('pt-BR'),
+    theme: text('theme').notNull().default('SYSTEM'),
+    timezone: text('timezone').notNull().default('America/Sao_Paulo'),
+    currency: text('currency').notNull().default('BRL'),
+    notificationPrefs: jsonb('notification_prefs')
+      .$type<{ in_app: boolean; email: boolean }>()
+      .notNull()
+      .default({ in_app: true, email: false }),
     /** Hash HMAC do OTP; o código nunca é guardado. */
     otpHash: text('otp_hash'),
     otpExpiresAt: timestamp('otp_expires_at', { withTimezone: true }),
@@ -108,6 +119,11 @@ export const stores = pgTable('stores', {
   /** Plano definido pela administração (não há autoatendimento). */
   plan: text('plan').notNull().default('STANDARD'),
   memberLimit: integer('member_limit').notNull().default(5),
+  /** Sem valor = ilimitado. Definido pela administração junto com o plano. */
+  cardLimit: integer('card_limit'),
+  /** Opt-in da vitrine pública (ADR 0014): o link do grupo passa a ser público. */
+  showcaseEnabled: boolean('showcase_enabled').notNull().default(false),
+  whatsappInviteUrl: text('whatsapp_invite_url'),
   createdAt: createdAt(),
 });
 
@@ -451,6 +467,66 @@ export const accessRequests = pgTable(
   (t) => [
     index('access_requests_status_created_idx').on(t.status, t.createdAt, t.id),
     index('access_requests_ip_created_idx').on(t.ipHash, t.createdAt),
+  ],
+);
+
+// --- Planos, notificações e vitrine (0017) ------------------------------------
+export const planChangeRequests = pgTable(
+  'plan_change_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    storeId: uuid('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    requestedPlan: text('requested_plan'),
+    message: text('message'),
+    status: planRequestStatus('status').notNull().default('PENDING'),
+    requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'set null' }),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('plan_change_requests_store_idx').on(t.storeId, t.createdAt),
+    index('plan_change_requests_status_idx').on(t.status, t.createdAt, t.id),
+  ],
+);
+
+/** Aviso interno da loja. O texto é do frontend; aqui só o código e ids. */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    storeId: uuid('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('notifications_id_store_key').on(t.id, t.storeId),
+    index('notifications_store_created_idx').on(t.storeId, t.createdAt, t.id),
+  ],
+);
+
+export const notificationReads = pgTable(
+  'notification_reads',
+  {
+    notificationId: uuid('notification_id').notNull(),
+    storeId: uuid('store_id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    readAt: timestamp('read_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.notificationId, t.userId] }),
+    foreignKey({
+      name: 'notification_reads_notification_fkey',
+      columns: [t.notificationId, t.storeId],
+      foreignColumns: [notifications.id, notifications.storeId],
+    }).onDelete('cascade'),
   ],
 );
 

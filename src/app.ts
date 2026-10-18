@@ -11,6 +11,9 @@ import { collectDefaultMetrics, Registry } from 'prom-client';
 
 import type { EmailSender } from './auth/email.js';
 import { createAuthHooks } from './auth/hooks.js';
+import { NotificationService } from './notifications/service.js';
+import { PlanService } from './plan/service.js';
+import { ProfileService } from './profile/service.js';
 import { AdminService } from './admin/service.js';
 import { DashboardService } from './dashboard/service.js';
 import { PublicAccessService } from './public/access.js';
@@ -30,6 +33,7 @@ import { errorHandler, notFoundHandler } from './http/problem.js';
 import { authRoutes } from './routes/auth.js';
 import { infraRoutes } from './routes/infra.js';
 import { activityRoutes } from './routes/activity.js';
+import { accountRoutes } from './routes/account.js';
 import { adminRoutes } from './routes/admin.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { publicLinkRoutes, publicRoutes } from './routes/public.js';
@@ -71,6 +75,9 @@ export interface BuiltApp {
   publicLinks: PublicLinkService;
   dashboard: DashboardService;
   admin: AdminService;
+  profile: ProfileService;
+  notifications: NotificationService;
+  plan: PlanService;
 }
 
 const TRACEPARENT = /^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/;
@@ -170,6 +177,8 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
           name: 'customers',
           description: 'Clientes, visitantes, blacklist e carteira de consignação',
         },
+        { name: 'notifications', description: 'Avisos internos da loja' },
+        { name: 'plan', description: 'Plano da loja, uso e pedido de mudança' },
         { name: 'admin', description: 'Administração da plataforma (só o administrador)' },
         { name: 'dashboard', description: 'Home ao vivo e Financeiro' },
         {
@@ -235,6 +244,10 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   settlementRoutes(app, { hooks, settlements, shipments });
   const publicLinks = new PublicLinkService(deps.db);
   publicLinkRoutes(app, { hooks, links: publicLinks });
+  const profile = new ProfileService(deps.db);
+  const notifications = new NotificationService(deps.db);
+  const plan = new PlanService(deps.db);
+  accountRoutes(app, { hooks, profile, notifications, plan });
   const admin = new AdminService(
     deps.db,
     auth,
@@ -249,6 +262,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
     access: new PublicAccessService(deps.db),
     rateLimitPerMinute: deps.env.rateLimit.publicAccess,
     accessRequestPerMinute: deps.env.rateLimit.accessRequest,
+    showcasePerMinute: deps.env.rateLimit.showcase,
   });
 
   return {
@@ -266,5 +280,8 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
     publicLinks,
     dashboard,
     admin,
+    profile,
+    notifications,
+    plan,
   };
 }

@@ -14,6 +14,8 @@ export interface PublicRouteDeps {
   rateLimitPerMinute: number;
   /** Limite próprio do formulário de pedido de acesso. */
   accessRequestPerMinute: number;
+  /** Leituras da vitrine por minuto e por IP. */
+  showcasePerMinute: number;
 }
 
 export interface PublicLinkRouteDeps {
@@ -47,7 +49,8 @@ export function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps): void 
 
   void app.register((scope, _options, done) => {
     scope.addHook('onSend', (_request, reply, payload, next) => {
-      void reply.header('Cache-Control', 'no-store');
+      // A vitrine é pública e igual para todos: pode ficar uns segundos em cache.
+      if (!reply.hasHeader('Cache-Control')) void reply.header('Cache-Control', 'no-store');
       void reply.header('Referrer-Policy', 'no-referrer');
       void reply.header('X-Robots-Tag', 'noindex, nofollow');
       next(null, payload);
@@ -192,6 +195,70 @@ export function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps): void 
           return invalidData(reply, 'PUBLIC_DATA_INVALID', 'Dados inválidos');
         }
         return { result: 'OK' };
+      },
+    );
+
+    scope.get(
+      '/v1/public/showcase',
+      {
+        config: { rateLimit: { max: deps.showcasePerMinute, timeWindow: '1 minute' } },
+        schema: {
+          operationId: 'publicShowcase',
+          tags: ['public'],
+          summary: 'Vitrine de leilões ao vivo das lojas que optaram por aparecer',
+          description:
+            'Sem login. Só lojas com a vitrine ligada e o WhatsApp conectado. Página de no máximo 48 itens e deslocamento de no máximo 480. O link do grupo de WhatsApp de cada loja é público por escolha dela.',
+          querystring: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              store: { type: 'string', format: 'uuid' },
+              language: { type: 'string', pattern: '^[A-Z]{2}$' },
+              sort: { type: 'string', enum: ['ENDING_SOON', 'HIGHEST_BID', 'MOST_BIDS', 'NEWEST'] },
+              limit: { type: 'integer', minimum: 1, maximum: 48, default: 24 },
+              offset: { type: 'integer', minimum: 0, maximum: 480, default: 0 },
+            },
+          },
+          response: {
+            200: {
+              type: 'object',
+              required: ['items', 'total', 'stores'],
+              properties: {
+                items: { type: 'array', items: { type: 'object', additionalProperties: true } },
+                total: { type: 'integer' },
+                stores: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string', format: 'uuid' },
+                      name: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+            ...failures,
+          },
+        },
+      },
+      async (request, reply) => {
+        const q = request.query as {
+          store?: string;
+          language?: string;
+          sort?: string;
+          limit?: number;
+          offset?: number;
+        };
+        const page = await access.showcase({
+          store: q.store ?? null,
+          language: q.language ?? null,
+          sort: q.sort ?? null,
+          limit: q.limit ?? 24,
+          offset: q.offset ?? 0,
+        });
+        void reply.header('Cache-Control', 'public, max-age=10');
+        return page;
       },
     );
 

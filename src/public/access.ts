@@ -38,6 +38,12 @@ export interface BuyerData {
 
 export type SubmitOutcome = 'OK' | 'CONSENT_REQUIRED' | 'INVALID_DATA';
 
+export interface ShowcasePage {
+  items: Record<string, unknown>[];
+  total: number;
+  stores: { id: string; name: string }[];
+}
+
 export interface ConsignorPage {
   store_name: string;
   first_name: string;
@@ -78,6 +84,23 @@ export class PublicAccessService {
           ${data.state}::text, true, ${data.consentVersion}::text) AS outcome
       `);
       return result.rows[0]?.outcome?.result ?? null;
+    });
+  }
+
+  /** Leilões ao vivo das lojas que optaram pela vitrine. Página e deslocamento têm teto no banco. */
+  async showcase(filters: {
+    store: string | null;
+    language: string | null;
+    sort: string | null;
+    limit: number;
+    offset: number;
+  }): Promise<ShowcasePage> {
+    return this.asPublic(async (tx) => {
+      const result = await tx.execute<{ page: ShowcasePage }>(sql`
+        SELECT public_showcase_list(${filters.store}::uuid, ${filters.language}::text,
+          ${filters.sort}::text, ${filters.limit}::integer, ${filters.offset}::integer) AS page
+      `);
+      return result.rows[0]?.page ?? { items: [], total: 0, stores: [] };
     });
   }
 

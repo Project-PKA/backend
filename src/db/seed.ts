@@ -41,6 +41,8 @@ export const KIND = {
   link: 14,
   request: 15,
   adminLog: 16,
+  notification: 17,
+  planRequest: 18,
   token: 10,
   invitation: 11,
   activity: 12,
@@ -63,6 +65,9 @@ export const SEED_IDS = {
 } as const;
 
 const TABLES_TO_CLEAR = [
+  'notification_reads',
+  'notifications',
+  'plan_change_requests',
   'access_requests',
   'admin_activity_log',
   'public_links',
@@ -237,6 +242,8 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
     'lgpd_consents',
     'access_requests',
     'admin_activity_log',
+    'notifications',
+    'plan_change_requests',
   ];
   for (const table of created) {
     await db.execute(sql.raw(`UPDATE ${table} SET created_at = '${SEED_TIME}'`));
@@ -250,6 +257,7 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
   ]) {
     await db.execute(sql.raw(`UPDATE ${table} SET updated_at = '${SEED_TIME}'`));
   }
+  await db.execute(sql.raw(`UPDATE notification_reads SET read_at = '${SEED_TIME}'`));
 }
 
 async function insertAll(db: Tx): Promise<void> {
@@ -327,6 +335,7 @@ async function insertAll(db: Tx): Promise<void> {
       inactivityDaysLimit: 30,
       pixKey: 'pix@cartasdoze.example.com',
       city: 'São Paulo',
+      cardLimit: 500,
     },
     {
       id: SEED_IDS.storeB,
@@ -335,6 +344,8 @@ async function insertAll(db: Tx): Promise<void> {
       city: 'Curitiba',
       plan: 'PRO',
       memberLimit: 10,
+      showcaseEnabled: true,
+      whatsappInviteUrl: 'https://chat.whatsapp.com/ABCDEFGHIJKLMNOPQRSTUV',
     },
     { id: SEED_IDS.storeC, name: 'Loja Isolada', whatsappStatus: 'OFFLINE' },
   ]);
@@ -764,6 +775,7 @@ async function insertAuctions(db: Tx): Promise<void> {
   await insertSettlements(db);
   await insertPublicLinks(db);
   await insertAdministration(db);
+  await insertPlansAndNotifications(db);
 }
 
 /**
@@ -777,6 +789,69 @@ export const SEED_LINK_TOKENS = {
 } as const;
 
 const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
+
+/** Pedidos de plano nos três estados, notificações (lidas e não lidas) e uma preferência fora do padrão. */
+async function insertPlansAndNotifications(db: Tx): Promise<void> {
+  await db.insert(schema.planChangeRequests).values([
+    {
+      id: uid(KIND.planRequest, 1),
+      storeId: SEED_IDS.storeA,
+      requestedPlan: 'PRO',
+      message: 'Queremos mais membros na equipe.',
+      requestedBy: SEED_IDS.userOwner,
+    },
+    {
+      id: uid(KIND.planRequest, 2),
+      storeId: SEED_IDS.storeB,
+      requestedPlan: 'PRO',
+      status: 'APPLIED',
+      requestedBy: SEED_IDS.userOwner,
+      decidedBy: SEED_IDS.userAdmin,
+      decidedAt: at('2026-09-15T12:00:00Z'),
+    },
+    {
+      id: uid(KIND.planRequest, 3),
+      storeId: SEED_IDS.storeC,
+      requestedPlan: 'ENTERPRISE',
+      status: 'REFUSED',
+      requestedBy: SEED_IDS.userOtherOwner,
+      decidedBy: SEED_IDS.userAdmin,
+      decidedAt: at('2026-09-16T12:00:00Z'),
+    },
+  ]);
+
+  const A = SEED_IDS.storeA;
+  await db.insert(schema.notifications).values([
+    {
+      id: uid(KIND.notification, 1),
+      storeId: A,
+      kind: 'POLL_CEILING_REACHED',
+      data: { auction_id: uid(KIND.auction, 4) },
+    },
+    {
+      id: uid(KIND.notification, 2),
+      storeId: A,
+      kind: 'BUYER_DATA_SUBMITTED',
+      data: { settlement_id: uid(KIND.settlement, 2), customer_id: uid(KIND.customer, 17) },
+    },
+    {
+      id: uid(KIND.notification, 3),
+      storeId: SEED_IDS.storeB,
+      kind: 'POLL_CEILING_REACHED',
+      data: { auction_id: uid(KIND.auction, 11) },
+    },
+  ]);
+  // O dono já leu a primeira; o funcionário não leu nenhuma.
+  await db.insert(schema.notificationReads).values({
+    notificationId: uid(KIND.notification, 1),
+    storeId: A,
+    userId: SEED_IDS.userOwner,
+  });
+  await db
+    .update(schema.users)
+    .set({ language: 'en', theme: 'DARK', timezone: 'America/Manaus' })
+    .where(eq(schema.users.id, SEED_IDS.userStaff));
+}
 
 const sha256Hex = (value: string): string =>
   createHash('sha256').update(value, 'utf8').digest('hex');
