@@ -135,6 +135,20 @@ export const whatsappSessions = pgTable('whatsapp_sessions', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Modelos de mensagem do bot por loja (0023). Sem linha, vale o padrão. */
+export const storeMessageTemplates = pgTable(
+  'store_message_templates',
+  {
+    storeId: uuid('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    body: text('body').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.storeId, t.key] })],
+);
+
 /** Convite de proprietário ou do administrador. Guarda só o hash do token (ADR 0012). */
 export const invitations = pgTable(
   'invitations',
@@ -293,6 +307,9 @@ export const auctions = pgTable(
     /** FK composta (winning_bid_id, store_id) → bids só existe no SQL. */
     winningBidId: uuid('winning_bid_id'),
     status: auctionStatus('status').notNull().default('PENDING'),
+    /** Quando o bot anunciou a abertura / o encerramento no grupo (evita repetir após reinício). */
+    botOpenedAnnouncedAt: timestamp('bot_opened_announced_at', { withTimezone: true }),
+    botClosedAnnouncedAt: timestamp('bot_closed_announced_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [

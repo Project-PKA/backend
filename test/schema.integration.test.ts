@@ -288,6 +288,15 @@ describe('regras de integridade do banco', () => {
     );
   });
 
+  it('recusa short_code em minúsculas (a caixa não diferencia o lance)', async () => {
+    await expect(
+      database.pool.query(
+        'UPDATE cards_inventory SET short_code = lower(short_code) WHERE id = $1',
+        [cardA(6)],
+      ),
+    ).rejects.toMatchObject({ constraint: 'cards_inventory_short_code_upper' });
+  });
+
   it('recusa limite de lojas sem a permissão de criar lojas', async () => {
     await expect(
       database.pool.query(
