@@ -82,6 +82,8 @@ export interface Env {
   catalogLanguages: string[];
   /** Cookie `Secure` em tudo que não é desenvolvimento local. */
   secureCookies: boolean;
+  /** Chave do CPF cifrado no banco (AES-256-GCM e HMAC por HKDF). Perdê-la torna os CPFs ilegíveis. */
+  cpfEncryptionKey: string;
   rateLimit: RateLimitConfig;
   http: HttpLimits;
   auth: AuthConfig;
@@ -234,6 +236,7 @@ export function loadEnv(source: Source = process.env): Env {
     redisUrl: redisUrl ?? null,
     catalogLanguages: parseLanguages(source['CATALOG_LANGUAGES']),
     secureCookies: appEnv !== 'local' && appEnv !== 'test',
+    cpfEncryptionKey: secret(source, 'CPF_ENCRYPTION_KEY'),
     rateLimit: {
       global: integer(source, 'RATE_LIMIT_PER_MINUTE', 120, 1, 100_000),
       otpRequest: integer(source, 'RATE_LIMIT_OTP_REQUEST_PER_MINUTE', 5, 1, 1000),

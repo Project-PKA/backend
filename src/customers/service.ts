@@ -4,7 +4,8 @@ import { recordActivity } from '../audit/activity.js';
 import { withContext, type Db } from '../db/context.js';
 import * as schema from '../db/schema.js';
 import { decodeCursor, toPage, type Page } from '../http/pagination.js';
-import { maskCpf, normalizeCep, normalizeCpf, normalizePhone } from './validation.js';
+import type { CpfVault } from '../security/cpf-vault.js';
+import { maskCpfLast2, normalizeCep, normalizeCpf, normalizePhone } from './validation.js';
 
 const { customers, cardsInventory, stores, bids, auctions, settlements } = schema;
 
@@ -108,7 +109,7 @@ function toView(row: typeof customers.$inferSelect): CustomerView {
     phone: row.phone,
     name: row.name,
     email: row.email,
-    cpfMasked: maskCpf(row.cpf),
+    cpfMasked: maskCpfLast2(row.cpfLast2),
     kind: row.isVisitor ? 'VISITOR' : 'CUSTOMER',
     isBlacklisted: row.isBlacklisted,
     blacklistReason: row.blacklistReason,
@@ -186,7 +187,18 @@ function normalize(input: CustomerInput): Normalized {
 
 /** Clientes e visitantes da loja. Tudo no contexto da loja (RLS) e com log de atividades. */
 export class CustomerService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly vault: CpfVault,
+  ) {}
+
+  /** Troca o CPF legível pelo cifrado e pelas colunas derivadas (ADR 0019). */
+  private seal(values: Values): Values {
+    if (values.cpf === undefined) return values;
+    if (values.cpf === null) return { ...values, cpf: null, cpfLast2: null, cpfKeyHash: null };
+    const sealed = this.vault.seal(values.cpf);
+    return { ...values, cpf: sealed.cipher, cpfLast2: sealed.last2, cpfKeyHash: sealed.keyHash };
+  }
 
   async create(
     context: Context,
@@ -194,10 +206,11 @@ export class CustomerService {
   ): Promise<CustomerResult> {
     const parsed = normalize(input);
     if (!parsed.ok) return parsed;
+    const values = this.seal(parsed.values);
     return withContext(this.db, context, async (tx) => {
       const merged = {
-        ...parsed.values,
-        cpf: parsed.values.cpf ?? null,
+        ...values,
+        cpf: values.cpf ?? null,
       } as typeof customers.$inferInsert;
       const [created] = await tx
         .insert(customers)
@@ -235,6 +248,7 @@ export class CustomerService {
       ...(input.address === undefined ? {} : { address: input.address }),
     });
     if (!parsed.ok) return parsed;
+    const values = this.seal(parsed.values);
     return withContext(this.db, context, async (tx) => {
       const [current] = await tx
         .select()
@@ -244,10 +258,10 @@ export class CustomerService {
         .limit(1);
       if (current === undefined) return { ok: false, reason: 'NOT_FOUND' } as const;
 
-      const next = { ...current, ...parsed.values };
+      const next = { ...current, ...values };
       const [updated] = await tx
         .update(customers)
-        .set({ ...parsed.values, isVisitor: !isComplete(next), updatedAt: new Date() })
+        .set({ ...values, isVisitor: !isComplete(next), updatedAt: new Date() })
         .where(eq(customers.id, id))
         .returning();
       if (updated === undefined) throw new Error('o cliente não foi atualizado');

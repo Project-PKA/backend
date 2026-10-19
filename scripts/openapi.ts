@@ -19,6 +19,7 @@ const env = loadEnv({
   JWT_ACCESS_SECRET: 'openapi-nao-e-segredo-0123456789abcdef',
   REFRESH_TOKEN_PEPPER: 'openapi-nao-e-segredo-0123456789abcdef',
   OTP_HASH_SECRET: 'openapi-nao-e-segredo-0123456789abcdef',
+  CPF_ENCRYPTION_KEY: 'openapi-nao-e-segredo-0123456789abcdef',
 });
 const pool = createPool(env.databaseUrl);
 

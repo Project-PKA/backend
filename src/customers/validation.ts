@@ -38,6 +38,11 @@ export function normalizeCep(value: string): string | null {
   return digits.length === 8 ? digits : null;
 }
 
+/** `•••.•••.•••-45` a partir dos 2 últimos dígitos guardados (o CPF inteiro nunca sai da API). */
+export function maskCpfLast2(last2: string | null): string | null {
+  return last2 === null || !/^\d{2}$/.test(last2) ? null : `•••.•••.•••-${last2}`;
+}
+
 /** `•••.•••.•••-45`: o CPF inteiro nunca sai da API. */
 export function maskCpf(cpf: string | null): string | null {
   const digits = cpf === null ? '' : onlyDigits(cpf);

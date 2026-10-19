@@ -83,12 +83,12 @@ export class PublicLinkService {
         if (found === undefined) return { ok: false, reason: 'NOT_FOUND' } as const;
       } else {
         const [found] = await tx
-          .select({ id: customers.id, cpf: customers.cpf })
+          .select({ id: customers.id, keyHash: customers.cpfKeyHash })
           .from(customers)
           .where(and(eq(customers.id, target.customerId), eq(customers.storeId, context.storeId)))
           .limit(1);
         if (found === undefined) return { ok: false, reason: 'NOT_FOUND' } as const;
-        if (found.cpf === null || found.cpf.length < 4) {
+        if (found.keyHash === null) {
           return { ok: false, reason: 'CPF_REQUIRED' } as const;
         }
       }

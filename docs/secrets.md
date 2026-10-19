@@ -37,6 +37,7 @@ Um valor diferente em cada Environment. Nunca reutilize o de `prod` fora dele.
 | `JWT_ACCESS_SECRET` | secret | Assina o access JWT | `openssl rand -base64 48` |
 | `REFRESH_TOKEN_PEPPER` | secret | Tempero do hash do refresh token | `openssl rand -base64 48` |
 | `OTP_HASH_SECRET` | secret | Chave do hash do código OTP | `openssl rand -base64 48` |
+| `CPF_ENCRYPTION_KEY` | secret | Cifra o CPF no banco (AES-256-GCM e HMAC). **Faça backup à parte**: sem ela os CPFs ficam ilegíveis; trocar exige recifrar | `openssl rand -base64 48` |
 | `WHATSAPP_SESSION_ENCRYPTION_KEY` *(proposto)* | secret | Criptografa `whatsapp_sessions.session_data`. **Mesma chave no Backend e no bot** | `openssl rand -base64 32` |
 | `REDIS_URL` | secret | Redis do BullMQ (`redis://:senha@host:6379`). **Obrigatória em homolog e prod**: sem ela a API recusa subir. Redis sem porta pública | Senha gerada (`openssl rand -base64 32`) |
 | `RATE_LIMIT_PUBLIC_PER_MINUTE` | variable | Requisições por minuto e por IP nas rotas públicas por link (padrão 20) | Opcional |
@@ -86,7 +87,7 @@ Fluxo: imagem no GHCR, SSH, `docker compose`. O push no GHCR usa o
 | `DEPLOY_ENABLED` | variable (repositório) | Liga o job de deploy (`true`). Sem ela a imagem é só publicada | Criar quando a VPS e o `.env` estiverem prontos |
 
 **No `.env` da VPS** (modelo `deploy/env.example`; nunca passa pelo GitHub nem pelo repositório):
-`APP_DOMAIN`, `DB_OWNER_USER`, `DB_OWNER_PASSWORD`, `DB_APP_PASSWORD`, `REDIS_PASSWORD` (estes três com `openssl rand -hex 32`: base64 quebra a URL de conexão), `JWT_ACCESS_SECRET`, `REFRESH_TOKEN_PEPPER`, `OTP_HASH_SECRET`, `BACKUP_PASSPHRASE` e `BACKUP_KEEP_DAYS`.
+`APP_DOMAIN`, `DB_OWNER_USER`, `DB_OWNER_PASSWORD`, `DB_APP_PASSWORD`, `REDIS_PASSWORD` (estes três com `openssl rand -hex 32`: base64 quebra a URL de conexão), `JWT_ACCESS_SECRET`, `REFRESH_TOKEN_PEPPER`, `OTP_HASH_SECRET`, `CPF_ENCRYPTION_KEY`, `BACKUP_PASSPHRASE` e `BACKUP_KEEP_DAYS`.
 
 ## 4. Como criar no GitHub
 

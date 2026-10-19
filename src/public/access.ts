@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 
 import type { Db, Tx } from '../db/context.js';
+import type { CpfVault } from '../security/cpf-vault.js';
 
 export interface SettlementPage {
   store_name: string;
@@ -27,6 +28,7 @@ export interface SettlementPage {
 }
 
 export interface BuyerData {
+  /** CPF válido, só dígitos; a classe o cifra antes de ir ao banco (ADR 0019). */
   cpf: string;
   zip: string;
   street: string;
@@ -59,7 +61,10 @@ export interface ConsignorPage {
  * os campos permitidos. `null` quer dizer "link inválido" e é igual para todo motivo.
  */
 export class PublicAccessService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly vault: CpfVault,
+  ) {}
 
   private async asPublic<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
     return this.db.transaction(async (tx) => {
@@ -78,9 +83,11 @@ export class PublicAccessService {
   }
 
   async submitBuyerData(token: string, ip: string, data: BuyerData): Promise<SubmitOutcome | null> {
+    const sealed = this.vault.seal(data.cpf);
     return this.asPublic(async (tx) => {
       const result = await tx.execute<{ outcome: { result: SubmitOutcome } | null }>(sql`
-        SELECT public_settlement_submit(${token}::text, ${ip}::text, ${data.cpf}::text, ${data.zip}::text,
+        SELECT public_settlement_submit(${token}::text, ${ip}::text, ${sealed.cipher}::text, ${sealed.last2}::text,
+          ${sealed.keyHash}::text, ${data.zip}::text,
           ${data.street}::text, ${data.number}::text, ${data.comp}::text, ${data.city}::text,
           ${data.state}::text, true, ${data.consentVersion}::text) AS outcome
       `);
@@ -134,10 +141,12 @@ export class PublicAccessService {
     });
   }
 
+  /** `key` são os 4 primeiros dígitos do CPF; o banco compara só o HMAC (ADR 0019). */
   async consignor(token: string, key: string, ip: string): Promise<ConsignorPage | null> {
+    const keyHash = this.vault.keyHash(key);
     return this.asPublic(async (tx) => {
       const result = await tx.execute<{ page: ConsignorPage | null }>(
-        sql`SELECT public_consignor_view(${token}::text, ${key}::text, ${ip}::text) AS page`,
+        sql`SELECT public_consignor_view(${token}::text, ${keyHash}::text, ${ip}::text) AS page`,
       );
       return result.rows[0]?.page ?? null;
     });
