@@ -47,12 +47,13 @@ jobs:
     with:
       contract-path: docs/api/openapi.yaml
       docker: true
-      # SonarCloud ligado (organizacao e projeto em sonar-project.properties). Precisa do secret
+      # SonarCloud DESLIGADO por enquanto (o dono quer testar tudo antes). Para religar, usar
+      # `sonar: ${{ github.event_name == 'pull_request' }}`. Config: sonar-project.properties. Precisa do secret
       # SONAR_TOKEN e da "Automatic Analysis" desligada no SonarCloud (shared/OWNER.md, A4).
       # Só nos pull requests: no plano gratuito o SonarCloud não entrega o Quality Gate da branch
       # `main` ("Organization is not allowed to access data from non main branches"), e é no PR
       # que o gate importa (código novo).
-      sonar: ${{ github.event_name == 'pull_request' }}
+      sonar: false
       # Java/Kotlin: o scanner do Sonar exige os binarios compilados.
       sonar-needs-build: false
     secrets:
