@@ -237,6 +237,10 @@
       "status": 404
     },
     {
+      "code": "MESSAGE_TEMPLATE_PLACEHOLDER_UNKNOWN",
+      "status": 422
+    },
+    {
       "code": "MISSING_PERMISSION",
       "status": null
     },

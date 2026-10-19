@@ -305,6 +305,51 @@ describe('o que o bot faz', () => {
   });
 });
 
+describe('anúncio, inatividade e modelos de mensagem (migration 0023)', () => {
+  it('grava só os marcadores de anúncio do leilão da própria loja', async () => {
+    const stamped = await asBot(A, (c) =>
+      c.query(
+        'UPDATE auctions SET bot_opened_announced_at = now(), bot_closed_announced_at = now() WHERE id = $1',
+        [auctionA],
+      ),
+    );
+    expect(stamped.rowCount).toBe(1);
+    const other = await asBot(A, (c) =>
+      c.query('UPDATE auctions SET bot_opened_announced_at = now() WHERE id = $1', [auctionB]),
+    );
+    expect(other.rowCount).toBe(0);
+    await expect(
+      asBot(A, (c) => c.query('UPDATE auctions SET initial_bid = 1 WHERE id = $1', [auctionA])),
+    ).rejects.toMatchObject({ code: '42501' });
+  });
+
+  it('lê o limite de inatividade da loja', async () => {
+    const result = await asBot(A, (c) =>
+      c.query('SELECT id, inactivity_days_limit FROM stores WHERE id = $1', [A]),
+    );
+    expect(result.rowCount).toBe(1);
+  });
+
+  it('lê só os modelos da própria loja e não escreve neles', async () => {
+    await database.pool.query(
+      "INSERT INTO store_message_templates (store_id, key, body) VALUES ($1, 'ended', 'A'), ($2, 'ended', 'B')",
+      [A, B],
+    );
+    const own = await asBot(A, (c) =>
+      c.query('SELECT store_id, body FROM store_message_templates'),
+    );
+    expect(own.rows).toEqual([{ store_id: A, body: 'A' }]);
+    await expect(
+      asBot(A, (c) => c.query("UPDATE store_message_templates SET body = 'x'")),
+    ).rejects.toMatchObject({ code: '42501' });
+    await expect(
+      asBot(A, (c) =>
+        c.query("INSERT INTO store_message_templates VALUES ($1, 'ended', 'x')", [A]),
+      ),
+    ).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
 describe('bot_set_whatsapp_status', () => {
   const status = (store: string | null, target: string, value: string, group: string | null) =>
     asBot(store, (c) =>

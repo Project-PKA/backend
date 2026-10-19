@@ -13,6 +13,7 @@ import type { EmailSender } from './auth/email.js';
 import { createAuthHooks } from './auth/hooks.js';
 import { NotificationService } from './notifications/service.js';
 import { PlanService } from './plan/service.js';
+import { MessageTemplateService } from './messages/service.js';
 import { ProfileService } from './profile/service.js';
 import { AdminService } from './admin/service.js';
 import { DashboardService } from './dashboard/service.js';
@@ -43,6 +44,7 @@ import { auctionRoutes } from './routes/auctions.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { meRoutes } from './routes/me.js';
+import { messageRoutes } from './routes/messages.js';
 import { storeRoutes } from './routes/store.js';
 import { teamRoutes } from './routes/team.js';
 import { DiskStorage, type FileStorage } from './storage/disk.js';
@@ -229,6 +231,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   const storesService = new StoreService(deps.db);
   const team = new TeamService(deps.db);
   storeRoutes(app, { db: deps.db, hooks, storesService });
+  messageRoutes(app, { hooks, templates: new MessageTemplateService(deps.db) });
   teamRoutes(app, { hooks, team, invitations });
   activityRoutes(app, { db: deps.db, hooks });
   const catalog = new CatalogService(deps.db, deps.tcgdex ?? createTcgdexClient(), {
