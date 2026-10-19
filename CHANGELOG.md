@@ -1,5 +1,42 @@
 # Changelog
 
+## [2.0.0](https://github.com/Project-PKA/backend/compare/v1.0.0...v2.0.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **acertos:** retira frete e envio do sistema
+
+### Funcionalidades
+
+* **acertos:** anexa o comprovante do "já paguei" pelo link público ([1a8c322](https://github.com/Project-PKA/backend/commit/1a8c32272adbcf316c74ae63526a6615c238a275))
+* **acertos:** anexa o comprovante do já paguei pelo link público ([07fbd57](https://github.com/Project-PKA/backend/commit/07fbd5763338f38f1f7543c66a85912e89a74664))
+* **acertos:** retira frete e envio do sistema ([fc5e872](https://github.com/Project-PKA/backend/commit/fc5e872c61c7058f7847cc1b6d6436de5780707b))
+* **bot:** marcador de anúncio, modelos de mensagem e short_code em maiúsculas ([39fd46d](https://github.com/Project-PKA/backend/commit/39fd46d24fee2f5d2485372358930fc5b094c673))
+* **bot:** marcador de anúncio, modelos de mensagem por loja e short_code em maiúsculas ([11a05e5](https://github.com/Project-PKA/backend/commit/11a05e562e1ccf24416225eac753850a7719a130))
+* **clientes:** cifra o CPF no banco (AES-256-GCM) e guarda só a máscara e o hash da chave ([658e825](https://github.com/Project-PKA/backend/commit/658e8250d03142c287af2873b71c66b31a5f488c))
+* **clientes:** cifra o CPF no banco com AES-256-GCM ([b2534c4](https://github.com/Project-PKA/backend/commit/b2534c40a7b4c727bdbf40c0a4d3fdfb11d82195))
+* **contrato:** catálogo de códigos de erro da API ([5af3d4c](https://github.com/Project-PKA/backend/commit/5af3d4c4a205d5d86b1488571317f42e0443110a))
+* **db:** papel bot_runtime com acesso mínimo e RLS para o bot de WhatsApp ([099e03b](https://github.com/Project-PKA/backend/commit/099e03b819a9e70994a027eefd86991f9e89af53))
+* **db:** papel bot_runtime com acesso mínimo e RLS para o bot de WhatsApp ([b6feea9](https://github.com/Project-PKA/backend/commit/b6feea985dedb212334c3f9917bc00721b14ede4)), closes [#44](https://github.com/Project-PKA/backend/issues/44)
+* **infra:** envia e-mail por SMTP e guarda fotos das cartas em disco ([2564f1f](https://github.com/Project-PKA/backend/commit/2564f1fe148f8c1a108658e759accced6f484e70))
+* **infra:** envia e-mail por SMTP e guarda fotos das cartas em disco ([154317e](https://github.com/Project-PKA/backend/commit/154317e3ef073d90ee5953b20732aa67aba58c8c))
+* **limpeza:** job diário que apaga o que venceu (sessões, OTP, falhas por IP, links e convites) ([d3ee2e0](https://github.com/Project-PKA/backend/commit/d3ee2e09981e7987397d70bbf1d4c26e7e5ad1d4))
+* **operacao:** catálogo de códigos de erro, deploy na VPS e limpeza diária ([ca3f79d](https://github.com/Project-PKA/backend/commit/ca3f79d6ade393811c75ae3a3bb7147d560afb86))
+
+
+### Correções
+
+* **contrato:** openapi com a versão do release (1.0.0) ([71492b8](https://github.com/Project-PKA/backend/commit/71492b819500621bc4987dccafc9a98b9d2948f7))
+* **contrato:** openapi com a versão do release (1.0.0) e release-please passa a atualizá-lo ([89d8f1f](https://github.com/Project-PKA/backend/commit/89d8f1f007056d70475ec433cc6293eb0d1c1c5f))
+* **db:** registra erro de conexão ociosa do pool em vez de derrubar o processo ([faef6b1](https://github.com/Project-PKA/backend/commit/faef6b1b73327ca66269ae438b877bc18330fe83))
+* **db:** registra erro de conexão ociosa do pool em vez de derrubar o processo ([7615523](https://github.com/Project-PKA/backend/commit/7615523631572e59574d88a7a05ef37d938e06ae))
+
+
+### Documentação
+
+* registra o catálogo de erros, o deploy e a limpeza ([d3f5e3a](https://github.com/Project-PKA/backend/commit/d3f5e3ac26d63966b13a8db0b0caf8059f8824c8))
+
 ## 1.0.0 (2026-10-18)
 
 
