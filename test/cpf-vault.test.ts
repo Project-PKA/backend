@@ -42,7 +42,9 @@ describe('CpfVault', () => {
     const vault = new CpfVault(KEY);
     const sealed = vault.seal('52998224725').cipher;
     const [version, iv, tag, text] = sealed.split('.') as [string, string, string, string];
-    const flipped = `${version}.${iv}.${tag}.${text.slice(0, -1)}${text.endsWith('A') ? 'B' : 'A'}`;
+    // O primeiro caractere do base64url usa os 6 bits; o último pode ter bits de enchimento, e trocá-lo
+    // às vezes não muda os bytes (o teste ficaria instável).
+    const flipped = `${version}.${iv}.${tag}.${text.startsWith('A') ? 'B' : 'A'}${text.slice(1)}`;
 
     expect(() => vault.open(flipped)).toThrow();
     expect(() => vault.open('52998224725')).toThrow();

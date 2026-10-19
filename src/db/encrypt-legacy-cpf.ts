@@ -1,6 +1,7 @@
 import type pg from 'pg';
 
-import type { CpfVault } from '../security/cpf-vault.js';
+import { CpfVault } from '../security/cpf-vault.js';
+import { createPool } from './client.js';
 
 /**
  * Cifra os CPFs que ainda estão legíveis (clientes anteriores à migration 0024) e preenche
@@ -31,5 +32,23 @@ export async function encryptLegacyCpfs(pool: pg.Pool, vault: CpfVault): Promise
     throw error;
   } finally {
     client.release();
+  }
+}
+
+/** O que o `npm run db:encrypt-cpf` faz: lê o ambiente, conecta como dono do schema e cifra. */
+export async function runEncryptCpf(env: NodeJS.ProcessEnv): Promise<string> {
+  const url = env['MIGRATION_DATABASE_URL'] ?? env['DATABASE_URL'];
+  if (url === undefined || url === '') {
+    throw new Error('Defina MIGRATION_DATABASE_URL (ou DATABASE_URL) com o usuário dono do schema');
+  }
+  const key = env['CPF_ENCRYPTION_KEY'];
+  if (key === undefined || key.length < 32) {
+    throw new Error('Defina CPF_ENCRYPTION_KEY (mínimo de 32 caracteres), a mesma da API');
+  }
+  const pool = createPool(url);
+  try {
+    return `${String(await encryptLegacyCpfs(pool, new CpfVault(key)))} CPF(s) cifrado(s).`;
+  } finally {
+    await pool.end();
   }
 }

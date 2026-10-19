@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { encryptLegacyCpfs } from '../src/db/encrypt-legacy-cpf.js';
+import { encryptLegacyCpfs, runEncryptCpf } from '../src/db/encrypt-legacy-cpf.js';
 import { SEED_IDS } from '../src/db/seed.js';
 import { CpfVault, isSealed } from '../src/security/cpf-vault.js';
 import { startWorld, type World } from './helpers/world.js';
@@ -46,5 +46,55 @@ describe('encryptLegacyCpfs', () => {
     expect(vault.open(stored?.cpf ?? '')).toBe('52998224725');
 
     expect(await encryptLegacyCpfs(world.admin, vault)).toBe(0);
+  });
+
+  it('desfaz tudo se a cifra falhar no meio e o RLS continua forçado', async () => {
+    await world.admin.query('ALTER TABLE customers NO FORCE ROW LEVEL SECURITY');
+    await world.admin.query(
+      `INSERT INTO customers (store_id, phone, name, cpf, cpf_last2)
+       VALUES ($1, '5599988870002', 'Outro Antigo', '39053344705', '05')`,
+      [SEED_IDS.storeA],
+    );
+    await world.admin.query('ALTER TABLE customers FORCE ROW LEVEL SECURITY');
+    const broken = {
+      seal: () => {
+        throw new Error('falha de teste');
+      },
+    };
+
+    await expect(encryptLegacyCpfs(world.admin, broken as unknown as CpfVault)).rejects.toThrow(
+      'falha de teste',
+    );
+
+    const forced = await world.admin.query<{ f: boolean }>(
+      "SELECT relforcerowsecurity AS f FROM pg_class WHERE relname = 'customers'",
+    );
+    expect(forced.rows[0]?.f).toBe(true);
+    // Ainda legível (nada foi cifrado pela metade); o próximo `db:encrypt-cpf` termina o serviço.
+    await world.admin.query('ALTER TABLE customers NO FORCE ROW LEVEL SECURITY');
+    const left = await world.admin.query("SELECT cpf FROM customers WHERE phone = '5599988870002'");
+    await world.admin.query('ALTER TABLE customers FORCE ROW LEVEL SECURITY');
+    expect(left.rows[0]).toEqual({ cpf: '39053344705' });
+  });
+});
+
+describe('runEncryptCpf (o script)', () => {
+  const key = 'chave-de-teste-do-cpf-0123456789abcdef';
+
+  it('exige o banco do dono e uma chave de 32 caracteres', async () => {
+    await expect(runEncryptCpf({ CPF_ENCRYPTION_KEY: key })).rejects.toThrow(
+      'MIGRATION_DATABASE_URL',
+    );
+    await expect(
+      runEncryptCpf({ MIGRATION_DATABASE_URL: world.database.uri, CPF_ENCRYPTION_KEY: 'curta' }),
+    ).rejects.toThrow('CPF_ENCRYPTION_KEY');
+  });
+
+  it('conecta, cifra e informa quantos', async () => {
+    const message = await runEncryptCpf({
+      MIGRATION_DATABASE_URL: world.database.uri,
+      CPF_ENCRYPTION_KEY: key,
+    });
+    expect(message).toMatch(/^\d+ CPF\(s\) cifrado\(s\)\.$/);
   });
 });
