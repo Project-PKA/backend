@@ -6,6 +6,7 @@ const secrets = {
   JWT_ACCESS_SECRET: 'a'.repeat(32),
   REFRESH_TOKEN_PEPPER: 'b'.repeat(32),
   OTP_HASH_SECRET: 'c'.repeat(32),
+  CPF_ENCRYPTION_KEY: 'd'.repeat(32),
 };
 const base = { DATABASE_URL: 'postgresql://app:app@localhost:5432/app', ...secrets };
 
@@ -45,7 +46,7 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...secrets })).toThrow('DATABASE_URL');
   });
 
-  it.each(['JWT_ACCESS_SECRET', 'REFRESH_TOKEN_PEPPER', 'OTP_HASH_SECRET'])(
+  it.each(['JWT_ACCESS_SECRET', 'REFRESH_TOKEN_PEPPER', 'OTP_HASH_SECRET', 'CPF_ENCRYPTION_KEY'])(
     'exige %s com pelo menos 32 caracteres',
     (name) => {
       expect(() => loadEnv({ ...base, [name]: undefined })).toThrow(name);

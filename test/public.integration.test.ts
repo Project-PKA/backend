@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { KIND, SEED_IDS, SEED_LINK_TOKENS, uid } from '../src/db/seed.js';
 import { buildTestApp, type TestApp } from './helpers/app.js';
 import { login, startWorld, type Session, type World } from './helpers/world.js';
+import { cpfVault, openCpf } from './helpers/cpf.js';
 
 /**
  * Sprint 06 (parte pública, ADR 0014 e D13): papel `public_runtime`, página do acerto, acompanhamento
@@ -401,6 +402,7 @@ describe('página pública do acerto (#52)', () => {
     const row = buyer.rows[0];
     for (const secret of [
       row?.cpf,
+      openCpf(row?.cpf),
       row?.email,
       row?.phone,
       row?.address_street,
@@ -468,8 +470,15 @@ describe('página pública do acerto (#52)', () => {
     }>('SELECT cpf, address_zip, address_state, is_visitor FROM customers WHERE id = $1', [
       customer(17),
     ]);
-    expect(stored.rows[0]).toEqual({
-      cpf: '52998224725',
+    expect(openCpf(stored.rows[0]?.cpf)).toBe('52998224725');
+    expect(stored.rows[0]?.cpf).not.toContain('52998224725');
+    const derived = await world.admin.query<{ cpf_last2: string; cpf_key_hash: string }>(
+      'SELECT cpf_last2, cpf_key_hash FROM customers WHERE id = $1',
+      [customer(17)],
+    );
+    expect(derived.rows[0]).toEqual({ cpf_last2: '25', cpf_key_hash: cpfVault.keyHash('5299') });
+    expect({ ...stored.rows[0], cpf: undefined }).toEqual({
+      cpf: undefined,
       address_zip: '01310100',
       address_state: 'SP',
       is_visitor: false,
@@ -638,7 +647,7 @@ describe('acompanhamento do consignador (#56)', () => {
     );
     for (const row of secrets.rows) {
       expect(response.body).not.toContain(row.phone);
-      if (row.cpf) expect(response.body).not.toContain(row.cpf);
+      if (row.cpf) expect(response.body).not.toContain(openCpf(row.cpf) ?? row.cpf);
       if (row.email) expect(response.body).not.toContain(row.email);
     }
   });

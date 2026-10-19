@@ -155,9 +155,10 @@ tarefa que o toca não está pronta sem ele.
 
 ### Decisões de segurança em aberto
 
-1. **Criptografia de CPF e telefone em repouso** (além do disco da VPS):
-   protege contra vazamento de backup, ao custo de não poder buscar por ele
-   direto. Decidir com a revisão de LGPD.
+1. **Criptografia do CPF em repouso: feita** (migration 0024, ADR 0019 do shared): AES-256-GCM com
+   `CPF_ENCRYPTION_KEY` (guarde a chave à parte; sem ela o CPF não volta). O telefone continua
+   em texto, porque identifica o cliente no grupo. Falta decidir com a revisão de LGPD: retenção,
+   exclusão e rotação da chave.
 2. **Segundo fator para o administrador da plataforma:** a conta mais
    valiosa do sistema. Avaliar antes de produção.
 3. **Provedor de e-mail do OTP** (entregabilidade e, por ser porta de entrada,

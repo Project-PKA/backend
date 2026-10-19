@@ -14,7 +14,7 @@ if (!['local', 'dev', 'test'].includes(appEnv)) {
 
 const pool = createPool(url);
 try {
-  await seedDatabase(pool);
+  await seedDatabase(pool, process.env['CPF_ENCRYPTION_KEY'] ?? undefined);
   console.log('Seed aplicado.');
 } finally {
   await pool.end();

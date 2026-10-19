@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { KIND, SEED_IDS, uid } from '../src/db/seed.js';
 import { buildTestApp, type TestApp } from './helpers/app.js';
 import { login, startWorld, type Session, type World } from './helpers/world.js';
+import { cpfVault, openCpf } from './helpers/cpf.js';
 
 /** Sprint 04: clientes, visitantes, blacklist, perfil e carteira de consignação. Postgres real. */
 
@@ -115,11 +116,17 @@ describe('cadastro (POST /v1/customers)', () => {
       address: { zip: '01310100', state: 'SP' },
     });
     expect(response.body).not.toContain('52998224725');
-    const { rows } = await world.admin.query<{ cpf: string }>(
-      'SELECT cpf FROM customers WHERE id = $1',
-      [body.id],
-    );
-    expect(rows[0]?.cpf).toBe('52998224725');
+    const { rows } = await world.admin.query<{
+      cpf: string;
+      cpf_last2: string;
+      cpf_key_hash: string;
+    }>('SELECT cpf, cpf_last2, cpf_key_hash FROM customers WHERE id = $1', [body.id]);
+    // No banco o CPF está cifrado: nunca legível (ADR 0019).
+    expect(rows[0]?.cpf).not.toContain('52998224725');
+    expect(rows[0]?.cpf).toMatch(/^v1\./);
+    expect(openCpf(rows[0]?.cpf)).toBe('52998224725');
+    expect(rows[0]?.cpf_last2).toBe('25');
+    expect(rows[0]?.cpf_key_hash).toBe(cpfVault.keyHash('5299'));
   });
 
   it('telefone repetido na mesma loja é 409; em outra loja pode', async () => {
@@ -371,7 +378,10 @@ describe('lista e perfil', () => {
       'SELECT cpf FROM customers WHERE cpf IS NOT NULL',
     );
     expect(stored.rows.length).toBeGreaterThan(0);
-    for (const { cpf } of stored.rows) expect(response.body).not.toContain(cpf);
+    for (const { cpf } of stored.rows) {
+      expect(response.body).not.toContain(cpf);
+      expect(response.body).not.toContain(openCpf(cpf) ?? '');
+    }
     expect(response.json<{ items: CustomerJson[] }>().items[0]).not.toHaveProperty('cpf');
   });
 

@@ -5,6 +5,7 @@ import { MemoryEmailSender } from '../../src/auth/email.js';
 import type { TcgdexClient } from '../../src/catalog/tcgdex.js';
 import { createPool } from '../../src/db/client.js';
 import { createDb, type Db } from '../../src/db/context.js';
+import { SEED_CPF_KEY } from '../../src/db/seed.js';
 import { loadEnv, type Env } from '../../src/config/env.js';
 import { MemoryStorage } from '../../src/storage/disk.js';
 
@@ -17,6 +18,7 @@ export function testEnv(overrides: NodeJS.ProcessEnv = {}): Env {
     JWT_ACCESS_SECRET: 'teste-jwt-access-secret-0123456789abcdef',
     REFRESH_TOKEN_PEPPER: 'teste-refresh-pepper-0123456789abcdef',
     OTP_HASH_SECRET: 'teste-otp-hash-secret-0123456789abcdef',
+    CPF_ENCRYPTION_KEY: SEED_CPF_KEY,
     CORS_ORIGINS: 'http://localhost:3000',
     OTP_RESEND_SECONDS: '0',
     RATE_LIMIT_PER_MINUTE: '100000',

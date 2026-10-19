@@ -19,6 +19,7 @@
     "db:seed": "tsx src/db/seed-cli.ts",
     "db:provision-dev": "tsx src/db/provision-dev.ts",
     "db:create-admin": "tsx src/db/create-admin.ts",
+    "db:encrypt-cpf": "tsx src/db/encrypt-cpf.ts",
     "catalog:sync": "tsx src/catalog/sync-cli.ts",
     "error-codes:generate": "tsx scripts/error-codes.ts",
     "maintenance:purge": "tsx src/jobs/purge-cli.ts"

@@ -14,6 +14,7 @@ import { createAuthHooks } from './auth/hooks.js';
 import { NotificationService } from './notifications/service.js';
 import { PlanService } from './plan/service.js';
 import { MessageTemplateService } from './messages/service.js';
+import { CpfVault } from './security/cpf-vault.js';
 import { ProfileService } from './profile/service.js';
 import { AdminService } from './admin/service.js';
 import { DashboardService } from './dashboard/service.js';
@@ -247,7 +248,8 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   inventoryRoutes(app, { hooks, inventory, photos });
   const auctions = new AuctionService(deps.db, deps.now);
   auctionRoutes(app, { hooks, auctions });
-  const customers = new CustomerService(deps.db);
+  const cpfVault = new CpfVault(deps.env.cpfEncryptionKey);
+  const customers = new CustomerService(deps.db, cpfVault);
   customerRoutes(app, { hooks, customers });
   const settlements = new SettlementService(deps.db);
   settlementRoutes(app, { hooks, settlements, receipts });
@@ -268,7 +270,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   const dashboard = new DashboardService(deps.db);
   dashboardRoutes(app, { hooks, dashboard });
   publicRoutes(app, {
-    access: new PublicAccessService(deps.db),
+    access: new PublicAccessService(deps.db, cpfVault),
     receipts,
     rateLimitPerMinute: deps.env.rateLimit.publicAccess,
     accessRequestPerMinute: deps.env.rateLimit.accessRequest,

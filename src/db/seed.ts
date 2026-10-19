@@ -6,6 +6,7 @@ import type pg from 'pg';
 
 import { buildSearchText } from '../catalog/normalize.js';
 import * as schema from './schema.js';
+import { CpfVault } from '../security/cpf-vault.js';
 
 /**
  * Seed de desenvolvimento e demonstração (docs/database.md, seção 3).
@@ -113,10 +114,27 @@ interface BidSpec {
 
 type CustomerRow = typeof schema.customers.$inferInsert;
 
+/**
+ * Chave de CPF dos dados de desenvolvimento e de teste (não é segredo). O `.env.example` usa a mesma,
+ * para o CPF do seed abrir na API local.
+ */
+export const SEED_CPF_KEY = 'dev-only-cpf-encryption-key-change-me-0123456789';
+
+/** O CPF do seed já entra cifrado, como a API grava (ADR 0019). */
+function cpfColumns(
+  vault: CpfVault,
+  cpf: string,
+): Pick<CustomerRow, 'cpf' | 'cpfLast2' | 'cpfKeyHash'> {
+  // IV derivado do CPF só no seed: o banco de desenvolvimento precisa ser reproduzível.
+  const iv = createHash('sha256').update(`seed-iv:${cpf}`).digest().subarray(0, 12);
+  const sealed = vault.seal(cpf, iv);
+  return { cpf: sealed.cipher, cpfLast2: sealed.last2, cpfKeyHash: sealed.keyHash };
+}
+
 const pad = (n: number, size: number): string => String(n).padStart(size, '0');
 
 /** Loja A: 1-25 clientes completos (1-4 são consignadores), 26-37 visitantes, 38-40 na blacklist. */
-function storeACustomer(n: number): CustomerRow {
+function storeACustomer(n: number, vault: CpfVault): CustomerRow {
   const isVisitor = n >= 26 && n <= 37;
   const isBlacklisted = n >= 38;
   const base: CustomerRow = {
@@ -136,7 +154,7 @@ function storeACustomer(n: number): CustomerRow {
     ...base,
     // Cliente de número múltiplo de 5 não informou e-mail.
     email: n % 5 === 0 ? null : `cliente${n}@example.com`,
-    cpf: `000000${pad(n, 3)}00`,
+    ...cpfColumns(vault, `000000${pad(n, 3)}00`),
     addressZip: '01310100',
     addressStreet: 'Avenida Paulista',
     addressNumber: String(n * 10),
@@ -169,9 +187,9 @@ function storeCCustomer(n: number): CustomerRow {
 
 const range = (size: number): number[] => Array.from({ length: size }, (_, i) => i + 1);
 
-function buildCustomers(): CustomerRow[] {
+function buildCustomers(vault: CpfVault): CustomerRow[] {
   return [
-    ...range(40).map(storeACustomer),
+    ...range(40).map((n) => storeACustomer(n, vault)),
     ...range(5).map(storeBCustomer),
     ...range(2).map(storeCCustomer),
   ];
@@ -205,12 +223,13 @@ function buildCardsStoreA(
   return rows;
 }
 
-export async function seedDatabase(pool: pg.Pool): Promise<void> {
+export async function seedDatabase(pool: pg.Pool, cpfKey = SEED_CPF_KEY): Promise<void> {
+  const vault = new CpfVault(cpfKey);
   const db = drizzle({ client: pool, schema });
 
   await db.transaction(async (tx) => {
     await tx.execute(sql.raw(`TRUNCATE ${TABLES_TO_CLEAR.join(', ')} RESTART IDENTITY CASCADE`));
-    await insertAll(tx);
+    await insertAll(tx, vault);
     await normalizeTimestamps(tx);
   });
 }
@@ -249,7 +268,7 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
   await db.execute(sql.raw(`UPDATE notification_reads SET read_at = '${SEED_TIME}'`));
 }
 
-async function insertAll(db: Tx): Promise<void> {
+async function insertAll(db: Tx, vault: CpfVault): Promise<void> {
   // --- Identidade -------------------------------------------------------------
   await db.insert(schema.users).values([
     {
@@ -477,7 +496,7 @@ async function insertAll(db: Tx): Promise<void> {
       };
     }),
   );
-  await db.insert(schema.customers).values(buildCustomers());
+  await db.insert(schema.customers).values(buildCustomers(vault));
 
   // --- Estoque da loja A: o status final de cada carta depende dos leilões ----
   const cardStatus = new Map<number, (typeof schema.cardsInventory.$inferInsert)['status']>([

@@ -228,7 +228,12 @@ export const customers = pgTable(
     phone: text('phone').notNull(),
     name: text('name').notNull(),
     email: text('email'),
+    /** CPF cifrado (`v1.<iv>.<tag>.<texto>`, AES-256-GCM), nunca legível. Ver `security/cpf-vault.ts`. */
     cpf: text('cpf'),
+    /** Dois últimos dígitos do CPF, só para a máscara. */
+    cpfLast2: text('cpf_last2'),
+    /** HMAC dos 4 primeiros dígitos: a chave de acesso do consignador. */
+    cpfKeyHash: text('cpf_key_hash'),
     isVisitor: boolean('is_visitor').notNull().default(true),
     isBlacklisted: boolean('is_blacklisted').notNull().default(false),
     blacklistReason: text('blacklist_reason'),

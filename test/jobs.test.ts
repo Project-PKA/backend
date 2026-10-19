@@ -36,6 +36,7 @@ describe('variáveis dos jobs', () => {
     JWT_ACCESS_SECRET: 'a'.repeat(32),
     REFRESH_TOKEN_PEPPER: 'b'.repeat(32),
     OTP_HASH_SECRET: 'c'.repeat(32),
+    CPF_ENCRYPTION_KEY: 'd'.repeat(32),
   };
 
   it('Redis é opcional em desenvolvimento e o catálogo vem em en e pt', () => {
