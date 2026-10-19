@@ -5,7 +5,7 @@ import { withContext, type Db, type Tx } from '../db/context.js';
 import * as schema from '../db/schema.js';
 import { decodeCursor, toPage, type Page } from '../http/pagination.js';
 
-const { settlements, settlementItems, customers, cardsInventory, shipments } = schema;
+const { settlements, settlementItems, customers, cardsInventory } = schema;
 
 interface Context {
   storeId: string;
@@ -25,13 +25,11 @@ export interface SettlementView {
   status: SettlementStatus;
   customer: { id: string; name: string; kind: 'VISITOR' | 'CUSTOMER'; phone: string };
   itemsTotal: string;
-  shippingCost: string;
   totalAmount: string;
   paidAt: Date | null;
   paymentClaimedAt: Date | null;
   hasReceipt: boolean;
   createdAt: Date;
-  shipment: { id: string; status: string; trackingCode: string | null } | null;
   items: SettlementItemView[];
 }
 
@@ -71,7 +69,7 @@ const kindOf = (isVisitor: boolean): 'VISITOR' | 'CUSTOMER' => (isVisitor ? 'VIS
 
 /**
  * Acertos (ADR 0002 e 0013): a plataforma não cobra nem garante pagamento. A loja agrupa o que o
- * comprador ganhou, informa o frete e marca como pago quando recebe por fora.
+ * comprador ganhou e marca como pago quando recebe por fora.
  */
 export class SettlementService {
   constructor(private readonly db: Db) {}
@@ -123,15 +121,11 @@ export class SettlementService {
 
   private async view(tx: Tx, storeId: string, id: string): Promise<SettlementView | null> {
     const [row] = await tx
-      .select({ settlement: settlements, customer: customers, shipment: shipments })
+      .select({ settlement: settlements, customer: customers })
       .from(settlements)
       .innerJoin(
         customers,
         and(eq(customers.id, settlements.customerId), eq(customers.storeId, storeId)),
-      )
-      .leftJoin(
-        shipments,
-        and(eq(shipments.settlementId, settlements.id), eq(shipments.storeId, storeId)),
       )
       .where(and(eq(settlements.id, id), eq(settlements.storeId, storeId)))
       .limit(1);
@@ -165,20 +159,11 @@ export class SettlementService {
         phone: row.customer.phone,
       },
       itemsTotal: itemsTotal.rows[0]?.total ?? '0.00',
-      shippingCost: row.settlement.shippingCost,
       totalAmount: row.settlement.totalAmount,
       paidAt: row.settlement.paidAt,
       paymentClaimedAt: row.settlement.paymentClaimedAt,
       hasReceipt: row.settlement.receiptFile !== null,
       createdAt: row.settlement.createdAt,
-      shipment:
-        row.shipment === null
-          ? null
-          : {
-              id: row.shipment.id,
-              status: row.shipment.status,
-              trackingCode: row.shipment.trackingCode,
-            },
       items: items.rows.map((item) => ({
         auctionId: item.auction_id,
         amount: item.amount,
@@ -193,7 +178,7 @@ export class SettlementService {
    */
   async create(
     context: Context,
-    input: { customerId: string; auctionIds: string[]; shippingCost: string },
+    input: { customerId: string; auctionIds: string[] },
   ): Promise<SettlementResult> {
     const ids = [...new Set(input.auctionIds)];
     return withContext(this.db, context, async (tx) => {
@@ -231,15 +216,13 @@ export class SettlementService {
       }
 
       const total = await tx.execute<{ total: string }>(sql`
-        SELECT (${eligible.rows.reduce((sum, r) => sum + Math.round(Number(r.amount) * 100), 0)}::numeric / 100
-                + ${input.shippingCost}::numeric)::numeric(12, 2) AS total
+        SELECT (${eligible.rows.reduce((sum, r) => sum + Math.round(Number(r.amount) * 100), 0)}::numeric / 100)::numeric(12, 2) AS total
       `);
       const [created] = await tx
         .insert(settlements)
         .values({
           storeId: context.storeId,
           customerId: input.customerId,
-          shippingCost: input.shippingCost,
           totalAmount: total.rows[0]?.total ?? '0',
         })
         .returning({ id: settlements.id });
@@ -312,37 +295,8 @@ export class SettlementService {
     return row;
   }
 
-  /** Muda o frete enquanto o acerto está pendente; o total acompanha. */
-  async setShipping(context: Context, id: string, shippingCost: string): Promise<SettlementResult> {
-    return withContext(this.db, context, async (tx) => {
-      const current = await this.lock(tx, context.storeId, id);
-      if (current === undefined) return { ok: false, reason: 'NOT_FOUND' } as const;
-      if (current.status !== 'PENDING') return { ok: false, reason: 'NOT_PENDING' } as const;
-
-      await tx.execute(sql`
-        UPDATE settlements s
-           SET shipping_cost = ${shippingCost}::numeric,
-               total_amount = (SELECT coalesce(sum(amount), 0) FROM settlement_items
-                                WHERE settlement_id = s.id AND store_id = s.store_id)
-                              + ${shippingCost}::numeric
-         WHERE s.id = ${id}::uuid AND s.store_id = ${context.storeId}::uuid
-      `);
-      await recordActivity(tx, {
-        storeId: context.storeId,
-        actorUserId: context.userId,
-        action: 'settlement.shipping_updated',
-        targetType: 'settlement',
-        targetId: id,
-      });
-      const settlement = await this.view(tx, context.storeId, id);
-      if (settlement === null) throw new Error('o acerto editado não foi encontrado');
-      return { ok: true, settlement } as const;
-    });
-  }
-
   /**
-   * Marca como pago (só a loja; "já paguei" do comprador nunca faz isto). As cartas viram vendidas
-   * e entra na fila de envios.
+   * Marca como pago (só a loja; "já paguei" do comprador nunca faz isto). As cartas viram vendidas.
    */
   async markPaid(context: Context, id: string): Promise<SettlementResult> {
     return withContext(this.db, context, async (tx) => {
@@ -369,7 +323,6 @@ export class SettlementService {
             ),
           ),
         );
-      await tx.insert(shipments).values({ storeId: context.storeId, settlementId: id });
       await recordActivity(tx, {
         storeId: context.storeId,
         actorUserId: context.userId,

@@ -19,7 +19,6 @@ import { DashboardService } from './dashboard/service.js';
 import { PublicAccessService } from './public/access.js';
 import { PublicLinkService } from './public/links.js';
 import { SettlementService } from './settlements/service.js';
-import { ShipmentService } from './shipments/service.js';
 import { CustomerService } from './customers/service.js';
 import { AuctionService } from './auctions/service.js';
 import { CatalogService } from './catalog/service.js';
@@ -77,7 +76,6 @@ export interface BuiltApp {
   auctions: AuctionService;
   customers: CustomerService;
   settlements: SettlementService;
-  shipments: ShipmentService;
   publicLinks: PublicLinkService;
   dashboard: DashboardService;
   admin: AdminService;
@@ -191,7 +189,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
           name: 'public',
           description: 'Páginas públicas por link (acerto e consignador) e gestão dos links',
         },
-        { name: 'settlements', description: 'Acertos, pagamento e fila de envios' },
+        { name: 'settlements', description: 'Acertos e pagamento' },
         { name: 'auctions', description: 'Leilões, lances e enquetes' },
         { name: 'inventory', description: 'Estoque da loja (cartas próprias e consignadas)' },
       ],
@@ -249,8 +247,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   const customers = new CustomerService(deps.db);
   customerRoutes(app, { hooks, customers });
   const settlements = new SettlementService(deps.db);
-  const shipments = new ShipmentService(deps.db);
-  settlementRoutes(app, { hooks, settlements, shipments, receipts });
+  settlementRoutes(app, { hooks, settlements, receipts });
   const publicLinks = new PublicLinkService(deps.db);
   publicLinkRoutes(app, { hooks, links: publicLinks });
   const profile = new ProfileService(deps.db);
@@ -287,7 +284,6 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
     auctions,
     customers,
     settlements,
-    shipments,
     publicLinks,
     dashboard,
     admin,

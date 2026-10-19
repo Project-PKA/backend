@@ -355,12 +355,11 @@ export function customerRoutes(app: FastifyInstance, deps: CustomerRouteDeps): v
 
   const settlementResponse = {
     type: 'object',
-    required: ['id', 'status', 'total_amount', 'shipping_cost', 'items', 'paid_at', 'created_at'],
+    required: ['id', 'status', 'total_amount', 'items', 'paid_at', 'created_at'],
     properties: {
       id: { type: 'string', format: 'uuid' },
       status: { type: 'string', enum: ['PENDING', 'PAID'] },
       total_amount: { type: 'string' },
-      shipping_cost: { type: 'string' },
       items: { type: 'integer' },
       paid_at: { type: 'string', format: 'date-time', nullable: true },
       created_at: { type: 'string', format: 'date-time' },
@@ -402,7 +401,6 @@ export function customerRoutes(app: FastifyInstance, deps: CustomerRouteDeps): v
           id: item.id,
           status: item.status,
           total_amount: item.totalAmount,
-          shipping_cost: item.shippingCost,
           items: item.items,
           paid_at: item.paidAt?.toISOString() ?? null,
           created_at: item.createdAt.toISOString(),

@@ -4,7 +4,7 @@ import { KIND, SEED_IDS, uid } from '../src/db/seed.js';
 import { buildTestApp, type TestApp } from './helpers/app.js';
 import { login, startWorld, type Session, type World } from './helpers/world.js';
 
-/** Sprint 06 (parte autenticada): acertos, pagamento pela loja e fila de envios. Postgres real. */
+/** Sprint 06 (parte autenticada): acertos, pagamento pela loja. Sem frete nem envio (o sistema não trata disso). Postgres real. */
 
 let world: World;
 let app: TestApp | undefined;
@@ -59,20 +59,9 @@ interface SettlementJson {
   status: string;
   total_amount: string;
   items_total: string;
-  shipping_cost: string;
   paid_at: string | null;
   customer: { id: string; kind: string };
-  shipment: { id: string; status: string; tracking_code: string | null } | null;
   items: { auction_id: string; amount: string; card: { short_code: string } }[];
-}
-
-interface ShipmentJson {
-  id: string;
-  status: string;
-  tracking_code: string | null;
-  shipped_at: string | null;
-  delivered_at: string | null;
-  recipient: { name: string; address: { city: string | null } };
 }
 
 /** Leilão encerrado em que `buyer` deu o único (e vencedor) lance de `amount`. */
@@ -149,7 +138,7 @@ describe('fila "a acertar" (GET /v1/settlements/awaiting)', () => {
 });
 
 describe('criar acerto (POST /v1/settlements)', () => {
-  it('total = itens + frete informado pela loja; as cartas seguem aguardando', async () => {
+  it('total = soma dos itens; as cartas seguem aguardando', async () => {
     const server = await start();
     const staff = await login(server, STAFF);
     const one = await wonAuction(server, staff, 12, customer(7), '30.00');
@@ -158,7 +147,6 @@ describe('criar acerto (POST /v1/settlements)', () => {
     const response = await call(server, 'POST', '/v1/settlements', staff, A, {
       customer_id: customer(7),
       auction_ids: [one, two, one],
-      shipping_cost: '15.50',
     });
 
     expect(response.statusCode, response.body).toBe(201);
@@ -166,10 +154,8 @@ describe('criar acerto (POST /v1/settlements)', () => {
     expect(body).toMatchObject({
       status: 'PENDING',
       items_total: '80.00',
-      shipping_cost: '15.50',
-      total_amount: '95.50',
+      total_amount: '80.00',
       paid_at: null,
-      shipment: null,
     });
     expect(body.items).toHaveLength(2);
     expect(await cardStatus(12)).toBe('AWAITING_CONFIRMATION');
@@ -181,20 +167,6 @@ describe('criar acerto (POST /v1/settlements)', () => {
     const owner = await login(server, OWNER);
     const log = await call(server, 'GET', '/v1/activity-log?limit=3', owner, A);
     expect(log.json<{ items: { action: string }[] }>().items[0]?.action).toBe('settlement.created');
-  });
-
-  it('frete é opcional e vale zero', async () => {
-    const server = await start();
-    const staff = await login(server, STAFF);
-    const id = await wonAuction(server, staff, 12, customer(7), '30.00');
-    const response = await call(server, 'POST', '/v1/settlements', staff, A, {
-      customer_id: customer(7),
-      auction_ids: [id],
-    });
-    expect(response.json<SettlementJson>()).toMatchObject({
-      shipping_cost: '0.00',
-      total_amount: '30.00',
-    });
   });
 
   it('recusa leilão de outro comprador, em andamento, sem vencedor, já acertado ou de outra loja', async () => {
@@ -272,15 +244,6 @@ describe('criar acerto (POST /v1/settlements)', () => {
     const post = (payload: unknown) => call(server, 'POST', '/v1/settlements', staff, A, payload);
     expect((await post({ customer_id: customer(7), auction_ids: [] })).statusCode).toBe(400);
     expect((await post({ customer_id: customer(7), auction_ids: ['x'] })).statusCode).toBe(400);
-    expect(
-      (
-        await post({
-          customer_id: customer(7),
-          auction_ids: [uid(KIND.auction, 8)],
-          shipping_cost: '-1',
-        })
-      ).statusCode,
-    ).toBe(400);
     expect((await post({ auction_ids: [uid(KIND.auction, 8)] })).statusCode).toBe(400);
 
     await world.admin.query(
@@ -299,37 +262,9 @@ describe('editar, desfazer e pagar', () => {
     const created = await call(server, 'POST', '/v1/settlements', staff, A, {
       customer_id: customer(7),
       auction_ids: [id],
-      shipping_cost: '10',
     });
     return created.json<SettlementJson>();
   }
-
-  it('o frete muda e o total acompanha, só enquanto pendente', async () => {
-    const server = await start();
-    const staff = await login(server, STAFF);
-    const settlement = await pending(server, staff);
-
-    const updated = await call(server, 'PATCH', `/v1/settlements/${settlement.id}`, staff, A, {
-      shipping_cost: '22.90',
-    });
-    expect(updated.json<SettlementJson>()).toMatchObject({
-      shipping_cost: '22.90',
-      total_amount: '52.90',
-    });
-
-    const paid = await call(
-      server,
-      'PATCH',
-      `/v1/settlements/${uid(KIND.settlement, 1)}`,
-      staff,
-      A,
-      {
-        shipping_cost: '1',
-      },
-    );
-    expect(paid.statusCode).toBe(409);
-    expect(paid.json()).toMatchObject({ code: 'SETTLEMENT_NOT_PENDING' });
-  });
 
   it('desfazer um acerto pendente devolve os leilões à fila; o pago não se desfaz', async () => {
     const server = await start();
@@ -353,7 +288,7 @@ describe('editar, desfazer e pagar', () => {
     expect(paid.statusCode).toBe(409);
   });
 
-  it('marcar como pago: só com can_view_finance; vira SOLD e entra na fila de envios', async () => {
+  it('marcar como pago: só com can_view_finance; vira SOLD', async () => {
     const server = await start();
     const staff = await login(server, STAFF);
     const owner = await login(server, OWNER);
@@ -370,7 +305,6 @@ describe('editar, desfazer e pagar', () => {
     const body = paid.json<SettlementJson>();
     expect(body.status).toBe('PAID');
     expect(body.paid_at).not.toBeNull();
-    expect(body.shipment).toMatchObject({ status: 'TO_SHIP', tracking_code: null });
     expect(await cardStatus(12)).toBe('SOLD');
     const again = await call(server, 'POST', `/v1/settlements/${settlement.id}/paid`, owner, A);
     expect(again.statusCode).toBe(409);
@@ -378,7 +312,7 @@ describe('editar, desfazer e pagar', () => {
     expect(log.json<{ items: { action: string }[] }>().items[0]?.action).toBe('settlement.paid');
   });
 
-  it('pagar duas vezes ao mesmo tempo: um envio só', async () => {
+  it('pagar duas vezes ao mesmo tempo: um pagamento só', async () => {
     const server = await start();
     const staff = await login(server, STAFF);
     const owner = await login(server, OWNER);
@@ -392,10 +326,11 @@ describe('editar, desfazer e pagar', () => {
 
     expect(responses.filter((r) => r.statusCode === 200)).toHaveLength(1);
     expect(responses.filter((r) => r.statusCode === 409)).toHaveLength(3);
-    const { rows } = await world.admin.query('SELECT 1 FROM shipments WHERE settlement_id = $1', [
-      settlement.id,
-    ]);
-    expect(rows).toHaveLength(1);
+    const log = await call(server, 'GET', '/v1/activity-log?limit=50', owner, A);
+    const paidEntries = log
+      .json<{ items: { action: string }[] }>()
+      .items.filter((entry) => entry.action === 'settlement.paid');
+    expect(paidEntries).toHaveLength(1);
   });
 });
 
@@ -445,7 +380,7 @@ describe('listar e isolamento', () => {
     );
   });
 
-  it('acerto e envio de outra loja são 404 em todas as rotas', async () => {
+  it('acerto de outra loja é 404 em todas as rotas', async () => {
     const server = await start();
     const owner = await login(server, OWNER);
     const staff = await login(server, STAFF);
@@ -453,17 +388,11 @@ describe('listar e isolamento', () => {
       `INSERT INTO settlements (id, store_id, customer_id, total_amount) VALUES ($1, $2, $3, 10)`,
       [uid(KIND.settlement, 900), B, customer(101)],
     );
-    await world.admin.query(
-      `INSERT INTO shipments (id, store_id, settlement_id) VALUES ($1, $2, $3)`,
-      [uid(KIND.shipment, 900), B, uid(KIND.settlement, 900)],
-    );
     const foreign = uid(KIND.settlement, 900);
     const requests: [string, string, unknown?][] = [
       ['GET', `/v1/settlements/${foreign}`],
-      ['PATCH', `/v1/settlements/${foreign}`, { shipping_cost: '1' }],
       ['DELETE', `/v1/settlements/${foreign}`],
       ['POST', `/v1/settlements/${foreign}/paid`],
-      ['PATCH', `/v1/shipments/${uid(KIND.shipment, 900)}`, { tracking_code: 'AA123456789BR' }],
     ];
     for (const [method, url, payload] of requests) {
       const response = await call(server, method as 'GET', url, owner, A, payload);
@@ -473,87 +402,22 @@ describe('listar e isolamento', () => {
     expect(list.json<{ items: SettlementJson[] }>().items.some((s) => s.id === foreign)).toBe(
       false,
     );
-    const shipments = await call(server, 'GET', '/v1/shipments?limit=100', staff, A);
-    expect(shipments.json<{ items: { id: string }[] }>().items).toHaveLength(3);
   });
 });
 
-describe('envios (/v1/shipments)', () => {
-  const list = async (server: TestApp, session: Session, query = '') =>
-    (await call(server, 'GET', `/v1/shipments?limit=100${query}`, session, A)).json<{
-      items: ShipmentJson[];
-    }>().items;
-
-  it('lista a fila com o endereço de quem recebe e sem CPF', async () => {
+describe('sem frete nem envio', () => {
+  it('não existem rotas de frete, de envio nem de edição do acerto', async () => {
     const server = await start();
-    const staff = await login(server, STAFF);
-
-    const response = await call(server, 'GET', '/v1/shipments?limit=100', staff, A);
-
-    const items = response.json<{ items: ShipmentJson[] }>().items;
-    expect(items.map((i) => i.status).sort((a, b) => a.localeCompare(b))).toEqual([
-      'DELIVERED',
-      'SHIPPED',
-      'TO_SHIP',
-    ]);
-    expect(items[0]?.recipient.address.city).toBe('São Paulo');
-    const stored = await world.admin.query<{ cpf: string }>(
-      'SELECT cpf FROM customers WHERE cpf IS NOT NULL',
-    );
-    for (const { cpf } of stored.rows) expect(response.body).not.toContain(cpf);
-    expect((await list(server, staff, '&status=TO_SHIP')).map((i) => i.status)).toEqual([
-      'TO_SHIP',
-    ]);
-    expect((await call(server, 'GET', '/v1/shipments?status=XYZ', staff, A)).statusCode).toBe(400);
-  });
-
-  it('despachar exige o rastreio; depois entrega; nunca volta', async () => {
-    const server = await start();
-    const staff = await login(server, STAFF);
-    const toShip = (await list(server, staff, '&status=TO_SHIP'))[0]?.id ?? '';
-    const patch = (payload: unknown) =>
-      call(server, 'PATCH', `/v1/shipments/${toShip}`, staff, A, payload);
-
-    const noTracking = await patch({ status: 'SHIPPED' });
-    expect(noTracking.statusCode).toBe(422);
-    expect(noTracking.json()).toMatchObject({ code: 'SHIPMENT_TRACKING_REQUIRED' });
-    const skip = await patch({ status: 'DELIVERED', tracking_code: 'CC111222333BR' });
-    expect(skip.statusCode).toBe(409);
-    expect(skip.json()).toMatchObject({ code: 'SHIPMENT_INVALID_TRANSITION' });
-
-    const shipped = await patch({ status: 'SHIPPED', tracking_code: 'CC111222333BR' });
-    expect(shipped.statusCode).toBe(200);
-    expect(shipped.json<ShipmentJson>()).toMatchObject({
-      status: 'SHIPPED',
-      tracking_code: 'CC111222333BR',
-    });
-    expect(shipped.json<ShipmentJson>().shipped_at).not.toBeNull();
-
-    const delivered = await patch({ status: 'DELIVERED' });
-    expect(delivered.json<ShipmentJson>().delivered_at).not.toBeNull();
-    expect((await patch({ status: 'SHIPPED' })).statusCode).toBe(409);
-    expect((await patch({ tracking_code: 'ZZ999888777BR' })).statusCode).toBe(409);
     const owner = await login(server, OWNER);
-    const log = await call(server, 'GET', '/v1/activity-log?limit=3', owner, A);
-    expect(log.json<{ items: { action: string }[] }>().items[0]?.action).toBe('shipment.updated');
-  });
-
-  it('corrige o rastreio antes da entrega e recusa código malformado', async () => {
-    const server = await start();
-    const staff = await login(server, STAFF);
-    const shipped = (await list(server, staff, '&status=SHIPPED'))[0]?.id ?? '';
-
-    const fixed = await call(server, 'PATCH', `/v1/shipments/${shipped}`, staff, A, {
-      tracking_code: 'DD555666777BR',
-    });
-    expect(fixed.json<ShipmentJson>().tracking_code).toBe('DD555666777BR');
-    for (const bad of ['a b', 'abc', '<script>', 'x'.repeat(61)]) {
-      const response = await call(server, 'PATCH', `/v1/shipments/${shipped}`, staff, A, {
-        tracking_code: bad,
-      });
-      expect(response.statusCode).toBe(400);
+    const id = uid(KIND.settlement, 1);
+    const gone: [string, string, unknown?][] = [
+      ['GET', '/v1/shipments?limit=10'],
+      ['PATCH', `/v1/shipments/${id}`, { tracking_code: 'AA123456789BR' }],
+      ['PATCH', `/v1/settlements/${id}`, { shipping_cost: '1' }],
+    ];
+    for (const [method, url, payload] of gone) {
+      const response = await call(server, method as 'GET', url, owner, A, payload);
+      expect(response.statusCode, `${method} ${url}`).toBe(404);
     }
-    const empty = await call(server, 'PATCH', `/v1/shipments/${shipped}`, staff, A, {});
-    expect(empty.statusCode).toBe(400);
   });
 });

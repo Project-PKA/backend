@@ -8454,7 +8454,6 @@ paths:
                         - id
                         - status
                         - total_amount
-                        - shipping_cost
                         - items
                         - paid_at
                         - created_at
@@ -8468,8 +8467,6 @@ paths:
                             - PENDING
                             - PAID
                         total_amount:
-                          type: string
-                        shipping_cost:
                           type: string
                         items:
                           type: integer
@@ -9325,8 +9322,9 @@ paths:
       summary: Cria o acerto de um comprador com os leilões que ele ganhou
       tags:
         - settlements
-      description: Total = itens + frete informado pela loja. Cada leilão entra em no
-        máximo um acerto. A plataforma não cobra nem garante o pagamento.
+      description: Total = soma dos itens (o sistema não trata de frete). Cada leilão
+        entra em no máximo um acerto. A plataforma não cobra nem garante o
+        pagamento.
       requestBody:
         required: true
         content:
@@ -9348,11 +9346,6 @@ paths:
                   items:
                     type: string
                     format: uuid
-                shipping_cost:
-                  type: string
-                  pattern: ^[0-9]{1,10}(\.[0-9]{1,2})?$
-                  description: 'Reais, ex.: "25.50"'
-                  default: "0"
       parameters:
         - schema:
             type: string
@@ -9374,13 +9367,11 @@ paths:
                   - status
                   - customer
                   - items_total
-                  - shipping_cost
                   - total_amount
                   - paid_at
                   - payment_claimed_at
                   - has_receipt
                   - created_at
-                  - shipment
                   - items
                 properties:
                   id:
@@ -9413,11 +9404,9 @@ paths:
                         type: string
                   items_total:
                     type: string
-                  shipping_cost:
-                    type: string
                   total_amount:
                     type: string
-                    description: Itens + frete informado pela loja
+                    description: Soma dos itens
                   paid_at:
                     type: string
                     format: date-time
@@ -9435,26 +9424,6 @@ paths:
                   created_at:
                     type: string
                     format: date-time
-                  shipment:
-                    type: object
-                    nullable: true
-                    required:
-                      - id
-                      - status
-                      - tracking_code
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      status:
-                        type: string
-                        enum:
-                          - TO_SHIP
-                          - SHIPPED
-                          - DELIVERED
-                      tracking_code:
-                        type: string
-                        nullable: true
                   items:
                     type: array
                     items:
@@ -9683,13 +9652,11 @@ paths:
                         - status
                         - customer
                         - items_total
-                        - shipping_cost
                         - total_amount
                         - paid_at
                         - payment_claimed_at
                         - has_receipt
                         - created_at
-                        - shipment
                         - items
                       properties:
                         id:
@@ -9722,11 +9689,9 @@ paths:
                               type: string
                         items_total:
                           type: string
-                        shipping_cost:
-                          type: string
                         total_amount:
                           type: string
-                          description: Itens + frete informado pela loja
+                          description: Soma dos itens
                         paid_at:
                           type: string
                           format: date-time
@@ -9744,26 +9709,6 @@ paths:
                         created_at:
                           type: string
                           format: date-time
-                        shipment:
-                          type: object
-                          nullable: true
-                          required:
-                            - id
-                            - status
-                            - tracking_code
-                          properties:
-                            id:
-                              type: string
-                              format: uuid
-                            status:
-                              type: string
-                              enum:
-                                - TO_SHIP
-                                - SHIPPED
-                                - DELIVERED
-                            tracking_code:
-                              type: string
-                              nullable: true
                         items:
                           type: array
                           items:
@@ -9966,13 +9911,11 @@ paths:
                   - status
                   - customer
                   - items_total
-                  - shipping_cost
                   - total_amount
                   - paid_at
                   - payment_claimed_at
                   - has_receipt
                   - created_at
-                  - shipment
                   - items
                 properties:
                   id:
@@ -10005,11 +9948,9 @@ paths:
                         type: string
                   items_total:
                     type: string
-                  shipping_cost:
-                    type: string
                   total_amount:
                     type: string
-                    description: Itens + frete informado pela loja
+                    description: Soma dos itens
                   paid_at:
                     type: string
                     format: date-time
@@ -10027,319 +9968,6 @@ paths:
                   created_at:
                     type: string
                     format: date-time
-                  shipment:
-                    type: object
-                    nullable: true
-                    required:
-                      - id
-                      - status
-                      - tracking_code
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      status:
-                        type: string
-                        enum:
-                          - TO_SHIP
-                          - SHIPPED
-                          - DELIVERED
-                      tracking_code:
-                        type: string
-                        nullable: true
-                  items:
-                    type: array
-                    items:
-                      type: object
-                      required:
-                        - auction_id
-                        - amount
-                        - card
-                      properties:
-                        auction_id:
-                          type: string
-                          format: uuid
-                        amount:
-                          type: string
-                        card:
-                          type: object
-                          required:
-                            - id
-                            - short_code
-                            - name
-                          properties:
-                            id:
-                              type: string
-                              format: uuid
-                            short_code:
-                              type: string
-                            name:
-                              type: string
-        "400":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "401":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "403":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "404":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "409":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "422":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-    patch:
-      operationId: updateSettlement
-      summary: Altera o frete de um acerto pendente (o total acompanha)
-      tags:
-        - settlements
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - shipping_cost
-              additionalProperties: false
-              properties:
-                shipping_cost:
-                  type: string
-                  pattern: ^[0-9]{1,10}(\.[0-9]{1,2})?$
-                  description: 'Reais, ex.: "25.50"'
-      parameters:
-        - schema:
-            type: string
-            format: uuid
-          in: path
-          name: id
-          required: true
-        - schema:
-            type: string
-          in: header
-          name: x-store-id
-          required: false
-          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
-            participa dela
-      security: *a8
-      responses:
-        "200":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - id
-                  - status
-                  - customer
-                  - items_total
-                  - shipping_cost
-                  - total_amount
-                  - paid_at
-                  - payment_claimed_at
-                  - has_receipt
-                  - created_at
-                  - shipment
-                  - items
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-                    enum:
-                      - PENDING
-                      - PAID
-                  customer:
-                    type: object
-                    required:
-                      - id
-                      - name
-                      - kind
-                      - phone
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      name:
-                        type: string
-                      kind:
-                        type: string
-                        enum:
-                          - VISITOR
-                          - CUSTOMER
-                      phone:
-                        type: string
-                  items_total:
-                    type: string
-                  shipping_cost:
-                    type: string
-                  total_amount:
-                    type: string
-                    description: Itens + frete informado pela loja
-                  paid_at:
-                    type: string
-                    format: date-time
-                    nullable: true
-                  payment_claimed_at:
-                    type: string
-                    format: date-time
-                    nullable: true
-                    description: O comprador avisou que pagou (a loja ainda precisa conferir e
-                      marcar como pago)
-                  has_receipt:
-                    type: boolean
-                    description: O comprador enviou o comprovante (baixe em GET
-                      /v1/settlements/{id}/receipt)
-                  created_at:
-                    type: string
-                    format: date-time
-                  shipment:
-                    type: object
-                    nullable: true
-                    required:
-                      - id
-                      - status
-                      - tracking_code
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      status:
-                        type: string
-                        enum:
-                          - TO_SHIP
-                          - SHIPPED
-                          - DELIVERED
-                      tracking_code:
-                        type: string
-                        nullable: true
                   items:
                     type: array
                     items:
@@ -10764,8 +10392,8 @@ paths:
       summary: Marca o acerto como pago (só a loja; exige can_view_finance)
       tags:
         - settlements
-      description: 'As cartas viram vendidas e o envio entra na fila. Nunca é chamado
-        pelo comprador: o "já paguei" dele só avisa a loja.'
+      description: 'As cartas viram vendidas. Nunca é chamado pelo comprador: o "já
+        paguei" dele só avisa a loja.'
       parameters:
         - schema:
             type: string
@@ -10793,13 +10421,11 @@ paths:
                   - status
                   - customer
                   - items_total
-                  - shipping_cost
                   - total_amount
                   - paid_at
                   - payment_claimed_at
                   - has_receipt
                   - created_at
-                  - shipment
                   - items
                 properties:
                   id:
@@ -10832,11 +10458,9 @@ paths:
                         type: string
                   items_total:
                     type: string
-                  shipping_cost:
-                    type: string
                   total_amount:
                     type: string
-                    description: Itens + frete informado pela loja
+                    description: Soma dos itens
                   paid_at:
                     type: string
                     format: date-time
@@ -10854,26 +10478,6 @@ paths:
                   created_at:
                     type: string
                     format: date-time
-                  shipment:
-                    type: object
-                    nullable: true
-                    required:
-                      - id
-                      - status
-                      - tracking_code
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      status:
-                        type: string
-                        enum:
-                          - TO_SHIP
-                          - SHIPPED
-                          - DELIVERED
-                      tracking_code:
-                        type: string
-                        nullable: true
                   items:
                     type: array
                     items:
@@ -10902,537 +10506,6 @@ paths:
                               type: string
                             name:
                               type: string
-        "400":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "401":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "403":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "404":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "409":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "422":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-  /v1/shipments:
-    get:
-      operationId: listShipments
-      summary: Fila de envios das vendas pagas
-      tags:
-        - settlements
-      parameters:
-        - schema:
-            type: string
-            maxLength: 300
-          in: query
-          name: cursor
-          required: false
-        - schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-          in: query
-          name: limit
-          required: false
-        - schema:
-            type: string
-            enum:
-              - TO_SHIP
-              - SHIPPED
-              - DELIVERED
-          in: query
-          name: status
-          required: false
-        - schema:
-            type: string
-          in: header
-          name: x-store-id
-          required: false
-          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
-            participa dela
-      security: *a8
-      responses:
-        "200":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - items
-                  - next_cursor
-                properties:
-                  items:
-                    type: array
-                    items:
-                      type: object
-                      required:
-                        - id
-                        - settlement_id
-                        - status
-                        - tracking_code
-                        - shipped_at
-                        - delivered_at
-                        - created_at
-                        - total_amount
-                        - recipient
-                      properties:
-                        id:
-                          type: string
-                          format: uuid
-                        settlement_id:
-                          type: string
-                          format: uuid
-                        status:
-                          type: string
-                          enum:
-                            - TO_SHIP
-                            - SHIPPED
-                            - DELIVERED
-                        tracking_code:
-                          type: string
-                          nullable: true
-                        shipped_at:
-                          type: string
-                          format: date-time
-                          nullable: true
-                        delivered_at:
-                          type: string
-                          format: date-time
-                          nullable: true
-                        created_at:
-                          type: string
-                          format: date-time
-                        total_amount:
-                          type: string
-                        recipient:
-                          type: object
-                          required:
-                            - id
-                            - name
-                            - phone
-                            - address
-                          properties:
-                            id:
-                              type: string
-                              format: uuid
-                            name:
-                              type: string
-                            phone:
-                              type: string
-                            address:
-                              type: object
-                              properties:
-                                zip:
-                                  type: string
-                                  nullable: true
-                                street:
-                                  type: string
-                                  nullable: true
-                                number:
-                                  type: string
-                                  nullable: true
-                                comp:
-                                  type: string
-                                  nullable: true
-                                city:
-                                  type: string
-                                  nullable: true
-                                state:
-                                  type: string
-                                  nullable: true
-                  next_cursor:
-                    type: string
-                    nullable: true
-        "400":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "401":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "403":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "404":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "409":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-        "422":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - type
-                  - title
-                  - status
-                properties:
-                  type:
-                    type: string
-                  title:
-                    type: string
-                  status:
-                    type: integer
-                  detail:
-                    type: string
-                  instance:
-                    type: string
-                  code:
-                    type: string
-  /v1/shipments/{id}:
-    patch:
-      operationId: updateShipment
-      summary: "Atualiza o envio: rastreio e andamento (a enviar → enviado → entregue)"
-      tags:
-        - settlements
-      description: "Não envia mensagem a ninguém (ADR 0006): a loja avisa o comprador
-        por conta própria."
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              minProperties: 1
-              properties:
-                status:
-                  type: string
-                  enum:
-                    - TO_SHIP
-                    - SHIPPED
-                    - DELIVERED
-                tracking_code:
-                  type: string
-                  pattern: ^[A-Za-z0-9._/-]{4,60}$
-                  nullable: true
-      parameters:
-        - schema:
-            type: string
-            format: uuid
-          in: path
-          name: id
-          required: true
-        - schema:
-            type: string
-          in: header
-          name: x-store-id
-          required: false
-          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
-            participa dela
-      security: *a8
-      responses:
-        "200":
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - id
-                  - settlement_id
-                  - status
-                  - tracking_code
-                  - shipped_at
-                  - delivered_at
-                  - created_at
-                  - total_amount
-                  - recipient
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  settlement_id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-                    enum:
-                      - TO_SHIP
-                      - SHIPPED
-                      - DELIVERED
-                  tracking_code:
-                    type: string
-                    nullable: true
-                  shipped_at:
-                    type: string
-                    format: date-time
-                    nullable: true
-                  delivered_at:
-                    type: string
-                    format: date-time
-                    nullable: true
-                  created_at:
-                    type: string
-                    format: date-time
-                  total_amount:
-                    type: string
-                  recipient:
-                    type: object
-                    required:
-                      - id
-                      - name
-                      - phone
-                      - address
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      name:
-                        type: string
-                      phone:
-                        type: string
-                      address:
-                        type: object
-                        properties:
-                          zip:
-                            type: string
-                            nullable: true
-                          street:
-                            type: string
-                            nullable: true
-                          number:
-                            type: string
-                            nullable: true
-                          comp:
-                            type: string
-                            nullable: true
-                          city:
-                            type: string
-                            nullable: true
-                          state:
-                            type: string
-                            nullable: true
         "400":
           description: Default Response
           content:
@@ -19170,8 +18243,6 @@ paths:
                     nullable: true
                   receipt_sent:
                     type: boolean
-                  shipping_cost:
-                    type: string
                   total_amount:
                     type: string
                   expires_at:
@@ -20234,7 +19305,7 @@ tags:
   - name: public
     description: Páginas públicas por link (acerto e consignador) e gestão dos links
   - name: settlements
-    description: Acertos, pagamento e fila de envios
+    description: Acertos e pagamento
   - name: auctions
     description: Leilões, lances e enquetes
   - name: inventory

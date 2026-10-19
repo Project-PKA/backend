@@ -866,10 +866,6 @@ describe('"já paguei" (POST /v1/public/settlement/paid)', () => {
     expect(notes.rows).toEqual([
       { kind: 'PAYMENT_CLAIMED', data: { settlement_id: PENDING_SETTLEMENT } },
     ]);
-    const shipments = await world.admin.query('SELECT 1 FROM shipments WHERE settlement_id = $1', [
-      PENDING_SETTLEMENT,
-    ]);
-    expect(shipments.rowCount).toBe(0);
   });
 
   it('a loja vê o aviso, e só ela marca como pago', async () => {

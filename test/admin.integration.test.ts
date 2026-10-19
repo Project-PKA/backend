@@ -973,7 +973,6 @@ describe('painel da plataforma (GET /v1/admin/dashboard)', () => {
       'auctions',
       'bids',
       'settlements',
-      'shipments',
       'public_links',
     ]) {
       const rows = await withContext(

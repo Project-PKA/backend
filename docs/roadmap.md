@@ -2,7 +2,7 @@
 
 > O backlog original (doc 02, Etapas 1 a 6) foi escrito antes do design. O
 > adendo do design ([`shared/docs/produto.md`](https://github.com/Project-PKA/shared/blob/main/docs/produto.md))
-> trouxe acesso por convite, área `/admin`, páginas públicas, envios, planos e
+> trouxe acesso por convite, área `/admin`, páginas públicas, planos e
 > mais. Este roteiro reorganiza as etapas. Ele é a referência para "o que falta".
 
 **Escopo, regras e telas:** `shared/docs/produto.md`.
@@ -19,7 +19,7 @@
 | 3 | Catálogo TCGdex, estoque e cadastro de carta | Pendente |
 | 4 | Clientes, visitantes, blacklist e carteira de consignação | Pendente |
 | 5 | Leilões e integração com o bot | Pendente |
-| 6 | Acertos, envios e páginas públicas | Pendente |
+| 6 | Acertos e páginas públicas | Pendente |
 | 7 | Painéis (Home ao vivo e Financeiro) | Pendente |
 | 8 | Vitrine, landing, planos, notificações, log e perfil | Pendente |
 
@@ -92,12 +92,12 @@ e "estender todos"), decisão de lance com lock da linha do leilão, e o alerta
 de **WhatsApp desconectado com leilões ativos** (o bot publica o estado; o
 Backend lista os afetados).
 
-**Etapa 6: acertos, envios e páginas públicas.** *Pronta.* O comprovante em arquivo do "já paguei" (#53) entrou com a migration 0020: `PUT /v1/public/settlement/receipt` e `GET /v1/settlements/:id/receipt`. O "já paguei" em si existe (`POST /v1/public/settlement/paid`): só avisa a loja e nunca marca como pago. Feito: fila "a acertar" por comprador, criar acerto (total = itens + frete), editar o frete, desfazer, **marcar como pago** (só a loja, exige `can_view_finance`; as cartas viram `SOLD` e entra na fila de envios) e **Envios** (a enviar, enviado, entregue, rastreio; nenhuma mensagem automática). **Falta** (precisa da sua aprovação do desenho, ver `OWNER.md` D13): papel `public_runtime` e funções `SECURITY DEFINER` (#57), página pública do acerto com consentimento LGPD (#52), "já paguei" e comprovante (#53, depende do armazenamento D3), acompanhamento do consignador (#56) e testes de abuso (#58). Descrição original: Acerto com itens, página
+**Etapa 6: acertos e páginas públicas.** *Pronta.* O comprovante em arquivo do "já paguei" (#53) entrou com a migration 0020: `PUT /v1/public/settlement/receipt` e `GET /v1/settlements/:id/receipt`. O "já paguei" em si existe (`POST /v1/public/settlement/paid`): só avisa a loja e nunca marca como pago. Feito: fila "a acertar" por comprador, criar acerto (total = soma dos itens), desfazer, **marcar como pago** (só a loja, exige `can_view_finance`; as cartas viram `SOLD`). **Frete e envio saíram do sistema** (migration 0022, decisão do dono em shared#8): a loja combina isso por fora. **Falta** (precisa da sua aprovação do desenho, ver `OWNER.md` D13): papel `public_runtime` e funções `SECURITY DEFINER` (#57), página pública do acerto com consentimento LGPD (#52), "já paguei" e comprovante (#53, depende do armazenamento D3), acompanhamento do consignador (#56) e testes de abuso (#58). Descrição original: Acerto com itens, página
 pública do acerto (consentimento LGPD, PIX, comprovante, "já paguei"),
-**Envios** (a enviar, enviado, entregue, rastreio) e **acompanhamento do
+**Acompanhamento do
 consignador**, com as mitigações obrigatórias da [ADR 0014](https://github.com/Project-PKA/shared/blob/main/docs/adr/0014-paginas-publicas-por-link-e-vitrine.md).
 
-**Etapa 7: painéis.** *Pronta.* `GET /v1/dashboard/home` (ao vivo, sem período) e `GET /v1/finance/overview|top-buyers|consignment-payouts` (único com período: hoje, 7, 15 ou 30 dias; exige `can_view_finance`). Receita = valor dos itens das vendas pagas, sem o frete; lucro = o valor todo nas cartas próprias (ainda não há custo de compra) e só a comissão nas consignadas; dias no fuso de São Paulo. Descrição original: **Home ao vivo** (alerta de enquetes, 5 KPIs, cartas sem
+**Etapa 7: painéis.** *Pronta.* `GET /v1/dashboard/home` (ao vivo, sem período) e `GET /v1/finance/overview|top-buyers|consignment-payouts` (único com período: hoje, 7, 15 ou 30 dias; exige `can_view_finance`). Receita = valor dos itens das vendas pagas; lucro = o valor todo nas cartas próprias (ainda não há custo de compra) e só a comissão nas consignadas; dias no fuso de São Paulo. Descrição original: **Home ao vivo** (alerta de enquetes, 5 KPIs, cartas sem
 leilão, acertos rápidos; sem período e sem rankings) e **Financeiro** (único com
 período: séries diárias, histogramas, pizzas, top compradores, repasses). Os
 endpoints de período do doc 02 (`dashboard/operational?period=`) **não existem

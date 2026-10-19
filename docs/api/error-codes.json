@@ -329,18 +329,6 @@
       "status": 409
     },
     {
-      "code": "SHIPMENT_INVALID_TRANSITION",
-      "status": 409
-    },
-    {
-      "code": "SHIPMENT_NOT_FOUND",
-      "status": 404
-    },
-    {
-      "code": "SHIPMENT_TRACKING_REQUIRED",
-      "status": 422
-    },
-    {
       "code": "SHORT_CODE_TAKEN",
       "status": 409
     },

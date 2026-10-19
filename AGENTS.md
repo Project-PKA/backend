@@ -21,7 +21,7 @@ O que **não** está aqui:
   abertura e fechamento no horário): é o `Project-PKA/whatsapp_microservice`.
   Ele usa este mesmo banco, com role própria.
 - A interface web: `Project-PKA/frontend_web` (ainda não iniciada).
-- Pagamento e envio: fora do MVP (ADR 0002). A plataforma **não vende nem
+- Pagamento, frete e envio: fora do sistema (ADR 0002; frete e envio saíram na migration 0022, a pedido do dono). A plataforma **não vende nem
   garante pagamento ou entrega** (ADR 0013): nenhuma tela, e-mail ou
   mensagem pode usar linguagem de garantia ("anti-calote", "compra segura").
 
@@ -42,7 +42,7 @@ ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 de banco, login por código, sessão com refresh rotacionado, convites, middleware
 de loja e RBAC, criar e editar loja, equipe, convites por rota, log de atividades
 e limites de HTTP (rotas `/v1/auth`, `/v1/me`, `/v1/stores`, `/v1/store`, `/v1/team*`,
-`/v1/activity-log`, `/v1/catalog*`, `/v1/cards*`, `/v1/auctions*`, `/v1/customers*`, `/v1/settlements*`, `/v1/shipments*`, `/v1/public-links*`, `/v1/dashboard/home`, `/v1/finance/*` e `/v1/public/*` sem login e `/v1/admin/*` só do administrador).
+`/v1/activity-log`, `/v1/catalog*`, `/v1/cards*`, `/v1/auctions*`, `/v1/customers*`, `/v1/settlements*`, `/v1/public-links*`, `/v1/dashboard/home`, `/v1/finance/*` e `/v1/public/*` sem login e `/v1/admin/*` só do administrador).
 Faltam a cobrança e o bot. E-mail sai por SMTP (nodemailer; Mailpit no compose) e as fotos das cartas ficam em disco (`src/storage`, `STORAGE_DIR`). O que vem a seguir está nas issues
 da próxima sprint (milestones). A VPS
 ainda não existe, então não há deploy.

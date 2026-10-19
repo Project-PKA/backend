@@ -70,7 +70,6 @@ export interface SettlementView {
   id: string;
   status: 'PENDING' | 'PAID';
   totalAmount: string;
-  shippingCost: string;
   items: number;
   paidAt: Date | null;
   createdAt: Date;
@@ -405,7 +404,6 @@ export class CustomerService {
           id: row.id,
           status: row.status,
           totalAmount: row.totalAmount,
-          shippingCost: row.shippingCost,
           items: Number(items),
           paidAt: row.paidAt,
           createdAt: row.createdAt,

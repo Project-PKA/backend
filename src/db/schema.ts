@@ -51,7 +51,6 @@ export const accessRequestStatus = pgEnum('access_request_status', [
   'CONVERTED',
 ]);
 export const publicLinkKind = pgEnum('public_link_kind', ['SETTLEMENT', 'CONSIGNOR']);
-export const shipmentStatus = pgEnum('shipment_status', ['TO_SHIP', 'SHIPPED', 'DELIVERED']);
 export const userStatus = pgEnum('user_status', ['INVITED', 'ACTIVE', 'SUSPENDED']);
 export const invitationStatus = pgEnum('invitation_status', ['PENDING', 'ACCEPTED', 'REVOKED']);
 
@@ -350,7 +349,6 @@ export const settlements = pgTable(
       .notNull()
       .references(() => stores.id, { onDelete: 'cascade' }),
     customerId: uuid('customer_id').notNull(),
-    shippingCost: money('shipping_cost').notNull().default('0'),
     totalAmount: money('total_amount').notNull(),
     status: settlementStatus('status').notNull().default('PENDING'),
     paidAt: timestamp('paid_at', { withTimezone: true }),
@@ -402,34 +400,6 @@ export const settlementItems = pgTable(
       foreignColumns: [cardsInventory.id, cardsInventory.storeId],
     }),
     index('settlement_items_settlement_idx').on(t.settlementId),
-  ],
-);
-
-// --- Envios (0014) -----------------------------------------------------------
-export const shipments = pgTable(
-  'shipments',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    storeId: uuid('store_id')
-      .notNull()
-      .references(() => stores.id, { onDelete: 'cascade' }),
-    settlementId: uuid('settlement_id').notNull(),
-    status: shipmentStatus('status').notNull().default('TO_SHIP'),
-    trackingCode: text('tracking_code'),
-    shippedAt: timestamp('shipped_at', { withTimezone: true }),
-    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
-    createdAt: createdAt(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    unique('shipments_id_store_key').on(t.id, t.storeId),
-    unique('shipments_settlement_key').on(t.settlementId),
-    foreignKey({
-      name: 'shipments_settlement_fkey',
-      columns: [t.settlementId, t.storeId],
-      foreignColumns: [settlements.id, settlements.storeId],
-    }),
-    index('shipments_store_status_idx').on(t.storeId, t.status),
   ],
 );
 
