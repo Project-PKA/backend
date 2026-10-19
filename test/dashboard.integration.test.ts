@@ -81,7 +81,6 @@ async function sale(
   const settlement = await post(server, '/v1/settlements', owner, A, {
     customer_id: buyer,
     auction_ids: [auctionId],
-    shipping_cost: '9.90',
   });
   expect(settlement.statusCode, settlement.body).toBe(201);
   const id = settlement.json<{ id: string }>().id;
@@ -405,7 +404,7 @@ describe('Financeiro (GET /v1/finance/*)', () => {
     expect(payouts.json()).toEqual({ items: [] });
   });
 
-  it('o frete não entra na receita', async () => {
+  it('a receita é o valor dos itens', async () => {
     const server = await start();
     const owner = await login(server, OWNER);
     await sale(server, owner, 12, customer(7), '40.00', { pay: true });

@@ -18,7 +18,7 @@ lojistas de Trading Card Games fazerem leilões de cartas em grupos de WhatsApp.
 - **O que faz:** login passwordless (e-mail + OTP), lojas e equipe com RBAC,
   estoque próprio e consignado, catálogo TCGdex local com autocomplete,
   clientes e visitantes, leilões, acertos pós-leilão e dashboards.
-- **O que NÃO faz:** falar com o WhatsApp, processar pagamento, gerir envio
+- **O que NÃO faz:** falar com o WhatsApp, processar pagamento, gerir envio (o sistema não trata de frete nem de envio)
   (ADR 0002).
 - **Estágio:** MVP, produto novo. Volume inicial pequeno (algumas lojas,
   centenas de mensagens por leilão). O que limita a escala não é a API e sim
@@ -26,7 +26,7 @@ lojistas de Trading Card Games fazerem leilões de cartas em grupos de WhatsApp.
   Gatilho para revisitar: RAM da VPS como limite de lojas.
 - **SLA:** nenhum contratado ainda.
 - **Escopo ampliado pelo design (2026-10-17):** acesso somente por convite, área
-  `/admin`, páginas públicas por link (vitrine, acerto, consignador), envios,
+  `/admin`, páginas públicas por link (vitrine, acerto, consignador),
   planos, notificações e log de atividades. Veja
   [`https://github.com/Project-PKA/shared/blob/main/docs/produto.md`](https://github.com/Project-PKA/shared/blob/main/docs/produto.md) e o roteiro
   revisado em [`docs/roadmap.md`](docs/roadmap.md).
@@ -137,7 +137,7 @@ sequenceDiagram
 - **Áreas de rotas** (todas sob `/v1`, exceto infraestrutura):
   `/v1/auth` (login, refresh, logout, aceitar convite), `/v1/me` (perfil e
   sessões), `POST /v1/stores` (criar loja), e as rotas de uma loja (exigem
-  `x-store-id`): `/v1/store`, `/v1/team*`, `/v1/activity-log`, `/v1/catalog*` (busca e detalhe do catálogo) e `/v1/cards*` (estoque) `/v1/auctions*` (leilões e lances) `/v1/customers*` (clientes, blacklist, perfil e carteira), `/v1/settlements*` (acertos) `/v1/shipments*` (envios), `/v1/dashboard/home` e `/v1/finance/*` (painéis), `/v1/me/preferences`, `/v1/notifications*`, `/v1/plan*`, `/v1/public/showcase`, `/v1/admin/*` (administração da plataforma), `/v1/public-links*` (gestão dos links) e `/v1/public/*` (páginas públicas, sem login),
+  `x-store-id`): `/v1/store`, `/v1/team*`, `/v1/activity-log`, `/v1/catalog*` (busca e detalhe do catálogo) e `/v1/cards*` (estoque) `/v1/auctions*` (leilões e lances) `/v1/customers*` (clientes, blacklist, perfil e carteira), `/v1/settlements*` (acertos) `/v1/dashboard/home` e `/v1/finance/*` (painéis), `/v1/me/preferences`, `/v1/notifications*`, `/v1/plan*`, `/v1/public/showcase`, `/v1/admin/*` (administração da plataforma), `/v1/public-links*` (gestão dos links) e `/v1/public/*` (páginas públicas, sem login),
   `/v1/admin` (só administrador da plataforma) e `/v1/public` (sem login,
   por token no link; vitrine, acerto, consignador, solicitação de acesso).
 - Ferramenta de geração: `@fastify/swagger` (ver [`STACK.md`](STACK.md)).
@@ -290,7 +290,6 @@ erDiagram
         uuid id PK
         uuid store_id FK
         uuid customer_id FK
-        numeric shipping_cost
         numeric total_amount
         enum status "PENDING PAID"
     }

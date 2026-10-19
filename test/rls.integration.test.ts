@@ -74,17 +74,12 @@ describe('o papel do Backend em execução', () => {
 });
 
 describe('sem contexto, nada de loja aparece (negar por padrão)', () => {
-  it.each([
-    'customers',
-    'cards_inventory',
-    'auctions',
-    'bids',
-    'settlements',
-    'settlement_items',
-    'shipments',
-  ])('a tabela %s devolve zero linhas', async (table) => {
-    expect(await count(table, {})).toBe(0);
-  });
+  it.each(['customers', 'cards_inventory', 'auctions', 'bids', 'settlements', 'settlement_items'])(
+    'a tabela %s devolve zero linhas',
+    async (table) => {
+      expect(await count(table, {})).toBe(0);
+    },
+  );
 
   it('lojas, equipe e a credencial do WhatsApp também ficam invisíveis', async () => {
     expect(await count('stores', {})).toBe(0);
@@ -195,7 +190,6 @@ describe('fronteira do administrador da plataforma (ADR 0012)', () => {
     'bids',
     'settlements',
     'settlement_items',
-    'shipments',
     'whatsapp_sessions',
   ])('NÃO enxerga %s de nenhuma loja', async (table) => {
     expect(await count(table, admin)).toBe(0);

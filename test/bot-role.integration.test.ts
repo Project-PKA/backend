@@ -129,7 +129,6 @@ describe('o papel do bot', () => {
       'store_members',
       'settlements',
       'settlement_items',
-      'shipments',
       'public_links',
       'access_requests',
       'admin_activity_log',

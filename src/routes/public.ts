@@ -84,7 +84,6 @@ export function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps): void 
                 status: { type: 'string', enum: ['PENDING', 'PAID'] },
                 payment_claimed_at: { type: 'string', nullable: true },
                 receipt_sent: { type: 'boolean' },
-                shipping_cost: { type: 'string' },
                 total_amount: { type: 'string' },
                 expires_at: { type: 'string' },
                 items: { type: 'array', items: { type: 'object', additionalProperties: true } },

@@ -37,7 +37,6 @@ export const KIND = {
   bid: 7,
   settlement: 8,
   item: 9,
-  shipment: 13,
   link: 14,
   request: 15,
   adminLog: 16,
@@ -73,7 +72,6 @@ const TABLES_TO_CLEAR = [
   'public_links',
   'lgpd_consents',
   'public_ip_failures',
-  'shipments',
   'activity_log',
   'invitations',
   'whatsapp_sessions',
@@ -235,7 +233,6 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
     'cards_inventory',
     'auctions',
     'settlements',
-    'shipments',
     'public_links',
     'lgpd_consents',
     'access_requests',
@@ -246,13 +243,7 @@ async function normalizeTimestamps(db: Tx): Promise<void> {
   for (const table of created) {
     await db.execute(sql.raw(`UPDATE ${table} SET created_at = '${SEED_TIME}'`));
   }
-  for (const table of [
-    'customers',
-    'cards_inventory',
-    'tcgdex_catalog',
-    'whatsapp_sessions',
-    'shipments',
-  ]) {
+  for (const table of ['customers', 'cards_inventory', 'tcgdex_catalog', 'whatsapp_sessions']) {
     await db.execute(sql.raw(`UPDATE ${table} SET updated_at = '${SEED_TIME}'`));
   }
   await db.execute(sql.raw(`UPDATE notification_reads SET read_at = '${SEED_TIME}'`));
@@ -498,8 +489,8 @@ async function insertAll(db: Tx): Promise<void> {
     [7, 'AWAITING_CONFIRMATION'], // acerto pendente
     [8, 'AWAITING_CONFIRMATION'], // acerto pendente
     [9, 'AWAITING_CONFIRMATION'], // vencedor visitante, sem acerto
-    [31, 'SOLD'], // acerto pago, envio a enviar
-    [32, 'SOLD'], // acerto pago, envio entregue
+    [31, 'SOLD'], // acerto pago
+    [32, 'SOLD'], // acerto pago
   ]);
   await db.insert(schema.cardsInventory).values(buildCardsStoreA(cardStatus));
 
@@ -686,7 +677,7 @@ async function insertAuctions(db: Tx): Promise<void> {
       increment: 3,
       bids: [{ bidder: 38, amount: 99 }],
     },
-    // Mais duas vendas pagas, para o envio ter os três estados.
+    // Mais duas vendas pagas.
     {
       n: 12,
       storeId: A,
@@ -938,32 +929,29 @@ async function insertPublicLinks(db: Tx): Promise<void> {
 async function insertSettlements(db: Tx): Promise<void> {
   const A = SEED_IDS.storeA;
   await db.insert(schema.settlements).values([
-    // Pago: 20 do leilão 5 + 25,50 de frete.
+    // Pago: 20 do leilão 5.
     {
       id: uid(KIND.settlement, 1),
       storeId: A,
       customerId: uid(KIND.customer, 15),
-      shippingCost: money(25.5),
-      totalAmount: money(45.5),
+      totalAmount: money(20),
       status: 'PAID',
       paidAt: at('2026-09-05T18:30:00Z'),
     },
-    // Pendente com dois itens, sem frete informado ainda: 50 + 60.
+    // Pendente com dois itens: 50 + 60.
     {
       id: uid(KIND.settlement, 2),
       storeId: A,
       customerId: uid(KIND.customer, 17),
-      shippingCost: money(0),
       totalAmount: money(110),
       status: 'PENDING',
     },
-    // Pagos, com envio: a enviar (cliente 19) e entregue (cliente 20).
+    // Pagos (clientes 19 e 20).
     {
       id: uid(KIND.settlement, 3),
       storeId: A,
       customerId: uid(KIND.customer, 19),
-      shippingCost: money(20),
-      totalAmount: money(50),
+      totalAmount: money(30),
       status: 'PAID',
       paidAt: at('2026-09-22T18:00:00Z'),
     },
@@ -971,7 +959,6 @@ async function insertSettlements(db: Tx): Promise<void> {
       id: uid(KIND.settlement, 4),
       storeId: A,
       customerId: uid(KIND.customer, 20),
-      shippingCost: money(0),
       totalAmount: money(45),
       status: 'PAID',
       paidAt: at('2026-09-23T18:00:00Z'),
@@ -1017,29 +1004,6 @@ async function insertSettlements(db: Tx): Promise<void> {
       auctionId: uid(KIND.auction, 7),
       cardId: uid(KIND.card, 8),
       amount: money(60),
-    },
-  ]);
-  await db.insert(schema.shipments).values([
-    // Cliente 15 (acerto 1): enviado, com rastreio.
-    {
-      id: uid(KIND.shipment, 1),
-      storeId: A,
-      settlementId: uid(KIND.settlement, 1),
-      status: 'SHIPPED',
-      trackingCode: 'AA123456789BR',
-      shippedAt: at('2026-09-06T12:00:00Z'),
-    },
-    // Cliente 19 (acerto 3): ainda a enviar.
-    { id: uid(KIND.shipment, 2), storeId: A, settlementId: uid(KIND.settlement, 3) },
-    // Cliente 20 (acerto 4): entregue.
-    {
-      id: uid(KIND.shipment, 3),
-      storeId: A,
-      settlementId: uid(KIND.settlement, 4),
-      status: 'DELIVERED',
-      trackingCode: 'BB987654321BR',
-      shippedAt: at('2026-09-24T12:00:00Z'),
-      deliveredAt: at('2026-09-28T15:00:00Z'),
     },
   ]);
 }

@@ -43,7 +43,6 @@ describe('catálogo de códigos de erro', () => {
       'BID_CUSTOMER_BLACKLISTED',
       'AUCTION_CARD_NOT_AVAILABLE', // família `AUCTION_${motivo}`
       'SETTLEMENT_AUCTION_NOT_ELIGIBLE',
-      'SHIPMENT_TRACKING_REQUIRED',
       'CUSTOMER_PHONE_TAKEN',
       'ADMIN_LIMIT_BELOW_USAGE',
       'CARD_LIMIT_REACHED', // tupla [status, texto, código]
