@@ -388,6 +388,76 @@ describe('bot_set_whatsapp_status', () => {
   });
 });
 
+describe('pareamento do WhatsApp (migration 0028)', () => {
+  const ownerA = SEED_IDS.userOwner;
+
+  beforeAll(async () => {
+    await database.pool.query(
+      `INSERT INTO whatsapp_pairing (store_id, requested_at, requested_by)
+       VALUES ($1, now(), $3), ($2, NULL, NULL)
+       ON CONFLICT (store_id) DO UPDATE SET requested_at = EXCLUDED.requested_at`,
+      [A, B, ownerA],
+    );
+  });
+
+  it('vê só quem pediu (de qualquer loja) e nunca o QR nem a lista de volta', async () => {
+    const asked = await asBot(null, (c) =>
+      c.query<{ store_id: string }>('SELECT store_id, requested_at FROM whatsapp_pairing'),
+    );
+    expect(asked.rows.map((r) => r.store_id)).toEqual([A]);
+
+    for (const column of ['qr_code', 'qr_expires_at', 'groups', 'requested_by']) {
+      await expect(
+        asBot(A, (c) => c.query(`SELECT ${column} FROM whatsapp_pairing`)),
+        column,
+      ).rejects.toMatchObject({ code: '42501' });
+    }
+  });
+
+  it('grava o QR e os grupos só da própria loja, e limpa o pedido', async () => {
+    const ok = await asBot(A, (c) =>
+      c.query(
+        `UPDATE whatsapp_pairing SET qr_code = 'qr-de-teste', qr_expires_at = now() + interval '60 seconds',
+                groups = '[{"id":"123456@g.us","name":"Leilão"}]'::jsonb, groups_updated_at = now()
+          WHERE store_id = $1`,
+        [A],
+      ),
+    );
+    expect(ok.rowCount).toBe(1);
+    const other = await asBot(A, (c) =>
+      c.query(
+        "UPDATE whatsapp_pairing SET qr_code = 'invasor', qr_expires_at = now() WHERE store_id = $1",
+        [B],
+      ),
+    );
+    expect(other.rowCount).toBe(0);
+    const cleared = await asBot(A, (c) =>
+      c.query(
+        'UPDATE whatsapp_pairing SET qr_code = NULL, qr_expires_at = NULL, requested_at = NULL WHERE store_id = $1',
+        [A],
+      ),
+    );
+    expect(cleared.rowCount).toBe(1);
+    const saved = await database.pool.query<{ qr_code: string | null }>(
+      'SELECT qr_code FROM whatsapp_pairing WHERE store_id = $1',
+      [B],
+    );
+    expect(saved.rows[0]?.qr_code).toBeNull();
+  });
+
+  it('não cria, não apaga e não mexe em quem pediu', async () => {
+    await expect(
+      asBot(A, (c) => c.query('INSERT INTO whatsapp_pairing (store_id) VALUES ($1)', [A])),
+    ).rejects.toMatchObject({ code: '42501' });
+    await expect(asBot(A, (c) => c.query('DELETE FROM whatsapp_pairing'))).rejects.toMatchObject({
+      code: '42501',
+    });
+    await expect(
+      asBot(A, (c) => c.query('UPDATE whatsapp_pairing SET requested_by = NULL')),
+    ).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
 describe('provisão dos logins de runtime', () => {
   const secret = 'y'.repeat(24);
 

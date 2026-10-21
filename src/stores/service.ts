@@ -1,3 +1,4 @@
+import { groupIsPublished } from '../whatsapp/pairing.js';
 import { randomUUID } from 'node:crypto';
 
 import { and, count, eq } from 'drizzle-orm';
@@ -33,11 +34,13 @@ export interface StorePatch {
   showcaseEnabled?: boolean;
   /** Quem liga a vitrine confirma que o link do grupo será público. */
   acknowledgePublicGroupLink?: boolean;
+  /** Grupo do WhatsApp da loja: precisa estar na lista publicada pelo bot. `null` desfaz a escolha. */
+  whatsappGroupId?: string | null;
 }
 
 export type UpdateStoreResult =
   | { ok: true; store: StoreSummary }
-  | { ok: false; reason: 'NOT_FOUND' | 'INVITE_URL_REQUIRED' | 'ACK_REQUIRED' };
+  | { ok: false; reason: 'NOT_FOUND' | 'INVITE_URL_REQUIRED' | 'ACK_REQUIRED' | 'GROUP_UNKNOWN' };
 
 const toSummary = (row: typeof stores.$inferSelect): StoreSummary => ({
   id: row.id,
@@ -111,6 +114,7 @@ export class StoreService {
     if (patch.pixKey !== undefined) values.pixKey = patch.pixKey;
     if (patch.whatsappInviteUrl !== undefined) values.whatsappInviteUrl = patch.whatsappInviteUrl;
     if (patch.showcaseEnabled !== undefined) values.showcaseEnabled = patch.showcaseEnabled;
+    if (patch.whatsappGroupId !== undefined) values.whatsappGroupId = patch.whatsappGroupId;
 
     return withContext(this.db, context, async (tx) => {
       const [current] = await tx
@@ -129,6 +133,13 @@ export class StoreService {
       const turningOn = patch.showcaseEnabled === true && !current.showcaseEnabled;
       if (turningOn && patch.acknowledgePublicGroupLink !== true) {
         return { ok: false, reason: 'ACK_REQUIRED' } as const;
+      }
+
+      if (
+        patch.whatsappGroupId != null &&
+        !(await groupIsPublished(tx, context.storeId, patch.whatsappGroupId))
+      ) {
+        return { ok: false, reason: 'GROUP_UNKNOWN' } as const;
       }
 
       const [store] = await tx

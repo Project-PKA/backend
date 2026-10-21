@@ -375,6 +375,14 @@
     {
       "code": "VALIDATION_ERROR",
       "status": 400
+    },
+    {
+      "code": "WHATSAPP_ALREADY_CONNECTED",
+      "status": 409
+    },
+    {
+      "code": "WHATSAPP_GROUP_UNKNOWN",
+      "status": 422
     }
   ]
 }
