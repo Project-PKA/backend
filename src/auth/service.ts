@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
 
 import type { AuthConfig } from '../config/env.js';
 import type { Db, Tx } from '../db/context.js';
@@ -258,6 +258,29 @@ export class AuthService {
       )
       .returning({ id: refreshTokens.id });
     return result.length > 0;
+  }
+
+  /**
+   * "Sair de todos os aparelhos": revoga as sessões da própria pessoa. Com `keepRawToken`, a sessão
+   * dessa credencial continua. Devolve quantas foram encerradas.
+   */
+  async revokeAllSessionsOf(userId: string, keepRawToken: string | null): Promise<number> {
+    const keepHash =
+      keepRawToken === null
+        ? null
+        : hashToken(this.deps.config.refreshPepper, 'refresh', keepRawToken);
+    const revoked = await this.deps.db
+      .update(refreshTokens)
+      .set({ revokedAt: this.now() })
+      .where(
+        and(
+          eq(refreshTokens.userId, userId),
+          isNull(refreshTokens.revokedAt),
+          keepHash === null ? undefined : ne(refreshTokens.tokenHash, keepHash),
+        ),
+      )
+      .returning({ id: refreshTokens.id });
+    return revoked.length;
   }
 
   /** Revoga todas as sessões (suspensão de conta, reuso de token). */

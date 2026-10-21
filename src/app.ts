@@ -228,7 +228,9 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
 
   infraRoutes(app, { checkDatabase: deps.checkDatabase, registry });
   authRoutes(app, { env, auth, invitations });
-  meRoutes(app, { db: deps.db, auth, hooks });
+  const cpfVault = new CpfVault(deps.env.cpfEncryptionKey);
+  const profile = new ProfileService(deps.db, cpfVault);
+  meRoutes(app, { db: deps.db, auth, hooks, profile });
   const storesService = new StoreService(deps.db);
   const team = new TeamService(deps.db);
   storeRoutes(app, { db: deps.db, hooks, storesService });
@@ -248,14 +250,12 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   inventoryRoutes(app, { hooks, inventory, photos });
   const auctions = new AuctionService(deps.db, deps.now);
   auctionRoutes(app, { hooks, auctions });
-  const cpfVault = new CpfVault(deps.env.cpfEncryptionKey);
   const customers = new CustomerService(deps.db, cpfVault, receipts);
   customerRoutes(app, { hooks, customers });
   const settlements = new SettlementService(deps.db);
   settlementRoutes(app, { hooks, settlements, receipts });
   const publicLinks = new PublicLinkService(deps.db);
   publicLinkRoutes(app, { hooks, links: publicLinks });
-  const profile = new ProfileService(deps.db);
   const notifications = new NotificationService(deps.db);
   const plan = new PlanService(deps.db);
   accountRoutes(app, { hooks, profile, notifications, plan });

@@ -540,6 +540,10 @@ paths:
                   - is_platform_admin
                   - can_create_stores
                   - store_limit
+                  - phone
+                  - birth_date
+                  - cpf_masked
+                  - address
                 properties:
                   id:
                     type: string
@@ -555,7 +559,267 @@ paths:
                     type: boolean
                   store_limit:
                     type: integer
+                  phone:
+                    type: string
+                    nullable: true
+                    description: Só dígitos, com código do país
+                  birth_date:
+                    type: string
+                    format: date
+                    nullable: true
+                  cpf_masked:
+                    type: string
+                    nullable: true
+                    description: Só os dois últimos dígitos; o CPF inteiro nunca sai da API
+                  address:
+                    type: object
+                    required:
+                      - zip
+                      - street
+                      - number
+                      - comp
+                      - neighborhood
+                      - city
+                      - state
+                    properties:
+                      zip:
+                        type: string
+                        nullable: true
+                      street:
+                        type: string
+                        nullable: true
+                      number:
+                        type: string
+                        nullable: true
+                      comp:
+                        type: string
+                        nullable: true
+                      neighborhood:
+                        type: string
+                        nullable: true
+                      city:
+                        type: string
+                        nullable: true
+                      state:
+                        type: string
+                        nullable: true
         "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+    patch:
+      operationId: updateMe
+      summary: Edita os dados pessoais de quem está logado
+      tags:
+        - me
+      description: Só os campos enviados mudam; `null` limpa. O CPF é validado e
+        guardado cifrado (ADR 0019) e nunca volta inteiro. O e-mail e as
+        permissões não mudam por aqui.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                  pattern: \S
+                phone:
+                  type: string
+                  maxLength: 20
+                  nullable: true
+                birth_date:
+                  type: string
+                  format: date
+                  nullable: true
+                cpf:
+                  type: string
+                  maxLength: 14
+                  nullable: true
+                  description: Validado; nunca devolvido inteiro
+                address:
+                  type: object
+                  additionalProperties: false
+                  description: "Mescla com o endereço atual: só os campos enviados mudam e `null`
+                    limpa o campo."
+                  properties:
+                    zip:
+                      type: string
+                      maxLength: 9
+                      nullable: true
+                    street:
+                      type: string
+                      maxLength: 120
+                      nullable: true
+                    number:
+                      type: string
+                      maxLength: 20
+                      nullable: true
+                    comp:
+                      type: string
+                      maxLength: 60
+                      nullable: true
+                    neighborhood:
+                      type: string
+                      maxLength: 80
+                      nullable: true
+                    city:
+                      type: string
+                      maxLength: 80
+                      nullable: true
+                    state:
+                      type: string
+                      pattern: ^[A-Za-z]{2}$
+                      nullable: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - email
+                  - name
+                  - is_platform_admin
+                  - can_create_stores
+                  - store_limit
+                  - phone
+                  - birth_date
+                  - cpf_masked
+                  - address
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                  name:
+                    type: string
+                    nullable: true
+                  is_platform_admin:
+                    type: boolean
+                  can_create_stores:
+                    type: boolean
+                  store_limit:
+                    type: integer
+                  phone:
+                    type: string
+                    nullable: true
+                    description: Só dígitos, com código do país
+                  birth_date:
+                    type: string
+                    format: date
+                    nullable: true
+                  cpf_masked:
+                    type: string
+                    nullable: true
+                    description: Só os dois últimos dígitos; o CPF inteiro nunca sai da API
+                  address:
+                    type: object
+                    required:
+                      - zip
+                      - street
+                      - number
+                      - comp
+                      - neighborhood
+                      - city
+                      - state
+                    properties:
+                      zip:
+                        type: string
+                        nullable: true
+                      street:
+                        type: string
+                        nullable: true
+                      number:
+                        type: string
+                        nullable: true
+                      comp:
+                        type: string
+                        nullable: true
+                      neighborhood:
+                        type: string
+                        nullable: true
+                      city:
+                        type: string
+                        nullable: true
+                      state:
+                        type: string
+                        nullable: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
           description: Default Response
           content:
             application/json:
@@ -686,6 +950,49 @@ paths:
                           nullable: true
                         current:
                           type: boolean
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+    delete:
+      operationId: revokeAllMySessions
+      summary: Encerra todas as sessões ("Sair de todos os aparelhos")
+      tags:
+        - me
+      description: Por padrão encerra também a sessão atual (o cookie de renovação é
+        apagado; o access token em uso vale só até expirar, no máximo 15
+        minutos). Com `keep_current=true` a sessão deste aparelho continua
+        (precisa do cookie de renovação para saber qual é).
+      parameters:
+        - schema:
+            type: boolean
+            default: false
+          in: query
+          name: keep_current
+          required: false
+      security: *a1
+      responses:
+        "204":
+          description: Default Response
         "401":
           description: Default Response
           content:

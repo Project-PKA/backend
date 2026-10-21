@@ -277,6 +277,22 @@
       "status": 404
     },
     {
+      "code": "PROFILE_BIRTH_DATE_INVALID",
+      "status": 422
+    },
+    {
+      "code": "PROFILE_CEP_INVALID",
+      "status": 422
+    },
+    {
+      "code": "PROFILE_CPF_INVALID",
+      "status": 422
+    },
+    {
+      "code": "PROFILE_PHONE_INVALID",
+      "status": 422
+    },
+    {
       "code": "PUBLIC_CEP_INVALID",
       "status": null
     },

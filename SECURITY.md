@@ -73,6 +73,7 @@ tarefa que o toca não está pronta sem ele.
 | Base legal do tratamento, atendimento a direitos do titular (acesso, correção, exclusão) e papel de controlador/operador entre SaaS e loja | pendente (decisão de negócio) |
 | Validação de CPF (dígitos verificadores), telefone e CEP na entrada; guardados só com dígitos | **feito** (com teste) |
 | CPF nunca devolvido inteiro (só `•••.•••.•••-NN`), nunca em log; o log de atividades guarda só os nomes dos campos alterados | **feito** (com teste) |
+| CPF, telefone, nascimento e endereço do **usuário** (perfil, `PATCH /v1/me`; o dono decidiu guardar): CPF cifrado com o mesmo `CpfVault` do cliente (ADR 0019), só a máscara na saída; só a própria pessoa lê e edita; não aparece no painel do administrador nem na equipe; nunca em log | **feito** (migration 0027, com teste). A rotação da chave do CPF precisa cobrir também `users.cpf` (ver Backend#118) |
 | Seed usa só dados fictícios e **recusa rodar** fora de `local`/`dev`/`test` | **feito** |
 
 ### Sessão do WhatsApp e bot (ADR 0007)

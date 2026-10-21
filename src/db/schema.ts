@@ -9,6 +9,7 @@
 // extensão pg_trgm.
 import {
   boolean,
+  date,
   foreignKey,
   index,
   inet,
@@ -84,6 +85,18 @@ export const users = pgTable(
     otpHash: text('otp_hash'),
     otpExpiresAt: timestamp('otp_expires_at', { withTimezone: true }),
     otpAttempts: integer('otp_attempts').notNull().default(0),
+    /** Dados pessoais do perfil (0027). O CPF é cifrado como o do cliente (ADR 0019). */
+    phone: text('phone'),
+    birthDate: date('birth_date', { mode: 'string' }),
+    cpf: text('cpf'),
+    cpfLast2: text('cpf_last2'),
+    addressZip: text('address_zip'),
+    addressStreet: text('address_street'),
+    addressNumber: text('address_number'),
+    addressComp: text('address_comp'),
+    addressNeighborhood: text('address_neighborhood'),
+    addressCity: text('address_city'),
+    addressState: text('address_state'),
     createdAt: createdAt(),
   },
   (t) => [index('users_status_idx').on(t.status)],
