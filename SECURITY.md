@@ -159,8 +159,8 @@ tarefa que o toca não está pronta sem ele.
 1. **Criptografia do CPF em repouso: feita** (migration 0024, ADR 0019 do shared): AES-256-GCM com
    `CPF_ENCRYPTION_KEY` (guarde a chave à parte; sem ela o CPF não volta). O telefone continua
    em texto, porque identifica o cliente no grupo. A exclusão sob pedido está feita
-   (anonimização, migration 0026). Falta decidir com a revisão de LGPD: retenção por prazo e
-   rotação da chave.
+   (anonimização, migration 0026) e a rotação da chave também (`npm run db:rotate-cpf-key`,
+   `docs/secrets.md`). Falta decidir com a revisão de LGPD: retenção por prazo.
 2. **Segundo fator para o administrador da plataforma:** a conta mais
    valiosa do sistema. Avaliar antes de produção.
 3. **Provedor de e-mail do OTP** (entregabilidade e, por ser porta de entrada,
