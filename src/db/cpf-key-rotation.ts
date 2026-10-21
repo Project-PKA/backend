@@ -21,6 +21,62 @@ export interface RotationResult {
 
 export class CpfKeyError extends Error {}
 
+/**
+ * Onde há CPF cifrado. `customers` tem RLS forçado (o dono solta o FORCE na transação) e a chave do
+ * consignador (`cpf_key_hash`); `users` (perfil, migration 0027) não tem nenhum dos dois.
+ */
+const TABLES = [
+  { name: 'customers', label: 'cliente', hash: true, rls: true },
+  { name: 'users', label: 'usuário', hash: false, rls: false },
+] as const;
+
+type Target = (typeof TABLES)[number];
+
+async function rotateTable(
+  client: pg.PoolClient,
+  target: Target,
+  oldVault: CpfVault,
+  newVault: CpfVault,
+  result: RotationResult,
+): Promise<void> {
+  if (target.rls) await client.query(`ALTER TABLE ${target.name} NO FORCE ROW LEVEL SECURITY`);
+  await client.query(`LOCK TABLE ${target.name} IN SHARE ROW EXCLUSIVE MODE`);
+  const rows = await client.query<{ id: string; cpf: string }>(
+    `SELECT id, cpf FROM ${target.name} WHERE cpf IS NOT NULL ORDER BY id`,
+  );
+  for (const row of rows.rows) {
+    if (!isSealed(row.cpf)) {
+      result.plain += 1;
+      continue;
+    }
+    if (tryOpen(newVault, row.cpf) !== null) {
+      result.alreadyRotated += 1;
+      continue;
+    }
+    const cpf = tryOpen(oldVault, row.cpf);
+    if (cpf === null) {
+      throw new CpfKeyError(
+        `o CPF do ${target.label} ${row.id} não abre com nenhuma das duas chaves`,
+      );
+    }
+    const sealed = newVault.seal(cpf);
+    if (target.hash) {
+      await client.query(
+        `UPDATE ${target.name} SET cpf = $2, cpf_last2 = $3, cpf_key_hash = $4 WHERE id = $1`,
+        [row.id, sealed.cipher, sealed.last2, sealed.keyHash],
+      );
+    } else {
+      await client.query(`UPDATE ${target.name} SET cpf = $2, cpf_last2 = $3 WHERE id = $1`, [
+        row.id,
+        sealed.cipher,
+        sealed.last2,
+      ]);
+    }
+    result.rotated += 1;
+  }
+  if (target.rls) await client.query(`ALTER TABLE ${target.name} FORCE ROW LEVEL SECURITY`);
+}
+
 export async function rotateCpfKey(
   pool: pg.Pool,
   oldVault: CpfVault,
@@ -29,39 +85,13 @@ export async function rotateCpfKey(
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // A tabela tem FORCE RLS e a política vale só para `app_runtime`: o dono solta o FORCE na transação.
-    await client.query('ALTER TABLE customers NO FORCE ROW LEVEL SECURITY');
-    await client.query('LOCK TABLE customers IN SHARE ROW EXCLUSIVE MODE');
-    const rows = await client.query<{ id: string; cpf: string }>(
-      'SELECT id, cpf FROM customers WHERE cpf IS NOT NULL ORDER BY id',
-    );
     const result: RotationResult = { rotated: 0, alreadyRotated: 0, plain: 0 };
-    for (const row of rows.rows) {
-      if (!isSealed(row.cpf)) {
-        result.plain += 1;
-        continue;
-      }
-      if (tryOpen(newVault, row.cpf) !== null) {
-        result.alreadyRotated += 1;
-        continue;
-      }
-      const cpf = tryOpen(oldVault, row.cpf);
-      if (cpf === null) {
-        throw new CpfKeyError(`o CPF do cliente ${row.id} não abre com nenhuma das duas chaves`);
-      }
-      const sealed = newVault.seal(cpf);
-      await client.query(
-        'UPDATE customers SET cpf = $2, cpf_last2 = $3, cpf_key_hash = $4 WHERE id = $1',
-        [row.id, sealed.cipher, sealed.last2, sealed.keyHash],
-      );
-      result.rotated += 1;
-    }
+    for (const target of TABLES) await rotateTable(client, target, oldVault, newVault, result);
     if (result.plain > 0) {
       throw new CpfKeyError(
         `${String(result.plain)} CPF(s) ainda legível(is): rode db:encrypt-cpf antes de rotacionar`,
       );
     }
-    await client.query('ALTER TABLE customers FORCE ROW LEVEL SECURITY');
     await client.query('COMMIT');
     return result;
   } catch (error) {
@@ -78,9 +108,9 @@ export interface CheckResult {
 }
 
 /**
- * Confere (sem escrever) que todo CPF cifrado abre com a chave dada e que `cpf_last2` e
- * `cpf_key_hash` batem. É o teste do `restore.sh`: backup restaurado com a chave errada ou perdida
- * aparece aqui, antes do desastre.
+ * Confere (sem escrever) que todo CPF cifrado, de clientes e de usuários, abre com a chave dada e que
+ * `cpf_last2` (e, nos clientes, `cpf_key_hash`) batem. É o teste do `restore.sh`: backup restaurado
+ * com a chave errada ou perdida aparece aqui, antes do desastre.
  */
 export async function checkCpfKey(pool: pg.Pool, vault: CpfVault): Promise<CheckResult> {
   const client = await pool.connect();
@@ -88,21 +118,25 @@ export async function checkCpfKey(pool: pg.Pool, vault: CpfVault): Promise<Check
     // Só leitura: o NO FORCE (a política vale só para `app_runtime`) é desfeito pelo ROLLBACK.
     await client.query('BEGIN');
     await client.query('ALTER TABLE customers NO FORCE ROW LEVEL SECURITY');
-    const rows = await client.query<{
-      id: string;
-      cpf: string;
-      cpf_last2: string | null;
-      cpf_key_hash: string | null;
-    }>('SELECT id, cpf, cpf_last2, cpf_key_hash FROM customers WHERE cpf IS NOT NULL');
     const result: CheckResult = { ok: 0, failed: 0 };
-    for (const row of rows.rows) {
-      const cpf = isSealed(row.cpf) ? tryOpen(vault, row.cpf) : null;
-      const consistent =
-        cpf !== null &&
-        cpf.slice(-2) === row.cpf_last2 &&
-        vault.keyHash(cpf.slice(0, 4)) === row.cpf_key_hash;
-      if (consistent) result.ok += 1;
-      else result.failed += 1;
+    for (const target of TABLES) {
+      const rows = await client.query<{
+        cpf: string;
+        cpf_last2: string | null;
+        cpf_key_hash: string | null;
+      }>(
+        `SELECT cpf, cpf_last2, ${target.hash ? 'cpf_key_hash' : 'NULL::text AS cpf_key_hash'}
+           FROM ${target.name} WHERE cpf IS NOT NULL`,
+      );
+      for (const row of rows.rows) {
+        const cpf = isSealed(row.cpf) ? tryOpen(vault, row.cpf) : null;
+        const consistent =
+          cpf !== null &&
+          cpf.slice(-2) === row.cpf_last2 &&
+          (!target.hash || vault.keyHash(cpf.slice(0, 4)) === row.cpf_key_hash);
+        if (consistent) result.ok += 1;
+        else result.failed += 1;
+      }
     }
     await client.query('ROLLBACK');
     return result;

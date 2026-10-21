@@ -164,6 +164,46 @@ describe('rotateCpfKey', () => {
   });
 });
 
+describe('CPF do usuário (users.cpf, migration 0027)', () => {
+  async function sealUser(vault: CpfVault, cpf: string): Promise<void> {
+    const sealed = vault.seal(cpf);
+    await world.admin.query('UPDATE users SET cpf = $2, cpf_last2 = $3 WHERE id = $1', [
+      SEED_IDS.userOwner,
+      sealed.cipher,
+      sealed.last2,
+    ]);
+  }
+  const userCpf = async () =>
+    (
+      await world.admin.query<{ cpf: string }>('SELECT cpf FROM users WHERE id = $1', [
+        SEED_IDS.userOwner,
+      ])
+    ).rows[0]?.cpf ?? '';
+
+  it('rotaciona também o CPF do perfil, na mesma transação', async () => {
+    await sealUser(vaultA, '12345678909');
+
+    const result = await rotateCpfKey(world.admin, vaultA, vaultB);
+
+    expect(result).toEqual({ rotated: 4, alreadyRotated: 0, plain: 0 });
+    const sealed = await userCpf();
+    expect(vaultB.open(sealed)).toBe('12345678909');
+    expect(() => vaultA.open(sealed)).toThrow();
+    expect(await checkCpfKey(world.admin, vaultB)).toEqual({ ok: 4, failed: 0 });
+    expect(await checkCpfKey(world.admin, vaultA)).toEqual({ ok: 0, failed: 4 });
+  });
+
+  it('CPF de usuário que nenhuma chave abre desfaz também a rotação dos clientes', async () => {
+    await sealUser(vaultC, '12345678909');
+    const before = await stored();
+
+    await expect(rotateCpfKey(world.admin, vaultA, vaultB)).rejects.toThrow(/usuário/);
+
+    expect(await stored()).toEqual(before);
+    expect(vaultC.open(await userCpf())).toBe('12345678909');
+  });
+});
+
 describe('checkCpfKey (usado pelo restore.sh)', () => {
   it('confere que todo CPF abre com a chave e que a máscara e o hash batem', async () => {
     expect(await checkCpfKey(world.admin, vaultA)).toEqual({ ok: 3, failed: 0 });

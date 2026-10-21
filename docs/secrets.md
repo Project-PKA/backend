@@ -85,7 +85,7 @@ banco.
 3. Pare a API.
 4. Rode a rotação com as duas chaves:
    `CPF_ENCRYPTION_KEY_OLD=<antiga> CPF_ENCRYPTION_KEY=<nova> npm run db:rotate-cpf-key`.
-   Imprime quantos CPFs foram recifrados. Tudo acontece numa transação: se algum CPF não abrir com
+   Cobre os CPFs de clientes e de usuários (perfil). Imprime quantos CPFs foram recifrados. Tudo acontece numa transação: se algum CPF não abrir com
    nenhuma das duas chaves, nada muda. CPF ainda legível (anterior à migration 0024) faz o script parar
    e pedir `npm run db:encrypt-cpf` antes.
 5. Troque `CPF_ENCRYPTION_KEY` no `.env` pela nova e suba a API.
