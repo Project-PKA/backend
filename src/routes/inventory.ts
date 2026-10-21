@@ -259,6 +259,12 @@ export function inventoryRoutes(app: FastifyInstance, deps: InventoryRouteDeps):
             status: { type: 'string', enum: STATUSES },
             origin: { type: 'string', enum: ORIGINS },
             consignor_id: { type: 'string', format: 'uuid' },
+            language: {
+              type: 'string',
+              pattern: '^[A-Z]{2}$',
+              description:
+                'Idioma da carta física, 2 letras maiúsculas (PT, EN, JP, ES...), o mesmo formato do cadastro',
+            },
             q: { type: 'string', maxLength: 80, description: 'Nome, número, coleção ou ID curto' },
             no_auction: {
               type: 'boolean',
@@ -288,6 +294,7 @@ export function inventoryRoutes(app: FastifyInstance, deps: InventoryRouteDeps):
         status?: InventoryCard['status'];
         origin?: InventoryCard['origin'];
         consignor_id?: string;
+        language?: string;
         q?: string;
         no_auction?: boolean;
       };
@@ -297,6 +304,7 @@ export function inventoryRoutes(app: FastifyInstance, deps: InventoryRouteDeps):
         ...(q.status === undefined ? {} : { status: q.status }),
         ...(q.origin === undefined ? {} : { origin: q.origin }),
         ...(q.consignor_id === undefined ? {} : { consignorId: q.consignor_id }),
+        ...(q.language === undefined ? {} : { language: q.language }),
         ...(q.q === undefined ? {} : { q: q.q }),
         ...(q.no_auction === undefined ? {} : { noAuction: q.no_auction }),
       });
@@ -529,7 +537,17 @@ function photoRoutes(app: FastifyInstance, deps: { hooks: AuthHooks; photos: Pho
         security,
         headers: storeHeader,
         params: photoParams,
-        response: { 401: problemSchema, 403: problemSchema, 404: problemSchema },
+        response: {
+          200: {
+            description: 'A imagem, no tipo detectado pelo conteúdo no envio',
+            content: Object.fromEntries(
+              IMAGE_TYPES.map((type) => [type, { schema: { type: 'string', format: 'binary' } }]),
+            ),
+          },
+          401: problemSchema,
+          403: problemSchema,
+          404: problemSchema,
+        },
       },
     },
     async (request, reply) => {
