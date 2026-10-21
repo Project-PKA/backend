@@ -603,14 +603,19 @@ describe('log de atividades (GET /v1/activity-log)', () => {
 
     expect(denied.statusCode).toBe(403);
     expect(response.statusCode).toBe(200);
-    const { items } = response.json<{ items: { created_at: string; action: string }[] }>();
+    const { items } = response.json<{
+      items: { created_at: string; action: string; actor: { email: string } | null }[];
+    }>();
     const dates = items.map((item) => Date.parse(item.created_at));
     expect([...dates].sort((a, b) => b - a)).toEqual(dates);
     expect(items.map((item) => item.action)).toEqual(
       expect.arrayContaining(['store.updated', 'invitation.sent']),
     );
     expect(response.body).not.toContain('privado@example.com');
-    expect(response.body).not.toContain('@');
+    // o único e-mail na resposta é o de quem agiu (campo `actor`, só de quem ainda é da equipe)
+    const withoutActor = items.map((item) => ({ ...item, actor: undefined }));
+    expect(JSON.stringify(withoutActor)).not.toContain('@');
+    expect(items.every((item) => item.actor === null || item.actor.email === OWNER)).toBe(true);
   });
 
   it('não mostra o log de outra loja', async () => {

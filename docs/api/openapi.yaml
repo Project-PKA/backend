@@ -2606,6 +2606,21 @@ paths:
           required: false
         - schema:
             type: string
+            format: uuid
+          in: query
+          name: actor_user_id
+          required: false
+          description: Só as ações desta pessoa (o `actor_user_id` de um item)
+        - schema:
+            type: string
+            pattern: ^[a-z0-9_.]{1,64}$
+          in: query
+          name: action
+          required: false
+          description: Ação exata (`card.created`) ou prefixo terminado em ponto (`card.`
+            traz todas as de carta)
+        - schema:
+            type: string
           in: header
           name: x-store-id
           required: false
@@ -2632,6 +2647,7 @@ paths:
                         - id
                         - created_at
                         - actor_user_id
+                        - actor
                         - action
                         - details
                       properties:
@@ -2647,6 +2663,25 @@ paths:
                           nullable: true
                         action:
                           type: string
+                        actor:
+                          type: object
+                          nullable: true
+                          required:
+                            - id
+                            - name
+                            - email
+                          description: Quem agiu, enquanto for da equipe da loja. Nulo para ação do
+                            sistema e para quem saiu da equipe (use
+                            `actor_user_id` para mostrar "ex-integrante").
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                              nullable: true
+                            email:
+                              type: string
                         target_type:
                           type: string
                           nullable: true
@@ -12268,7 +12303,13 @@ paths:
       summary: Avisos internos da loja, do mais novo para o mais antigo
       tags:
         - notifications
-      description: "O texto é do frontend: aqui vêm só o código (`kind`) e ids em `data`."
+      description: "O texto é do frontend: aqui vêm só o código (`kind`) e ids em
+        `data`. Os `kind` que a API cria hoje: `POLL_CEILING_REACHED`
+        (`data.auction_id`: o lance de uma enquete chegou ao teto e o leilão
+        espera validação) e `BUYER_DATA_SUBMITTED` (`data.settlement_id` e
+        `data.customer_id`: o comprador preencheu os dados do acerto). Um `kind`
+        novo pode surgir sem aviso; mostre um texto genérico para os que não
+        conhece."
       parameters:
         - schema:
             type: string
@@ -17548,6 +17589,10 @@ paths:
                           format: uuid
                         card:
                           type: object
+                          required:
+                            - id
+                            - short_code
+                            - name
                           properties:
                             id:
                               type: string
@@ -17563,6 +17608,9 @@ paths:
                         provisional_winner:
                           type: object
                           nullable: true
+                          required:
+                            - id
+                            - name
                           properties:
                             id:
                               type: string
@@ -17592,6 +17640,10 @@ paths:
                     type: array
                     items:
                       type: object
+                      required:
+                        - id
+                        - short_code
+                        - name
                       properties:
                         id:
                           type: string
@@ -17604,12 +17656,21 @@ paths:
                     type: array
                     items:
                       type: object
+                      required:
+                        - id
+                        - customer
+                        - total_amount
+                        - items
+                        - created_at
                       properties:
                         id:
                           type: string
                           format: uuid
                         customer:
                           type: object
+                          required:
+                            - id
+                            - name
                           properties:
                             id:
                               type: string
