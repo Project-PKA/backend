@@ -42,6 +42,7 @@ import { publicLinkRoutes, publicRoutes } from './routes/public.js';
 import { settlementRoutes } from './routes/settlements.js';
 import { customerRoutes } from './routes/customers.js';
 import { auctionRoutes } from './routes/auctions.js';
+import { serializeError, serializeRequest } from './http/log-serializers.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { meRoutes } from './routes/me.js';
@@ -65,6 +66,8 @@ export interface AppDeps {
   tcgdex?: TcgdexClient;
   /** Armazenamento de arquivos. Os testes injetam um em memória; o padrão é o disco em STORAGE_DIR. */
   storage?: FileStorage;
+  /** Destino do log. Só os testes usam, para capturar e conferir que nada pessoal é registrado. */
+  logStream?: NodeJS.WritableStream;
 }
 
 export interface BuiltApp {
@@ -110,6 +113,9 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
       messageKey: 'message',
       timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
       formatters: { level: (label) => ({ level: label }) },
+      ...(deps.logStream === undefined ? {} : { stream: deps.logStream }),
+      // A URL sem a query string e o erro do banco sem o valor que falhou (ver log-serializers).
+      serializers: { req: serializeRequest, err: serializeError },
       // Credenciais e cookies nunca vão para o log.
       redact: {
         paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
