@@ -20,7 +20,7 @@ O que **não** está aqui:
 - A conversa com o WhatsApp (neonize em Python, sessões por QR Code, leitura de lances,
   abertura e fechamento no horário): é o `Project-PKA/whatsapp_microservice`.
   Ele usa este mesmo banco, com role própria.
-- A interface web: `Project-PKA/frontend_web` (ainda não iniciada).
+- A interface web: `Project-PKA/frontend_web` (já consome esta API; as telas que dependem de pedidos novos estão em shared#37).
 - Pagamento, frete e envio: fora do sistema (ADR 0002; frete e envio saíram na migration 0022, a pedido do dono). A plataforma **não vende nem
   garante pagamento ou entrega** (ADR 0013): nenhuma tela, e-mail ou
   mensagem pode usar linguagem de garantia ("anti-calote", "compra segura").
@@ -38,12 +38,12 @@ administrador da plataforma, e há **páginas públicas** por link (vitrine,
 acerto do cliente, acompanhamento do consignador). O que falta e em que
 ordem está em [`docs/roadmap.md`](docs/roadmap.md).
 
-**Estado atual:** Etapas 1, 2a, 2b, 2c, 3, 4 (sem a exclusão LGPD), 5 (sem o bot), 6, 7 e 8 (sem a cobrança) prontas: scaffold, schema com seed, RLS e papéis
+**Estado atual:** Etapas 1, 2a, 2b, 2c, 3, 4, 5, 6, 7 e 8 prontas no Backend (a anonimização LGPD da 4 está em revisão): scaffold, schema com seed, RLS e papéis
 de banco, login por código, sessão com refresh rotacionado, convites, middleware
 de loja e RBAC, criar e editar loja, equipe, convites por rota, log de atividades
 e limites de HTTP (rotas `/v1/auth`, `/v1/me`, `/v1/stores`, `/v1/store`, `/v1/team*`,
 `/v1/activity-log`, `/v1/catalog*`, `/v1/cards*`, `/v1/auctions*`, `/v1/customers*`, `/v1/settlements*`, `/v1/public-links*`, `/v1/dashboard/home`, `/v1/finance/*` e `/v1/public/*` sem login e `/v1/admin/*` só do administrador).
-Faltam a cobrança e o bot. E-mail sai por SMTP (nodemailer; Mailpit no compose) e as fotos das cartas ficam em disco (`src/storage`, `STORAGE_DIR`). O que vem a seguir está nas issues
+O bot existe no `whatsapp_microservice` e ainda não foi exercitado com WhatsApp de verdade (`OWNER.md`, A11); a cobrança ficou fora do MVP (D6). Em revisão, em PRs de rascunho: a anonimização de cliente, a rotação da chave do CPF e os pedidos do frontend (shared#37). E-mail sai por SMTP (nodemailer; Mailpit no compose) e as fotos das cartas ficam em disco (`src/storage`, `STORAGE_DIR`). O que vem a seguir está nas issues
 da próxima sprint (milestones). A VPS
 ainda não existe, então não há deploy.
 
