@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 
 import type { AuthHooks } from '../auth/hooks.js';
 import type { InvitationItem, InvitationService } from '../auth/invitations.js';
-import { PERMISSIONS } from '../auth/permissions.js';
+import { PERMISSIONS, type Permission } from '../auth/permissions.js';
 import { buildProblem, problemSchema, sendProblem } from '../http/problem.js';
 import { DEFAULT_LIMIT, pageQuerySchema } from '../http/pagination.js';
 import type { TeamMember, TeamService } from '../team/service.js';
@@ -95,6 +95,73 @@ export function teamRoutes(app: FastifyInstance, deps: TeamRouteDeps): void {
     if (auth === null || tenant === null) throw new Error('hooks não definiram o contexto');
     return { storeId: tenant.storeId, userId: auth.userId };
   };
+
+  app.post(
+    '/v1/store/permission-requests',
+    {
+      preValidation: member,
+      schema: {
+        operationId: 'requestPermission',
+        tags: ['team'],
+        summary: 'Pede uma permissão ao proprietário da loja',
+        description:
+          'Para o botão "Pedir acesso ao proprietário". Não concede nada: avisa o proprietário na central de avisos ' +
+          '(`kind` `PERMISSION_REQUESTED`, com `data.user_id` e `data.permission`) e registra no log de atividades. ' +
+          'A mesma pessoa só pode repetir o mesmo pedido depois de 24 horas.',
+        security,
+        headers: storeHeader,
+        body: {
+          type: 'object',
+          required: ['permission'],
+          additionalProperties: false,
+          properties: { permission: { type: 'string', enum: PERMISSIONS } },
+        },
+        response: {
+          201: {
+            type: 'object',
+            required: ['permission', 'requested_at'],
+            properties: {
+              permission: { type: 'string', enum: PERMISSIONS },
+              requested_at: { type: 'string', format: 'date-time' },
+            },
+          },
+          400: problemSchema,
+          401: problemSchema,
+          403: problemSchema,
+          409: problemSchema,
+          429: problemSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const tenant = request.tenant;
+      if (tenant === null) throw new Error('hooks não definiram o contexto');
+      const { permission } = request.body as { permission: Permission };
+      const result = await team.requestPermission(
+        contextOf(request),
+        tenant.permissions,
+        permission,
+      );
+      if (result.ok) {
+        return reply
+          .status(201)
+          .send({ permission: result.permission, requested_at: result.requestedAt.toISOString() });
+      }
+      return result.reason === 'ALREADY_GRANTED'
+        ? sendProblem(
+            reply,
+            buildProblem(409, 'Você já tem esta permissão', 'PERMISSION_ALREADY_GRANTED'),
+          )
+        : sendProblem(
+            reply,
+            buildProblem(
+              429,
+              'Você já pediu esta permissão hoje. Aguarde a resposta do proprietário',
+              'PERMISSION_REQUEST_TOO_SOON',
+            ),
+          );
+    },
+  );
 
   app.get(
     '/v1/team',
