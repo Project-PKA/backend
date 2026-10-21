@@ -727,7 +727,7 @@ describe('convites', () => {
     const { result, token, message } = await inviteStaff(server, 'Novo@Example.com');
 
     expect(result.ok).toBe(true);
-    expect(message?.link).toContain('/convite#token=');
+    expect(message?.link).toContain('/invite#token=');
     expect(message).toMatchObject({
       to: 'novo@example.com',
       storeName: 'Cartas do Zé 🔥',

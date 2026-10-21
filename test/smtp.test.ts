@@ -58,14 +58,14 @@ describe('SmtpEmailSender', () => {
 
     await sender.sendInvitation({
       to: 'novo@example.test',
-      link: 'https://app.example.test/convite#token=abc',
+      link: 'https://app.example.test/invite#token=abc',
       storeName: '<b>Loja</b>',
       role: 'STAFF',
       expiresAt: new Date('2026-11-01T12:00:00Z'),
     });
 
     const mail = sent[0];
-    expect(mail?.['text']).toContain('https://app.example.test/convite#token=abc');
+    expect(mail?.['text']).toContain('https://app.example.test/invite#token=abc');
     expect(mail?.['text']).toContain('2026-11-01');
     expect(mail?.['html']).toContain('&lt;b&gt;Loja&lt;/b&gt;');
     expect(mail?.['html']).not.toContain('<b>Loja</b>');
