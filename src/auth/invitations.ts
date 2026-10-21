@@ -161,7 +161,7 @@ export class InvitationService {
     const task = this.deps.email
       .sendInvitation({
         to: email,
-        link: `${this.deps.publicAppUrl}/convite#token=${token}`,
+        link: `${this.deps.publicAppUrl}/invite#token=${token}`,
         storeName,
         role: input.role ?? null,
         expiresAt,
