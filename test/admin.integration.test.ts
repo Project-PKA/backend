@@ -70,6 +70,7 @@ interface UserJson {
   stores_count: number;
   last_login_at: string | null;
   stores?: { id: string; name: string; role: string }[];
+  pending_invitation_id?: string | null;
 }
 
 interface StoreJson {
@@ -202,6 +203,71 @@ describe('usuários', () => {
     expect(
       (await call(server, 'GET', `/v1/admin/users/${uid(KIND.user, 999)}`, admin)).statusCode,
     ).toBe(404);
+  });
+
+  it('traz o convite pendente de quem ainda não aceitou, na lista e no detalhe', async () => {
+    const server = await start({ INVITATION_RESEND_SECONDS: '0' });
+    const admin = await login(server, ADMIN);
+    const created = await call(server, 'POST', '/v1/admin/users', admin, {
+      email: 'pendente@example.com',
+      can_create_stores: false,
+      store_limit: 0,
+    });
+    await server.invitations.flush();
+    const userId = created.json<UserJson>().id;
+    const pending = await world.admin.query<{ id: string }>(
+      "SELECT id FROM invitations WHERE email = 'pendente@example.com' AND status = 'PENDING'",
+    );
+    const invitationId = pending.rows[0]?.id;
+    expect(invitationId).toBeDefined();
+
+    const detail = await call(server, 'GET', `/v1/admin/users/${userId}`, admin);
+    expect(detail.json<UserJson>().pending_invitation_id).toBe(invitationId);
+    const listed = await call(server, 'GET', '/v1/admin/users?q=pendente%40&limit=10', admin);
+    expect(listed.json<{ items: UserJson[] }>().items[0]?.pending_invitation_id).toBe(invitationId);
+
+    // quem já é ativo vem com null; o convidado do seed aponta para o convite pendente dele
+    const owner = await call(server, 'GET', `/v1/admin/users/${SEED_IDS.userOwner}`, admin);
+    expect(owner.json<UserJson>().pending_invitation_id).toBeNull();
+    const seeded = await world.admin.query<{ id: string }>(
+      "SELECT id FROM invitations WHERE email = 'convidado@example.com' AND status = 'PENDING'",
+    );
+    const invited = await call(server, 'GET', `/v1/admin/users/${SEED_IDS.userInvited}`, admin);
+    expect(invited.json<UserJson>().pending_invitation_id).toBe(seeded.rows[0]?.id);
+
+    // o id serve para reenviar; depois do reenvio o pendente é o novo
+    const resent = await call(
+      server,
+      'POST',
+      `/v1/admin/invitations/${invitationId}/resend`,
+      admin,
+    );
+    expect(resent.statusCode, resent.body).toBe(200);
+    const newId = resent.json<{ id: string }>().id;
+    const after = await call(server, 'GET', `/v1/admin/users/${userId}`, admin);
+    expect(after.json<UserJson>().pending_invitation_id).toBe(newId);
+
+    // ao aceitar, deixa de haver pendente
+    await server.invitations.flush();
+    const token = tokenFrom(server.email.lastInvitationFor('pendente@example.com')?.link);
+    expect((await acceptInvitation(server, token)).statusCode).toBe(200);
+    const accepted = await call(server, 'GET', `/v1/admin/users/${userId}`, admin);
+    expect(accepted.json<UserJson>().pending_invitation_id).toBeNull();
+  });
+
+  it('só o administrador vê o convite pendente (proprietário e funcionário são 403)', async () => {
+    const server = await start();
+    for (const email of [OWNER, STAFF]) {
+      const session = await login(server, email);
+      const response = await call(
+        server,
+        'GET',
+        `/v1/admin/users/${SEED_IDS.userInvited}`,
+        session,
+      );
+      expect(response.statusCode).toBe(403);
+      expect((await call(server, 'GET', '/v1/admin/users', session)).statusCode).toBe(403);
+    }
   });
 
   it('cadastra a conta, envia o convite de conta e registra no log da plataforma', async () => {

@@ -13511,6 +13511,7 @@ paths:
                         - last_login_at
                         - created_at
                         - stores_count
+                        - pending_invitation_id
                       properties:
                         id:
                           type: string
@@ -13541,6 +13542,14 @@ paths:
                           format: date-time
                         stores_count:
                           type: integer
+                        pending_invitation_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                          description: 'Convite pendente de quem ainda não aceitou (`status` INVITED): use
+                            no "Reenviar convite" (`POST
+                            /v1/admin/invitations/{id}/resend`). Nulo se a
+                            pessoa já aceitou ou não há convite pendente.'
                   next_cursor:
                     type: string
                     nullable: true
@@ -13933,6 +13942,7 @@ paths:
                   - last_login_at
                   - created_at
                   - stores_count
+                  - pending_invitation_id
                   - stores
                 properties:
                   id:
@@ -13964,6 +13974,14 @@ paths:
                     format: date-time
                   stores_count:
                     type: integer
+                  pending_invitation_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                    description: 'Convite pendente de quem ainda não aceitou (`status` INVITED): use
+                      no "Reenviar convite" (`POST
+                      /v1/admin/invitations/{id}/resend`). Nulo se a pessoa já
+                      aceitou ou não há convite pendente.'
                   stores:
                     type: array
                     items:

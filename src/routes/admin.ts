@@ -7,6 +7,7 @@ import type {
   AdminService,
   AdminStore,
   AdminUser,
+  AdminUserView,
   InvitationKind,
   PlanRequestView,
 } from '../admin/service.js';
@@ -75,11 +76,26 @@ const userResponse = {
   },
 } as const;
 
-const userDetailResponse = {
+const userViewResponse = {
   ...userResponse,
-  required: [...userResponse.required, 'stores'],
+  required: [...userResponse.required, 'pending_invitation_id'],
   properties: {
     ...userResponse.properties,
+    pending_invitation_id: {
+      type: 'string',
+      format: 'uuid',
+      nullable: true,
+      description:
+        'Convite pendente de quem ainda não aceitou (`status` INVITED): use no "Reenviar convite" (`POST /v1/admin/invitations/{id}/resend`). Nulo se a pessoa já aceitou ou não há convite pendente.',
+    },
+  },
+} as const;
+
+const userDetailResponse = {
+  ...userViewResponse,
+  required: [...userViewResponse.required, 'stores'],
+  properties: {
+    ...userViewResponse.properties,
     stores: {
       type: 'array',
       items: {
@@ -192,6 +208,11 @@ const toUserJson = (u: AdminUser) => ({
   stores_count: u.storesCount,
 });
 
+const toUserViewJson = (u: AdminUserView) => ({
+  ...toUserJson(u),
+  pending_invitation_id: u.pendingInvitationId,
+});
+
 const toStoreJson = (s: AdminStore) => ({
   id: s.id,
   name: s.name,
@@ -295,7 +316,7 @@ export function adminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
             can_create_stores: { type: 'boolean' },
           },
         },
-        response: { 200: pageOf(userResponse), ...failures },
+        response: { 200: pageOf(userViewResponse), ...failures },
       },
     },
     async (request, reply) => {
@@ -309,7 +330,7 @@ export function adminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
           : { canCreateStores: q['can_create_stores'] as boolean }),
       });
       if (result === 'INVALID_CURSOR') return invalidCursor(reply);
-      return { items: result.items.map(toUserJson), next_cursor: result.nextCursor };
+      return { items: result.items.map(toUserViewJson), next_cursor: result.nextCursor };
     },
   );
 
@@ -330,7 +351,7 @@ export function adminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
       const { id } = request.params as { id: string };
       const user = await admin.getUser(actor(request), id);
       if (user === null) return sendFailure(reply, 'NOT_FOUND');
-      return { ...toUserJson(user), stores: user.stores };
+      return { ...toUserViewJson(user), stores: user.stores };
     },
   );
 

@@ -39,7 +39,16 @@ export interface AdminUser {
   storesCount: number;
 }
 
-export interface AdminUserDetail extends AdminUser {
+/** Usuário como a lista e o detalhe o mostram: com o convite que ainda espera resposta. */
+export interface AdminUserView extends AdminUser {
+  /**
+   * Convite pendente de quem ainda não aceitou (`INVITED`), para "Reenviar convite". Prefere o convite
+   * só de conta; senão o mais recente. `null` se a pessoa já aceitou ou não há convite pendente.
+   */
+  pendingInvitationId: string | null;
+}
+
+export interface AdminUserDetail extends AdminUserView {
   stores: { id: string; name: string; role: 'OWNER' | 'STAFF' }[];
 }
 
@@ -151,6 +160,14 @@ function toUser(row: typeof users.$inferSelect, storesCount: number): AdminUser 
   };
 }
 
+/** Subconsulta do convite pendente de um usuário `INVITED` (a tabela `users` da consulta externa). */
+const pendingInvitationOf = () =>
+  sql<string | null>`(
+    SELECT i.id FROM invitations i
+     WHERE users.status = 'INVITED' AND i.email = users.email AND i.status = 'PENDING'
+     ORDER BY (i.store_id IS NULL) DESC, i.created_at DESC, i.id DESC
+     LIMIT 1)`;
+
 /**
  * Administração da plataforma (ADR 0012). Só lê e altera o que é da plataforma (contas, lojas e
  * convites). O banco não deixa o administrador ler estoque, clientes, leilões, lances nem acertos:
@@ -192,7 +209,7 @@ export class AdminService {
       status?: UserStatus;
       canCreateStores?: boolean;
     },
-  ): Promise<Page<AdminUser> | 'INVALID_CURSOR'> {
+  ): Promise<Page<AdminUserView> | 'INVALID_CURSOR'> {
     const position = query.cursor === undefined ? null : decodeCursor(query.cursor);
     if (query.cursor !== undefined && position === null) return 'INVALID_CURSOR';
     const text = query.q?.trim().replaceAll(/[\\%_]/g, '\\$&') ?? '';
@@ -202,6 +219,7 @@ export class AdminService {
         .select({
           user: users,
           storesCount: sql<string>`(SELECT count(*) FROM store_members m WHERE m.user_id = users.id)`,
+          pendingInvitationId: pendingInvitationOf(),
         })
         .from(users)
         .where(
@@ -220,22 +238,30 @@ export class AdminService {
         )
         .orderBy(desc(users.createdAt), desc(users.id))
         .limit(query.limit + 1);
-      return found.map((r) => toUser(r.user, Number(r.storesCount)));
+      return found.map((r) => ({
+        ...toUser(r.user, Number(r.storesCount)),
+        pendingInvitationId: r.pendingInvitationId,
+      }));
     });
     return toPage(rows, query.limit);
   }
 
   async getUser(admin: Admin, id: string): Promise<AdminUserDetail | null> {
     return withContext(this.db, adminContext(admin), async (tx) => {
-      const [user] = await tx.select().from(users).where(eq(users.id, id)).limit(1);
-      if (user === undefined) return null;
+      const [found] = await tx
+        .select({ user: users, pendingInvitationId: pendingInvitationOf() })
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
+      if (found === undefined) return null;
+      const { user, pendingInvitationId } = found;
       const memberships = await tx
         .select({ id: stores.id, name: stores.name, role: storeMembers.role })
         .from(storeMembers)
         .innerJoin(stores, eq(stores.id, storeMembers.storeId))
         .where(eq(storeMembers.userId, id))
         .orderBy(stores.name);
-      return { ...toUser(user, memberships.length), stores: memberships };
+      return { ...toUser(user, memberships.length), pendingInvitationId, stores: memberships };
     });
   }
 
