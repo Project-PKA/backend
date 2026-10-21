@@ -1,4 +1,4 @@
-# Roteiro de entrega (revisado em 2026-10-17)
+# Roteiro de entrega (revisado em 2026-10-21)
 
 > O backlog original (doc 02, Etapas 1 a 6) foi escrito antes do design. O
 > adendo do design ([`shared/docs/produto.md`](https://github.com/Project-PKA/shared/blob/main/docs/produto.md))
@@ -15,13 +15,23 @@
 | 1 | Scaffold, schema base (12 tabelas), migrations `up`/`down`, seed | **Feita** |
 | 2a | Identidade, login por convite, RLS, tenant e RBAC | **Feita** |
 | 2b | Convites e equipe por rota, criar loja, editar loja, log de atividades, limites de HTTP | **Feita** |
-| 2c | API `/v1/admin` e solicitações de acesso | Pendente |
-| 3 | Catálogo TCGdex, estoque e cadastro de carta | Pendente |
-| 4 | Clientes, visitantes, blacklist e carteira de consignação | Pendente |
-| 5 | Leilões e integração com o bot | Pendente |
-| 6 | Acertos e páginas públicas | Pendente |
-| 7 | Painéis (Home ao vivo e Financeiro) | Pendente |
-| 8 | Vitrine, landing, planos, notificações, log e perfil | Pendente |
+| 2c | API `/v1/admin` e solicitações de acesso | **Feita** |
+| 3 | Catálogo TCGdex, estoque e cadastro de carta | **Feita** |
+| 4 | Clientes, visitantes, blacklist e carteira de consignação | **Feita**, menos a anonimização LGPD (em revisão, Backend#117) |
+| 5 | Leilões e integração com o bot | **Feita** no Backend (`place_bid`, `advance_auctions` e o papel `bot_runtime`, migrations 0013 e 0021). O bot está no `whatsapp_microservice` e ainda não foi exercitado com WhatsApp de verdade (`OWNER.md` A11) |
+| 6 | Acertos e páginas públicas | **Feita** |
+| 7 | Painéis (Home ao vivo e Financeiro) | **Feita** |
+| 8 | Vitrine, landing, planos, notificações, log e perfil | **Feita**, sem cobrança (D6: sem cobrança no MVP) |
+
+## O que falta para fechar o MVP (Sprint 09)
+
+O que está por fazer, na ordem do milestone "Sprint 09 - Fechar o MVP e testar de ponta a ponta" do `shared`:
+
+- **Pedidos do frontend** ([shared#37](https://github.com/Project-PKA/shared/issues/37)): feitos em PRs de rascunho (link `/invite`, filtro de idioma, filtros e autor do log, convite pendente do usuário, dados novos do cliente, pedido de permissão). Falta o `PATCH /v1/me` (Backend#105), parado numa decisão do dono: guardar ou não o CPF do usuário.
+- **LGPD**: anonimização de cliente (shared#39, em revisão) e rotação da chave do CPF (shared#47, em revisão). Retenção por prazo, "excluir loja" e texto jurídico seguem para quando houver loja real.
+- **Segurança** ([shared#43](https://github.com/Project-PKA/shared/issues/43)): log sem dado pessoal, com teste; itens restantes do `SECURITY.md` dependem da VPS.
+- **Pareamento do WhatsApp pelo painel** ([shared#36](https://github.com/Project-PKA/shared/issues/36)): proposta de migration e rotas comentada na issue, aguardando aprovação (papel de banco e RLS).
+- **Fora do Backend**: bot (`whatsapp_microservice`), frontend, VPS e deploy (`OWNER.md`, A7).
 
 ## Etapa 2: identidade, administração e isolamento
 
@@ -79,20 +89,20 @@ WebP, até 5 MB, 8 por carta, tipo conferido pelos primeiros bytes, nome gerado 
 `GET`/`DELETE /v1/cards/:id/photos/:photoId`. Os arquivos ficam no disco da VPS (D3), fora de qualquer
 pasta pública; o download exige login e a loja da carta (o frontend busca com `fetch` e usa o blob).
 
-**Etapa 4: clientes.** *Pronta, menos a exclusão LGPD.* Base com visitantes e clientes, blacklist
+**Etapa 4: clientes.** *Pronta, menos a anonimização LGPD (Backend#117, em revisão).* Base com visitantes e clientes, blacklist
 (com motivo), filtro de inativos pelo limite da loja, perfil 360 (acertos, histórico de lances) e
-**carteira de consignação** (líquido = lance menos comissão, exige `can_view_finance`). **Falta:** exclusão
-e anonimização (#43, depende da política de retenção, D2 no `OWNER.md`) e a remoção de inativos do
+**carteira de consignação** (líquido = lance menos comissão, exige `can_view_finance`). **Falta:** a
+anonimização sob pedido (#43; a postura mínima da D2 está na ADR 0019, o PR #117 espera revisão) e a remoção de inativos do
 grupo, que é do bot (a API só lista quem está inativo). Geração do link do consignador fica na Etapa 6.
 
-**Etapa 5: leilões e bot.** *Backend pronto; falta o bot e o agendador.* Feito: criar (agendar ou lançar agora), editar, cancelar, estender um ou todos, aprovar enquete, lance manual e alerta de WhatsApp caído, tudo sobre `place_bid` e `advance_auctions` (migration 0013). Um job do BullMQ vira o relógio de todas as lojas a cada minuto. **Falta:** o papel `bot_runtime` com RLS (#44). Descrição original: O bot é **Python + neonize** e fica **adiado** até haver conta de WhatsApp para testar ([ADR 0015](https://github.com/Project-PKA/shared/blob/main/docs/adr/0015-bot-em-python-com-neonize.md)); o motor de leilões e a função `place_bid` ([ADR 0016](https://github.com/Project-PKA/shared/blob/main/docs/adr/0016-decisao-de-lance-em-funcao-do-banco.md)) seguem no Backend e são testados sem WhatsApp. Criação a partir do cadastro da carta (**agendar,
+**Etapa 5: leilões e bot.** *Backend pronto.* Feito: criar (agendar ou lançar agora), editar, cancelar, estender um ou todos, aprovar enquete, lance manual e alerta de WhatsApp caído, tudo sobre `place_bid` e `advance_auctions` (migration 0013). Um job do BullMQ vira o relógio de todas as lojas a cada minuto. O papel `bot_runtime` com RLS está pronto (migration 0021, D15) e o bot vive no `whatsapp_microservice`. Descrição original: O bot é **Python + neonize** e fica **adiado** até haver conta de WhatsApp para testar ([ADR 0015](https://github.com/Project-PKA/shared/blob/main/docs/adr/0015-bot-em-python-com-neonize.md)); o motor de leilões e a função `place_bid` ([ADR 0016](https://github.com/Project-PKA/shared/blob/main/docs/adr/0016-decisao-de-lance-em-funcao-do-banco.md)) seguem no Backend e são testados sem WhatsApp. Criação a partir do cadastro da carta (**agendar,
 lançar agora ou deixar para depois**), editar e cancelar, **aprovar enquete**
 (aprovar encerramento ou manter aberto), **estender leilões** (+30 min por linha
 e "estender todos"), decisão de lance com lock da linha do leilão, e o alerta
 de **WhatsApp desconectado com leilões ativos** (o bot publica o estado; o
 Backend lista os afetados).
 
-**Etapa 6: acertos e páginas públicas.** *Pronta.* O comprovante em arquivo do "já paguei" (#53) entrou com a migration 0020: `PUT /v1/public/settlement/receipt` e `GET /v1/settlements/:id/receipt`. O "já paguei" em si existe (`POST /v1/public/settlement/paid`): só avisa a loja e nunca marca como pago. Feito: fila "a acertar" por comprador, criar acerto (total = soma dos itens), desfazer, **marcar como pago** (só a loja, exige `can_view_finance`; as cartas viram `SOLD`). **Frete e envio saíram do sistema** (migration 0022, decisão do dono em shared#8): a loja combina isso por fora. **Falta** (precisa da sua aprovação do desenho, ver `OWNER.md` D13): papel `public_runtime` e funções `SECURITY DEFINER` (#57), página pública do acerto com consentimento LGPD (#52), "já paguei" e comprovante (#53, depende do armazenamento D3), acompanhamento do consignador (#56) e testes de abuso (#58). Descrição original: Acerto com itens, página
+**Etapa 6: acertos e páginas públicas.** *Pronta.* O comprovante em arquivo do "já paguei" (#53) entrou com a migration 0020: `PUT /v1/public/settlement/receipt` e `GET /v1/settlements/:id/receipt`. O "já paguei" em si existe (`POST /v1/public/settlement/paid`): só avisa a loja e nunca marca como pago. Feito: fila "a acertar" por comprador, criar acerto (total = soma dos itens), desfazer, **marcar como pago** (só a loja, exige `can_view_finance`; as cartas viram `SOLD`). **Frete e envio saíram do sistema** (migration 0022, decisão do dono em shared#8): a loja combina isso por fora. O desenho das páginas públicas foi aprovado (D13): papel `public_runtime`, funções `SECURITY DEFINER`, página do acerto com consentimento LGPD, "já paguei" e comprovante, acompanhamento do consignador e testes de abuso estão prontos. Descrição original: Acerto com itens, página
 pública do acerto (consentimento LGPD, PIX, comprovante, "já paguei"),
 **Acompanhamento do
 consignador**, com as mitigações obrigatórias da [ADR 0014](https://github.com/Project-PKA/shared/blob/main/docs/adr/0014-paginas-publicas-por-link-e-vitrine.md).
@@ -139,7 +149,9 @@ Tudo por migration `up`/`down`, com `schema.ts` e seed no mesmo PR.
 | --- | --- | --- |
 | Provedor de e-mail (convite e OTP) | Etapa 2b (convites reais) | **Decidido:** SMTP do Gmail por enquanto (D1); trocar por provedor transacional antes de crescer (issue no `shared`) |
 | Armazenamento de arquivos (fotos, avatar, comprovante) | Etapas 3, 6 e 8 | **Decidido (D3):** disco da VPS, no backup; bucket quando crescer (a porta `FileStorage` permite trocar) |
-| Cobrança da assinatura da plataforma | Etapa 8 | Manual (fatura externa) no MVP, como o "solicitar mudança de plano" do design indica |
-| "Avisar cliente no WhatsApp" | Etapa 6 | Link `wa.me` aberto pela loja, coerente com a ADR 0006 |
-| Segundo fator para o administrador | Etapa 2c | Avaliar antes de produção |
-| Chave do consignador (4 dígitos do CPF) | Etapa 6 | Manter só como 2º fator sobre o token do link, com limite e bloqueio (ADR 0014) |
+| Cobrança da assinatura da plataforma | Etapa 8 | **Decidido (D6):** sem cobrança no MVP; o plano é só um rótulo com limites |
+| "Avisar cliente no WhatsApp" | Etapa 6 | **Retirado (D7, ADR 0018):** o bot só fala no grupo |
+| Segundo fator para o administrador | Etapa 2c | **Decidido (D4):** não terá; login por código e promoção só por linha de comando |
+| Chave do consignador (4 dígitos do CPF) | Etapa 6 | Feito como 2º fator sobre o token do link, com limite e bloqueio (ADR 0014); a chave sai do HMAC do CPF cifrado (ADR 0019) |
+| Pareamento do WhatsApp pelo painel (QR e grupos) | Tela "Nova loja" | **Em aberto (D20):** proposta de desenho comentada em shared#36, aguardando aprovação do dono |
+| Guardar o CPF do usuário (`PATCH /v1/me`) | Backend#105 | **Em aberto:** a recomendação é não guardar; se guardar, usar o `CpfVault` (ADR 0019) |
