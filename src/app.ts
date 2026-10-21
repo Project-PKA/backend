@@ -249,7 +249,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   const auctions = new AuctionService(deps.db, deps.now);
   auctionRoutes(app, { hooks, auctions });
   const cpfVault = new CpfVault(deps.env.cpfEncryptionKey);
-  const customers = new CustomerService(deps.db, cpfVault);
+  const customers = new CustomerService(deps.db, cpfVault, receipts);
   customerRoutes(app, { hooks, customers });
   const settlements = new SettlementService(deps.db);
   settlementRoutes(app, { hooks, settlements, receipts });

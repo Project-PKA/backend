@@ -157,6 +157,10 @@
       "status": 422
     },
     {
+      "code": "CUSTOMER_ANONYMIZED",
+      "status": 409
+    },
+    {
       "code": "CUSTOMER_CEP_INVALID",
       "status": 422
     },
