@@ -6,7 +6,7 @@ import type { Env } from '../config/env.js';
 import { buildProblem, problemSchema, sendProblem } from '../http/problem.js';
 
 export const REFRESH_COOKIE = 'refresh_token';
-const COOKIE_PATH = '/v1/auth';
+export const COOKIE_PATH = '/v1/auth';
 
 export interface AuthRouteDeps {
   env: Env;

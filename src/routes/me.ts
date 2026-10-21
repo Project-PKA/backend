@@ -3,23 +3,124 @@ import type { FastifyInstance } from 'fastify';
 
 import type { AuthHooks } from '../auth/hooks.js';
 import type { AuthService } from '../auth/service.js';
+import {
+  EMPTY_PERSONAL,
+  type PersonalData,
+  type PersonalAddress,
+  type PersonalFailure,
+  type ProfileService,
+} from '../profile/service.js';
 import { withContext, type Db } from '../db/context.js';
 import * as schema from '../db/schema.js';
 import { buildProblem, problemSchema, sendProblem } from '../http/problem.js';
-import { REFRESH_COOKIE } from './auth.js';
+import { COOKIE_PATH, REFRESH_COOKIE } from './auth.js';
 
-const { users, stores, storeMembers } = schema;
+const { stores, storeMembers } = schema;
 
 export interface MeRouteDeps {
   db: Db;
   auth: AuthService;
   hooks: AuthHooks;
+  profile: ProfileService;
 }
+
+const nullableText = (maxLength: number) =>
+  ({ type: 'string', maxLength, nullable: true }) as const;
+
+const addressInput = {
+  type: 'object',
+  additionalProperties: false,
+  description: 'Mescla com o endereço atual: só os campos enviados mudam e `null` limpa o campo.',
+  properties: {
+    zip: nullableText(9),
+    street: nullableText(120),
+    number: nullableText(20),
+    comp: nullableText(60),
+    neighborhood: nullableText(80),
+    city: nullableText(80),
+    state: { type: 'string', pattern: '^[A-Za-z]{2}$', nullable: true },
+  },
+} as const;
+
+const addressOutput = {
+  type: 'object',
+  required: ['zip', 'street', 'number', 'comp', 'neighborhood', 'city', 'state'],
+  properties: {
+    zip: { type: 'string', nullable: true },
+    street: { type: 'string', nullable: true },
+    number: { type: 'string', nullable: true },
+    comp: { type: 'string', nullable: true },
+    neighborhood: { type: 'string', nullable: true },
+    city: { type: 'string', nullable: true },
+    state: { type: 'string', nullable: true },
+  },
+} as const;
+
+const meResponse = {
+  type: 'object',
+  required: [
+    'id',
+    'email',
+    'name',
+    'is_platform_admin',
+    'can_create_stores',
+    'store_limit',
+    'phone',
+    'birth_date',
+    'cpf_masked',
+    'address',
+  ],
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    email: { type: 'string' },
+    name: { type: 'string', nullable: true },
+    is_platform_admin: { type: 'boolean' },
+    can_create_stores: { type: 'boolean' },
+    store_limit: { type: 'integer' },
+    phone: { type: 'string', nullable: true, description: 'Só dígitos, com código do país' },
+    birth_date: { type: 'string', format: 'date', nullable: true },
+    cpf_masked: {
+      type: 'string',
+      nullable: true,
+      description: 'Só os dois últimos dígitos; o CPF inteiro nunca sai da API',
+    },
+    address: addressOutput,
+  },
+} as const;
+
+const PERSONAL_FAILURES: Record<PersonalFailure, [number, string]> = {
+  PHONE_INVALID: [422, 'Telefone inválido: informe com DDD (e código do país, se for de fora)'],
+  CPF_INVALID: [422, 'CPF inválido'],
+  CEP_INVALID: [422, 'CEP inválido'],
+  BIRTH_DATE_INVALID: [422, 'Data de nascimento inválida'],
+};
+
+const toMeJson = (
+  current: {
+    userId: string;
+    email: string;
+    isPlatformAdmin: boolean;
+    canCreateStores: boolean;
+    storeLimit: number;
+  },
+  data: PersonalData,
+) => ({
+  id: current.userId,
+  email: current.email,
+  is_platform_admin: current.isPlatformAdmin,
+  can_create_stores: current.canCreateStores,
+  store_limit: current.storeLimit,
+  name: data.name,
+  phone: data.phone,
+  birth_date: data.birthDate,
+  cpf_masked: data.cpfMasked,
+  address: data.address,
+});
 
 const security = [{ bearerAuth: [] }];
 
 export function meRoutes(app: FastifyInstance, deps: MeRouteDeps): void {
-  const { db, auth, hooks } = deps;
+  const { db, auth, hooks, profile } = deps;
   // `preValidation`: quem não está autenticado recebe 401 antes de qualquer erro de formato.
   const onlyAuthenticated = { preValidation: [hooks.authenticate] };
 
@@ -32,42 +133,72 @@ export function meRoutes(app: FastifyInstance, deps: MeRouteDeps): void {
         tags: ['me'],
         summary: 'Perfil de quem está logado',
         security,
-        response: {
-          200: {
-            type: 'object',
-            required: [
-              'id',
-              'email',
-              'name',
-              'is_platform_admin',
-              'can_create_stores',
-              'store_limit',
-            ],
-            properties: {
-              id: { type: 'string', format: 'uuid' },
-              email: { type: 'string' },
-              name: { type: 'string', nullable: true },
-              is_platform_admin: { type: 'boolean' },
-              can_create_stores: { type: 'boolean' },
-              store_limit: { type: 'integer' },
-            },
-          },
-          401: problemSchema,
-        },
+        response: { 200: meResponse, 401: problemSchema },
       },
     },
     async (request) => {
       const current = request.auth;
       if (current === null) throw new Error('authenticate não definiu request.auth');
-      const [user] = await db.select().from(users).where(eq(users.id, current.userId)).limit(1);
-      return {
-        id: current.userId,
-        email: current.email,
-        name: user?.name ?? null,
-        is_platform_admin: current.isPlatformAdmin,
-        can_create_stores: current.canCreateStores,
-        store_limit: current.storeLimit,
+      const personal = await profile.getPersonal(current.userId);
+      return toMeJson(current, personal ?? EMPTY_PERSONAL);
+    },
+  );
+
+  app.patch(
+    '/v1/me',
+    {
+      ...onlyAuthenticated,
+      schema: {
+        operationId: 'updateMe',
+        tags: ['me'],
+        summary: 'Edita os dados pessoais de quem está logado',
+        description:
+          'Só os campos enviados mudam; `null` limpa. O CPF é validado e guardado cifrado (ADR 0019) e nunca volta inteiro. ' +
+          'O e-mail e as permissões não mudam por aqui.',
+        security,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          minProperties: 1,
+          properties: {
+            name: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
+            phone: { type: 'string', maxLength: 20, nullable: true },
+            birth_date: { type: 'string', format: 'date', nullable: true },
+            cpf: {
+              type: 'string',
+              maxLength: 14,
+              nullable: true,
+              description: 'Validado; nunca devolvido inteiro',
+            },
+            address: addressInput,
+          },
+        },
+        response: { 200: meResponse, 400: problemSchema, 401: problemSchema, 422: problemSchema },
+      },
+    },
+    async (request, reply) => {
+      const current = request.auth;
+      if (current === null) throw new Error('authenticate não definiu request.auth');
+      const body = request.body as {
+        name?: string;
+        phone?: string | null;
+        birth_date?: string | null;
+        cpf?: string | null;
+        address?: Partial<PersonalAddress>;
       };
+      const result = await profile.updatePersonal(current.userId, {
+        ...(body.name === undefined ? {} : { name: body.name }),
+        ...(body.phone === undefined ? {} : { phone: body.phone }),
+        ...(body.birth_date === undefined ? {} : { birthDate: body.birth_date }),
+        ...(body.cpf === undefined ? {} : { cpf: body.cpf }),
+        ...(body.address === undefined ? {} : { address: body.address }),
+      });
+      if (!result.ok) {
+        if (result.reason === 'NOT_FOUND') throw new Error('usuário autenticado não encontrado');
+        const [status, detail] = PERSONAL_FAILURES[result.reason];
+        return sendProblem(reply, buildProblem(status, detail, `PROFILE_${result.reason}`));
+      }
+      return toMeJson(current, result.data);
     },
   );
 
@@ -172,6 +303,37 @@ export function meRoutes(app: FastifyInstance, deps: MeRouteDeps): void {
           current: session.current,
         })),
       };
+    },
+  );
+
+  app.delete(
+    '/v1/me/sessions',
+    {
+      ...onlyAuthenticated,
+      schema: {
+        operationId: 'revokeAllMySessions',
+        tags: ['me'],
+        summary: 'Encerra todas as sessões ("Sair de todos os aparelhos")',
+        description:
+          'Por padrão encerra também a sessão atual (o cookie de renovação é apagado; o access token em uso vale só até expirar, no máximo 15 minutos). ' +
+          'Com `keep_current=true` a sessão deste aparelho continua (precisa do cookie de renovação para saber qual é).',
+        security,
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { keep_current: { type: 'boolean', default: false } },
+        },
+        response: { 204: { type: 'null' }, 401: problemSchema },
+      },
+    },
+    async (request, reply) => {
+      const current = request.auth;
+      if (current === null) throw new Error('authenticate não definiu request.auth');
+      const keep = (request.query as { keep_current?: boolean }).keep_current === true;
+      const raw = request.cookies[REFRESH_COOKIE] ?? null;
+      await auth.revokeAllSessionsOf(current.userId, keep ? raw : null);
+      if (!keep) void reply.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH });
+      return reply.status(204).send();
     },
   );
 
