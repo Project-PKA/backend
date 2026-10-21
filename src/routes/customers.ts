@@ -30,11 +30,14 @@ const uuidParams = {
 const addressInput = {
   type: 'object',
   additionalProperties: false,
+  description:
+    'Mescla com o endereço atual: só os campos enviados mudam, `null` limpa o campo e o que não vem fica como está.',
   properties: {
     zip: { type: 'string', maxLength: 9, nullable: true },
     street: { type: 'string', maxLength: 120, nullable: true },
     number: { type: 'string', maxLength: 20, nullable: true },
     comp: { type: 'string', maxLength: 60, nullable: true },
+    neighborhood: { type: 'string', maxLength: 80, nullable: true },
     city: { type: 'string', maxLength: 80, nullable: true },
     state: { type: 'string', pattern: '^[A-Za-z]{2}$', nullable: true },
   },
@@ -63,6 +66,9 @@ const customerResponse = {
     'kind',
     'is_blacklisted',
     'blacklist_reason',
+    'blacklisted_at',
+    'purchases_count',
+    'is_consignor',
     'last_interaction_at',
     'address',
     'created_at',
@@ -76,14 +82,29 @@ const customerResponse = {
     kind: { type: 'string', enum: ['VISITOR', 'CUSTOMER'] },
     is_blacklisted: { type: 'boolean' },
     blacklist_reason: { type: 'string', nullable: true },
+    blacklisted_at: {
+      type: 'string',
+      format: 'date-time',
+      nullable: true,
+      description:
+        'Desde quando está na blacklist. Nulo se não está, ou se entrou antes de a data ser guardada.',
+    },
+    purchases_count: { type: 'integer', description: 'Acertos pagos do cliente nesta loja' },
+    is_consignor: {
+      type: 'boolean',
+      description:
+        'Tem ou já teve carta consignada nesta loja (o mesmo critério do filtro `consignor`)',
+    },
     last_interaction_at: { type: 'string', format: 'date-time', nullable: true },
     address: {
       type: 'object',
+      required: ['zip', 'street', 'number', 'comp', 'neighborhood', 'city', 'state'],
       properties: {
         zip: { type: 'string', nullable: true },
         street: { type: 'string', nullable: true },
         number: { type: 'string', nullable: true },
         comp: { type: 'string', nullable: true },
+        neighborhood: { type: 'string', nullable: true },
         city: { type: 'string', nullable: true },
         state: { type: 'string', nullable: true },
       },
@@ -111,6 +132,9 @@ const toCustomerJson = (view: CustomerView) => ({
   kind: view.kind,
   is_blacklisted: view.isBlacklisted,
   blacklist_reason: view.blacklistReason,
+  blacklisted_at: view.blacklistedAt?.toISOString() ?? null,
+  purchases_count: view.purchasesCount,
+  is_consignor: view.isConsignor,
   last_interaction_at: view.lastInteractionAt?.toISOString() ?? null,
   address: view.address,
   created_at: view.createdAt.toISOString(),
@@ -279,6 +303,8 @@ export function customerRoutes(app: FastifyInstance, deps: CustomerRouteDeps): v
         operationId: 'updateCustomer',
         tags: ['customers'],
         summary: 'Edita os dados do cliente (o telefone não muda)',
+        description:
+          'Só os campos enviados mudam. Em `address` vale o mesmo: o endereço é mesclado, não substituído, e `null` limpa o campo.',
         security,
         headers: storeHeader,
         params: uuidParams,

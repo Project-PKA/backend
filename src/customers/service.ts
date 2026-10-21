@@ -1,7 +1,7 @@
 import { and, desc, eq, exists, ilike, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
 
 import { recordActivity } from '../audit/activity.js';
-import { withContext, type Db } from '../db/context.js';
+import { withContext, type Db, type Tx } from '../db/context.js';
 import * as schema from '../db/schema.js';
 import { decodeCursor, toPage, type Page } from '../http/pagination.js';
 import type { CpfVault } from '../security/cpf-vault.js';
@@ -19,6 +19,7 @@ export interface Address {
   street: string | null;
   number: string | null;
   comp: string | null;
+  neighborhood: string | null;
   city: string | null;
   state: string | null;
 }
@@ -33,6 +34,12 @@ export interface CustomerView {
   kind: 'VISITOR' | 'CUSTOMER';
   isBlacklisted: boolean;
   blacklistReason: string | null;
+  /** Desde quando está na blacklist; `null` se não está (ou entrou antes de a data ser guardada). */
+  blacklistedAt: Date | null;
+  /** Acertos pagos do cliente nesta loja. */
+  purchasesCount: number;
+  /** Tem ou já teve carta consignada nesta loja. */
+  isConsignor: boolean;
   lastInteractionAt: Date | null;
   address: Address;
   createdAt: Date;
@@ -103,7 +110,25 @@ export interface ConsignmentWallet {
   totals: { inStock: number; pendingNet: string; soldNet: string; commission: string };
 }
 
-function toView(row: typeof customers.$inferSelect): CustomerView {
+interface ViewExtras {
+  purchasesCount: number;
+  isConsignor: boolean;
+}
+
+/** Acertos pagos e consignação do cliente, calculados no banco (sempre da loja do contexto, via RLS). */
+const extrasColumns = {
+  purchasesCount: sql<string>`(SELECT count(*) FROM settlements s
+      WHERE s.customer_id = customers.id AND s.store_id = customers.store_id AND s.status = 'PAID')`,
+  isConsignor: sql<boolean>`EXISTS (SELECT 1 FROM cards_inventory c
+      WHERE c.consignor_id = customers.id AND c.store_id = customers.store_id)`,
+};
+
+const toExtras = (raw: { purchasesCount: string; isConsignor: boolean }): ViewExtras => ({
+  purchasesCount: Number(raw.purchasesCount),
+  isConsignor: raw.isConsignor,
+});
+
+function toView(row: typeof customers.$inferSelect, extras: ViewExtras): CustomerView {
   return {
     id: row.id,
     phone: row.phone,
@@ -113,12 +138,16 @@ function toView(row: typeof customers.$inferSelect): CustomerView {
     kind: row.isVisitor ? 'VISITOR' : 'CUSTOMER',
     isBlacklisted: row.isBlacklisted,
     blacklistReason: row.blacklistReason,
+    blacklistedAt: row.blacklistedAt,
+    purchasesCount: extras.purchasesCount,
+    isConsignor: extras.isConsignor,
     lastInteractionAt: row.lastInteractionAt,
     address: {
       zip: row.addressZip,
       street: row.addressStreet,
       number: row.addressNumber,
       comp: row.addressComp,
+      neighborhood: row.addressNeighborhood,
       city: row.addressCity,
       state: row.addressState,
     },
@@ -158,6 +187,7 @@ function normalizeAddress(address: Partial<Address>): Normalized {
   if (address.street !== undefined) values.addressStreet = address.street;
   if (address.number !== undefined) values.addressNumber = address.number;
   if (address.comp !== undefined) values.addressComp = address.comp;
+  if (address.neighborhood !== undefined) values.addressNeighborhood = address.neighborhood;
   if (address.city !== undefined) values.addressCity = address.city;
   if (address.state !== undefined) values.addressState = address.state?.toUpperCase() ?? null;
   return { ok: true, values };
@@ -236,7 +266,7 @@ export class CustomerService {
         targetType: 'customer',
         targetId: created.id,
       });
-      return { ok: true, customer: toView(created) } as const;
+      return { ok: true, customer: toView(created, await this.extrasOf(tx, created.id)) } as const;
     });
   }
 
@@ -274,8 +304,13 @@ export class CustomerService {
         // Só os nomes dos campos: nunca o valor (CPF, e-mail, endereço).
         details: { changed: Object.keys(parsed.values) },
       });
-      return { ok: true, customer: toView(updated) } as const;
+      return { ok: true, customer: toView(updated, await this.extrasOf(tx, id)) } as const;
     });
+  }
+
+  private async extrasOf(tx: Tx, id: string): Promise<ViewExtras> {
+    const [raw] = await tx.select(extrasColumns).from(customers).where(eq(customers.id, id));
+    return raw === undefined ? { purchasesCount: 0, isConsignor: false } : toExtras(raw);
   }
 
   async get(context: Context, id: string): Promise<CustomerView | null> {
@@ -285,7 +320,7 @@ export class CustomerService {
         .from(customers)
         .where(and(eq(customers.id, id), eq(customers.storeId, context.storeId)))
         .limit(1);
-      return row === undefined ? null : toView(row);
+      return row === undefined ? null : toView(row, await this.extrasOf(tx, id));
     });
   }
 
@@ -342,13 +377,15 @@ export class CustomerService {
         );
       }
       const rows = await tx
-        .select()
+        .select({ row: customers, ...extrasColumns })
         .from(customers)
         .where(and(...conditions))
         .orderBy(desc(customers.createdAt), desc(customers.id))
         .limit(query.limit + 1);
-      const page = toPage(rows, query.limit);
-      return { items: page.items.map(toView), nextCursor: page.nextCursor };
+      return toPage(
+        rows.map(({ row, ...raw }) => toView(row, toExtras(raw))),
+        query.limit,
+      );
     });
   }
 
@@ -370,7 +407,13 @@ export class CustomerService {
     return withContext(this.db, context, async (tx) => {
       const [updated] = await tx
         .update(customers)
-        .set({ isBlacklisted: flag, blacklistReason: flag ? reason : null, updatedAt: new Date() })
+        .set({
+          isBlacklisted: flag,
+          blacklistReason: flag ? reason : null,
+          // Quem já estava na blacklist mantém a data original.
+          blacklistedAt: flag ? sql`COALESCE(${customers.blacklistedAt}, now())` : null,
+          updatedAt: new Date(),
+        })
         .where(and(eq(customers.id, id), eq(customers.storeId, context.storeId)))
         .returning();
       if (updated === undefined) return { ok: false, reason: 'NOT_FOUND' } as const;
@@ -381,7 +424,7 @@ export class CustomerService {
         targetType: 'customer',
         targetId: id,
       });
-      return { ok: true, customer: toView(updated) } as const;
+      return { ok: true, customer: toView(updated, await this.extrasOf(tx, id)) } as const;
     });
   }
 

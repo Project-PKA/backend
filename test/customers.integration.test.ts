@@ -64,6 +64,9 @@ interface CustomerJson {
   cpf_masked: string | null;
   is_blacklisted: boolean;
   blacklist_reason: string | null;
+  blacklisted_at: string | null;
+  purchases_count: number;
+  is_consignor: boolean;
   address: Record<string, string | null>;
 }
 
@@ -242,6 +245,34 @@ describe('edição (PATCH /v1/customers/:id)', () => {
     expect(undone.json()).toMatchObject({ kind: 'VISITOR', cpf_masked: null });
   });
 
+  it('o endereço é mesclado: só o que vem muda e null limpa o campo', async () => {
+    const server = await start();
+    const staff = await login(server, STAFF);
+    const before = (
+      await call(server, 'GET', `/v1/customers/${customer(1)}`, staff, A)
+    ).json<CustomerJson>().address;
+
+    const merged = await call(server, 'PATCH', `/v1/customers/${customer(1)}`, staff, A, {
+      address: { neighborhood: 'Jardins', comp: null },
+    });
+    expect(merged.statusCode, merged.body).toBe(200);
+    expect(merged.json<CustomerJson>().address).toEqual({
+      ...before,
+      neighborhood: 'Jardins',
+      comp: null,
+    });
+    expect(merged.json<CustomerJson>().kind).toBe('CUSTOMER');
+
+    const cleared = await call(server, 'PATCH', `/v1/customers/${customer(1)}`, staff, A, {
+      address: { neighborhood: null },
+    });
+    expect(cleared.json<CustomerJson>().address['neighborhood']).toBeNull();
+    const tooLong = await call(server, 'PATCH', `/v1/customers/${customer(1)}`, staff, A, {
+      address: { neighborhood: 'x'.repeat(81) },
+    });
+    expect(tooLong.statusCode).toBe(400);
+  });
+
   it('o telefone não muda por aqui e o log guarda só os nomes dos campos', async () => {
     const server = await start();
     const staff = await login(server, STAFF);
@@ -323,6 +354,67 @@ describe('lista e perfil', () => {
     const consignors = await list('consignor=true');
     expect(consignors.map((c) => c.id).sort((a, b) => a.localeCompare(b))).toEqual(
       [customer(1), customer(2), customer(3), customer(4)].sort((a, b) => a.localeCompare(b)),
+    );
+  });
+
+  it('traz compras (acertos pagos), consignador, bairro e a data da blacklist', async () => {
+    const server = await start();
+    const staff = await login(server, STAFF);
+    const list = async (storeId: string, session = staff) =>
+      (await call(server, 'GET', '/v1/customers?limit=100', session, storeId)).json<{
+        items: CustomerJson[];
+      }>().items;
+
+    const items = await list(A);
+    const paid = await world.admin.query<{ customer_id: string; n: string }>(
+      "SELECT customer_id, count(*) AS n FROM settlements WHERE store_id = $1 AND status = 'PAID' GROUP BY customer_id",
+      [A],
+    );
+    expect(paid.rows.length).toBeGreaterThan(0);
+    const expected = new Map(paid.rows.map((r) => [r.customer_id, Number(r.n)]));
+    for (const item of items) {
+      expect(item.purchases_count, item.id).toBe(expected.get(item.id) ?? 0);
+    }
+
+    const consignors = items.filter((c) => c.is_consignor).map((c) => c.id);
+    expect(consignors.toSorted((a, b) => a.localeCompare(b))).toEqual(
+      [customer(1), customer(2), customer(3), customer(4)].sort((a, b) => a.localeCompare(b)),
+    );
+
+    const complete = items.find((c) => c.id === customer(1));
+    expect(complete?.address['neighborhood']).toBe('Bela Vista');
+    const black = items.filter((c) => c.is_blacklisted);
+    expect(black).toHaveLength(3);
+    expect(black.every((c) => c.blacklisted_at !== null)).toBe(true);
+    expect(items.filter((c) => !c.is_blacklisted).every((c) => c.blacklisted_at === null)).toBe(
+      true,
+    );
+
+    // o detalhe traz os mesmos campos
+    const detail = await call(server, 'GET', `/v1/customers/${customer(1)}`, staff, A);
+    expect(detail.json<CustomerJson>()).toMatchObject({
+      purchases_count: expected.get(customer(1)) ?? 0,
+      is_consignor: true,
+    });
+  });
+
+  it('acesso cruzado: as contagens e o consignador só valem dentro da loja', async () => {
+    const server = await start();
+    const owner = await login(server, OWNER);
+    const inB = (await call(server, 'GET', '/v1/customers?limit=100', owner, B)).json<{
+      items: CustomerJson[];
+    }>().items;
+    expect(inB.length).toBeGreaterThan(0);
+    expect(inB.some((c) => c.id === customer(1))).toBe(false);
+    const settlementsInB = await world.admin.query<{ customer_id: string; n: string }>(
+      "SELECT customer_id, count(*) AS n FROM settlements WHERE store_id = $1 AND status = 'PAID' GROUP BY customer_id",
+      [B],
+    );
+    const expected = new Map(settlementsInB.rows.map((r) => [r.customer_id, Number(r.n)]));
+    for (const item of inB) expect(item.purchases_count).toBe(expected.get(item.id) ?? 0);
+    // cliente da loja A é 404 na loja B, com os campos novos ou não
+    expect((await call(server, 'GET', `/v1/customers/${customer(1)}`, owner, B)).statusCode).toBe(
+      404,
     );
   });
 
@@ -428,6 +520,14 @@ describe('blacklist', () => {
       blacklist_reason: 'Não pagou o acerto',
     });
 
+    const since = marked.json<CustomerJson>().blacklisted_at;
+    expect(since).not.toBeNull();
+    // marcar de novo não troca a data de entrada
+    const again = await call(server, 'POST', `/v1/customers/${customer(5)}/blacklist`, staff, A, {
+      reason: 'Outro motivo',
+    });
+    expect(again.json<CustomerJson>().blacklisted_at).toBe(since);
+
     const cleared = await call(
       server,
       'DELETE',
@@ -435,7 +535,11 @@ describe('blacklist', () => {
       staff,
       A,
     );
-    expect(cleared.json()).toMatchObject({ is_blacklisted: false, blacklist_reason: null });
+    expect(cleared.json()).toMatchObject({
+      is_blacklisted: false,
+      blacklist_reason: null,
+      blacklisted_at: null,
+    });
 
     const owner = await login(server, OWNER);
     const log = await call(server, 'GET', '/v1/activity-log?limit=4', owner, A);

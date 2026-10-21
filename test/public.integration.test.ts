@@ -307,6 +307,35 @@ describe('gestão dos links (autenticada)', () => {
     expect(withCpf.json<{ link: { kind: string } }>().link.kind).toBe('CONSIGNOR');
   });
 
+  it('lista os links de um cliente (filtro customer_id), só da loja ativa', async () => {
+    const server = await start();
+    const staff = await login(server, STAFF);
+    const owner = await login(server, OWNER);
+    const make = (id: string) =>
+      call(server, 'POST', `/v1/customers/${id}/consignor-link`, staff, A, {});
+    expect((await make(customer(2))).statusCode).toBe(201);
+    expect((await make(customer(2))).statusCode).toBe(201);
+    expect((await make(customer(3))).statusCode).toBe(201);
+
+    const idsOf = async (query: string, session = staff, store = A) =>
+      (await call(server, 'GET', `/v1/public-links?limit=100&${query}`, session, store)).json<{
+        items: { id: string; customer_id: string | null }[];
+      }>().items;
+    const forTwo = await idsOf(`customer_id=${customer(2)}`);
+    expect(forTwo).toHaveLength(2);
+    expect(forTwo.every((l) => l.customer_id === customer(2))).toBe(true);
+    expect(await idsOf(`customer_id=${customer(4)}`)).toEqual([]);
+
+    // cada link do cliente se revoga pelo id
+    const revoked = await call(server, 'DELETE', `/v1/public-links/${forTwo[0]?.id}`, staff, A);
+    expect(revoked.statusCode).toBe(200);
+
+    // acesso cruzado: na loja B o mesmo filtro não traz nada, nem o id de cliente da loja A
+    expect(await idsOf(`customer_id=${customer(2)}`, owner, B)).toEqual([]);
+    const bad = await call(server, 'GET', '/v1/public-links?customer_id=x', staff, A);
+    expect(bad.statusCode).toBe(400);
+  });
+
   it('valida a validade, a permissão e a loja', async () => {
     const server = await start();
     const staff = await login(server, STAFF);
