@@ -261,6 +261,14 @@
       "status": 422
     },
     {
+      "code": "PERMISSION_ALREADY_GRANTED",
+      "status": 409
+    },
+    {
+      "code": "PERMISSION_REQUEST_TOO_SOON",
+      "status": 429
+    },
+    {
       "code": "PHOTO_INVALID",
       "status": 422
     },

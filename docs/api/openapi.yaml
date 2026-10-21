@@ -1570,6 +1570,182 @@ paths:
                     type: string
                   code:
                     type: string
+  /v1/store/permission-requests:
+    post:
+      operationId: requestPermission
+      summary: Pede uma permissão ao proprietário da loja
+      tags:
+        - team
+      description: 'Para o botão "Pedir acesso ao proprietário". Não concede nada:
+        avisa o proprietário na central de avisos (`kind`
+        `PERMISSION_REQUESTED`, com `data.user_id` e `data.permission`) e
+        registra no log de atividades. A mesma pessoa só pode repetir o mesmo
+        pedido depois de 24 horas.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permission
+              additionalProperties: false
+              properties:
+                permission:
+                  type: string
+                  enum:
+                    - can_delete
+                    - can_view_finance
+                    - can_manage_auctions
+                    - can_manage_inventory
+                    - can_manage_customers
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: &a4
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - permission
+                  - requested_at
+                properties:
+                  permission:
+                    type: string
+                    enum:
+                      - can_delete
+                      - can_view_finance
+                      - can_manage_auctions
+                      - can_manage_inventory
+                      - can_manage_customers
+                  requested_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "429":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
   /v1/team:
     get:
       operationId: listTeam
@@ -1598,8 +1774,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: &a4
-        - bearerAuth: []
+      security: *a4
       responses:
         "200":
           description: Default Response

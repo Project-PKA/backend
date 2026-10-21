@@ -4,14 +4,23 @@ import { recordActivity } from '../audit/activity.js';
 import {
   effectivePermissions,
   normalizePermissions,
+  type Permission,
   type PermissionMap,
   type StoreRole,
 } from '../auth/permissions.js';
 import { withContext, type Db } from '../db/context.js';
 import * as schema from '../db/schema.js';
 import { decodeCursor, toPage, type Page } from '../http/pagination.js';
+import { notify } from '../notifications/service.js';
 
-const { users, storeMembers } = schema;
+const { users, storeMembers, notifications } = schema;
+
+/** Quanto tempo a mesma pessoa espera para pedir a mesma permissão de novo. */
+export const PERMISSION_REQUEST_COOLDOWN_HOURS = 24;
+
+export type PermissionRequestResult =
+  | { ok: true; permission: Permission; requestedAt: Date }
+  | { ok: false; reason: 'ALREADY_GRANTED' | 'TOO_SOON' };
 
 export interface TeamMember {
   id: string;
@@ -72,6 +81,59 @@ export class TeamService {
       })),
       query.limit,
     );
+  }
+
+  /**
+   * O funcionário pede uma permissão ao proprietário. Não concede nada: grava um aviso na central da
+   * loja (só ids: quem pediu e qual permissão) e uma linha no log. O mesmo pedido da mesma pessoa só
+   * se repete depois de `PERMISSION_REQUEST_COOLDOWN_HOURS`; a trava de transação impede que dois
+   * pedidos simultâneos passem juntos.
+   */
+  async requestPermission(
+    context: Context,
+    current: PermissionMap,
+    permission: Permission,
+  ): Promise<PermissionRequestResult> {
+    if (current[permission]) return { ok: false, reason: 'ALREADY_GRANTED' };
+    return withContext(this.db, context, async (tx) => {
+      const lockKey = `permission-request:${context.storeId}:${context.userId}:${permission}`;
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
+      const [recent] = await tx
+        .select({ id: notifications.id })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.storeId, context.storeId),
+            eq(notifications.kind, 'PERMISSION_REQUESTED'),
+            sql`${notifications.data}->>'user_id' = ${context.userId}`,
+            sql`${notifications.data}->>'permission' = ${permission}`,
+            sql`${notifications.createdAt} > now() - make_interval(hours => ${PERMISSION_REQUEST_COOLDOWN_HOURS})`,
+          ),
+        )
+        .limit(1);
+      if (recent !== undefined) return { ok: false, reason: 'TOO_SOON' } as const;
+
+      const [member] = await tx
+        .select({ id: storeMembers.id })
+        .from(storeMembers)
+        .where(
+          and(eq(storeMembers.storeId, context.storeId), eq(storeMembers.userId, context.userId)),
+        )
+        .limit(1);
+      await notify(tx, context.storeId, 'PERMISSION_REQUESTED', {
+        user_id: context.userId,
+        permission,
+      });
+      await recordActivity(tx, {
+        storeId: context.storeId,
+        actorUserId: context.userId,
+        action: 'permission.requested',
+        targetType: 'member',
+        ...(member === undefined ? {} : { targetId: member.id }),
+        details: { permission },
+      });
+      return { ok: true, permission, requestedAt: new Date() } as const;
+    });
   }
 
   /** Ajusta as permissões de um funcionário. O proprietário tem tudo e não é ajustável. */
