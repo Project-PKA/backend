@@ -68,9 +68,9 @@ tarefa que o toca não está pronta sem ele.
 
 | Requisito | Status |
 | --- | --- |
-| Nenhum telefone, e-mail, CPF, token, cookie, header `Authorization` ou texto de lance em log | **parcial**: `Authorization`, `Cookie` e `Set-Cookie` são redigidos e um teste manual confirmou que o token não aparece. O provedor `log` de e-mail imprime o código (só em desenvolvimento; recusado em homolog e prod). Falta revisar os logs de cada rota nova |
+| Nenhum telefone, e-mail, CPF, token, cookie, header `Authorization` ou texto de lance em log | **feito** (21/10/2026): `Authorization`, `Cookie` e `Set-Cookie` são redigidos; o log de requisição leva só o **caminho** (a query string some: `?q=` das buscas trazia nome e telefone); erro do banco entra só com SQLSTATE, tabela e restrição (a mensagem e o `detail` repetem o valor, como `Key (phone)=(...)`). O teste `test/log-privacy.integration.test.ts` sobe a API com o log no nível mais detalhado, passa dado marcado (telefone, e-mail, CPF, endereço, nome, token de link e de sessão) por rotas autenticadas, públicas e de erro, e falha se qualquer marca aparecer. Rota nova com dado pessoal entra nesse teste. O IP de origem fica no log de acesso (necessário para investigar abuso). O provedor `log` de e-mail imprime o código (só em desenvolvimento; recusado em homolog e prod) |
 | `bids.raw_whatsapp_message` e dados de visitante tratados como pessoais: política de retenção e exclusão | pendente (decisão de negócio) |
-| Base legal do tratamento, atendimento a direitos do titular (acesso, correção, exclusão) e papel de controlador/operador entre SaaS e loja | pendente (decisão de negócio) |
+| Base legal do tratamento, atendimento a direitos do titular (acesso, correção, exclusão) e papel de controlador/operador entre SaaS e loja | **adiado (com motivo)**: o dono decidiu a postura mínima ([ADR 0019](https://github.com/Project-PKA/shared/blob/main/docs/adr/0019-cpf-mascarado-e-cifrado-lgpd-minima.md)) e deixou base legal, papéis e texto jurídico para quando houver loja real ([shared#3](https://github.com/Project-PKA/shared/issues/3), [shared#46](https://github.com/Project-PKA/shared/issues/46)). Exclusão sob pedido: anonimização de cliente (Backend#43). Acesso e correção: a loja, como controladora, edita o cadastro pelo painel |
 | Validação de CPF (dígitos verificadores), telefone e CEP na entrada; guardados só com dígitos | **feito** (com teste) |
 | CPF nunca devolvido inteiro (só `•••.•••.•••-NN`), nunca em log; o log de atividades guarda só os nomes dos campos alterados | **feito** (com teste) |
 | Seed usa só dados fictícios e **recusa rodar** fora de `local`/`dev`/`test` | **feito** |
@@ -107,11 +107,11 @@ tarefa que o toca não está pronta sem ele.
 | Cabeçalhos de segurança (`@fastify/helmet`), CORS com **lista explícita de origens** (nunca `*`) e rate limit global | **feito** (com teste) |
 | Limite de corpo (256 KB) e timeouts de requisição (30 s) e de handler (20 s) explícitos e configuráveis; corpo grande dá 413 em `problem+json` | **feito** |
 | `/metrics` **não** exposto na internet: só rede interna ou autenticado | infra |
-| Upload de foto: tipo e tamanho validados, nome gerado pelo servidor, sem caminho vindo do usuário | pendente (decisão D3 de armazenamento) |
+| Upload de foto e de comprovante: tipo e tamanho validados, nome gerado pelo servidor, sem caminho vindo do usuário | **feito** (D3: disco da VPS, `src/storage`). O tipo vem dos primeiros bytes (`sniffImage`), nunca do `Content-Type`; só JPEG, PNG e WebP; corpo de até 5 MB (413 acima); o nome é `<uuid>.<ext>` gerado aqui e nada do cliente vira caminho; foto só para quem é da loja da carta, comprovante só para a loja do acerto, com `nosniff`. Com teste em `photos.integration` e `receipt.integration` |
 | Sync do TCGdex busca **só** a URL fixa do repositório oficial (sem SSRF) e valida o formato antes do `INSERT` | **feito** (`src/catalog/tcgdex.ts`: só GET, host fixo, sem redirecionamento, limite de tamanho, id e idioma validados; resposta parcial é recusada; com teste) |
 | Busca do catálogo: curinga do `LIKE` (`%`, `_`) nunca vem da entrada; mínimo de 2 caracteres e no máximo 6 termos | **feito** (com teste) |
 | Estoque: toda rota filtra por `store_id` e passa pelo RLS; carta de outra loja responde 404 igual a inexistente; edição e exclusão só fora de leilão; origem sem valor padrão | **feito** (com teste de acesso cruzado) |
-| `npm audit` limpo | **feito** (0 vulnerabilidades) |
+| `npm audit` limpo | **feito** (0 vulnerabilidades, conferido em 21/10/2026). Duas dependências pedem atenção sem ser vulnerabilidade: `prom-client` 15 está marcado como deprecado pelo npm (substituto `@prometheus-io/client`, ainda em 0.x) e o ESLint 9 está na linha de manutenção. As duas trocas mudam dependência (aprovação, seção 6) e seguem em `STACK.md`, seção 8; o `pip-audit` é do repositório do bot |
 
 ### Infraestrutura (VPS)
 
@@ -135,7 +135,7 @@ tarefa que o toca não está pronta sem ele.
 | Nunca deixar uma loja sem proprietário; remover o último `OWNER` é recusado, inclusive com dois proprietários se removendo ao mesmo tempo | **feito** para remoção de membro (lock dos proprietários, com teste de corrida). A transferência de propriedade vem na 2c |
 | Criar loja só com `can_create_stores` e abaixo do `store_limit`, verificado no servidor e dentro de transação (a linha do usuário fica travada: criações simultâneas no limite não passam) | **feito** (teste com 4 criações simultâneas). O limite conta lojas em que a pessoa é **proprietária** |
 | Formulário público "Solicitar acesso": limite por IP, campo-isca, validação e tamanho máximo; não cria usuário nem loja | Etapa 2c |
-| Conta de administrador com proteção reforçada: sessão curta e avaliação de segundo fator | pendente |
+| Conta de administrador com proteção reforçada: sessão curta e avaliação de segundo fator | **adiado (com motivo)**: o dono decidiu **sem segundo fator** (D4, 18/10/2026): o login é por código no e-mail e a promoção a administrador é só por linha de comando na VPS (`npm run db:create-admin`). O que existe: access token de 15 minutos (`ACCESS_TOKEN_TTL_SECONDS`), refresh com rotação e revogação ao suspender, fronteira do administrador no banco e log próprio de todas as ações. O que **não** existe: sessão mais curta só para o administrador nem pedido de novo código a cada ação sensível. Reavaliar com a primeira loja real (mudar sessão e autenticação pede aprovação, AGENTS.md seção 6) |
 
 ### Páginas públicas (ADR 0014)
 
@@ -159,8 +159,8 @@ tarefa que o toca não está pronta sem ele.
    `CPF_ENCRYPTION_KEY` (guarde a chave à parte; sem ela o CPF não volta). O telefone continua
    em texto, porque identifica o cliente no grupo. Falta decidir com a revisão de LGPD: retenção,
    exclusão e rotação da chave.
-2. **Segundo fator para o administrador da plataforma:** a conta mais
-   valiosa do sistema. Avaliar antes de produção.
+2. **Segundo fator para o administrador da plataforma: decidido, não terá** (D4, 18/10/2026; ver a tabela de
+   convites e administração). Fica a opção de sessão mais curta e novo código por ação sensível.
 3. **Provedor de e-mail do OTP** (entregabilidade e, por ser porta de entrada,
    também segurança).
 

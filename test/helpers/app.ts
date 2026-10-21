@@ -48,6 +48,8 @@ interface Options {
   tcgdex?: TcgdexClient;
   /** `false` deixa registrar hooks depois de criar o app. */
   ready?: boolean;
+  /** Captura o log da API (use com `LOG_LEVEL` em `env`). */
+  logStream?: NodeJS.WritableStream;
 }
 
 export async function buildTestApp(options: Options = {}): Promise<TestApp> {
@@ -64,6 +66,7 @@ export async function buildTestApp(options: Options = {}): Promise<TestApp> {
     checkDatabase: options.checkDatabase ?? (() => Promise.resolve()),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.tcgdex === undefined ? {} : { tcgdex: options.tcgdex }),
+    ...(options.logStream === undefined ? {} : { logStream: options.logStream }),
   });
   if (options.ready !== false) await built.app.ready();
   return {
