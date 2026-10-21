@@ -26,7 +26,23 @@ export function activityRoutes(app: FastifyInstance, deps: ActivityRouteDeps): v
         summary: 'Log de atividades da loja (só o proprietário)',
         security: [{ bearerAuth: [] }],
         headers: storeHeader,
-        querystring: pageQuerySchema,
+        querystring: {
+          ...pageQuerySchema,
+          properties: {
+            ...pageQuerySchema.properties,
+            actor_user_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Só as ações desta pessoa (o `actor_user_id` de um item)',
+            },
+            action: {
+              type: 'string',
+              pattern: '^[a-z0-9_.]{1,64}$',
+              description:
+                'Ação exata (`card.created`) ou prefixo terminado em ponto (`card.` traz todas as de carta)',
+            },
+          },
+        },
         response: {
           200: {
             type: 'object',
@@ -36,12 +52,24 @@ export function activityRoutes(app: FastifyInstance, deps: ActivityRouteDeps): v
                 type: 'array',
                 items: {
                   type: 'object',
-                  required: ['id', 'created_at', 'actor_user_id', 'action', 'details'],
+                  required: ['id', 'created_at', 'actor_user_id', 'actor', 'action', 'details'],
                   properties: {
                     id: { type: 'string', format: 'uuid' },
                     created_at: { type: 'string', format: 'date-time' },
                     actor_user_id: { type: 'string', format: 'uuid', nullable: true },
                     action: { type: 'string' },
+                    actor: {
+                      type: 'object',
+                      nullable: true,
+                      required: ['id', 'name', 'email'],
+                      description:
+                        'Quem agiu, enquanto for da equipe da loja. Nulo para ação do sistema e para quem saiu da equipe (use `actor_user_id` para mostrar "ex-integrante").',
+                      properties: {
+                        id: { type: 'string', format: 'uuid' },
+                        name: { type: 'string', nullable: true },
+                        email: { type: 'string' },
+                      },
+                    },
                     target_type: { type: 'string', nullable: true },
                     target_id: { type: 'string', format: 'uuid', nullable: true },
                     details: { type: 'object', additionalProperties: true },
@@ -61,13 +89,20 @@ export function activityRoutes(app: FastifyInstance, deps: ActivityRouteDeps): v
       const auth = request.auth;
       const tenant = request.tenant;
       if (auth === null || tenant === null) throw new Error('hooks não definiram o contexto');
-      const query = request.query as { cursor?: string; limit?: number };
+      const query = request.query as {
+        cursor?: string;
+        limit?: number;
+        actor_user_id?: string;
+        action?: string;
+      };
       const result = await listActivity(
         db,
         { storeId: tenant.storeId, userId: auth.userId },
         {
           limit: query.limit ?? DEFAULT_LIMIT,
           ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+          ...(query.actor_user_id === undefined ? {} : { actorUserId: query.actor_user_id }),
+          ...(query.action === undefined ? {} : { action: query.action }),
         },
       );
       if (result === 'INVALID_CURSOR') {
@@ -78,6 +113,7 @@ export function activityRoutes(app: FastifyInstance, deps: ActivityRouteDeps): v
           id: entry.id,
           created_at: entry.createdAt.toISOString(),
           actor_user_id: entry.actorUserId,
+          actor: entry.actor,
           action: entry.action,
           target_type: entry.targetType,
           target_id: entry.targetId,

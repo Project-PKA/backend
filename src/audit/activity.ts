@@ -1,11 +1,11 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 
 import type { Db, Tx } from '../db/context.js';
 import { withContext } from '../db/context.js';
 import * as schema from '../db/schema.js';
 import { decodeCursor, toPage, type Page } from '../http/pagination.js';
 
-const { activityLog } = schema;
+const { activityLog, storeMembers, users } = schema;
 
 export interface ActivityInput {
   storeId: string;
@@ -43,6 +43,26 @@ export interface ActivityEntry {
   targetType: string | null;
   targetId: string | null;
   details: Record<string, unknown>;
+  /**
+   * Quem agiu, se ainda é da equipe da loja. `null` para ação do sistema, para quem saiu da equipe
+   * e para o administrador da plataforma (o proprietário não vê e-mail de quem não é mais da equipe).
+   */
+  actor: { id: string; name: string | null; email: string } | null;
+}
+
+export interface ActivityQuery {
+  limit: number;
+  cursor?: string;
+  actorUserId?: string;
+  /** Ação exata (`card.created`) ou prefixo terminado em ponto (`card.`). */
+  action?: string;
+}
+
+function actionFilter(action: string | undefined): SQL | undefined {
+  if (action === undefined) return undefined;
+  return action.endsWith('.')
+    ? sql`starts_with(${activityLog.action}, ${action})`
+    : eq(activityLog.action, action);
 }
 
 /**
@@ -52,18 +72,30 @@ export interface ActivityEntry {
 export async function listActivity(
   db: Db,
   context: { storeId: string; userId: string },
-  query: { limit: number; cursor?: string },
+  query: ActivityQuery,
 ): Promise<Page<ActivityEntry> | 'INVALID_CURSOR'> {
   const position = query.cursor === undefined ? null : decodeCursor(query.cursor);
   if (query.cursor !== undefined && position === null) return 'INVALID_CURSOR';
 
   const rows = await withContext(db, context, (tx) =>
     tx
-      .select()
+      .select({ entry: activityLog, memberUserId: users.id, name: users.name, email: users.email })
       .from(activityLog)
+      .leftJoin(
+        storeMembers,
+        and(
+          eq(storeMembers.userId, activityLog.actorUserId),
+          eq(storeMembers.storeId, context.storeId),
+        ),
+      )
+      .leftJoin(users, eq(users.id, storeMembers.userId))
       .where(
         and(
           eq(activityLog.storeId, context.storeId),
+          query.actorUserId === undefined
+            ? undefined
+            : eq(activityLog.actorUserId, query.actorUserId),
+          actionFilter(query.action),
           position === null
             ? undefined
             : sql`(${activityLog.createdAt}, ${activityLog.id}) < (${position.createdAt.toISOString()}::timestamptz, ${position.id}::uuid)`,
@@ -73,7 +105,7 @@ export async function listActivity(
       .limit(query.limit + 1),
   );
   return toPage(
-    rows.map((row) => ({
+    rows.map(({ entry: row, memberUserId, name, email }) => ({
       id: row.id,
       createdAt: row.createdAt,
       actorUserId: row.actorUserId,
@@ -81,6 +113,7 @@ export async function listActivity(
       targetType: row.targetType,
       targetId: row.targetId,
       details: row.details,
+      actor: memberUserId === null || email === null ? null : { id: memberUserId, name, email },
     })),
     query.limit,
   );

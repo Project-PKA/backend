@@ -211,7 +211,11 @@ export function accountRoutes(app: FastifyInstance, deps: AccountRouteDeps): voi
         operationId: 'listNotifications',
         tags: ['notifications'],
         summary: 'Avisos internos da loja, do mais novo para o mais antigo',
-        description: 'O texto é do frontend: aqui vêm só o código (`kind`) e ids em `data`.',
+        description:
+          'O texto é do frontend: aqui vêm só o código (`kind`) e ids em `data`. Os `kind` que a API cria hoje: ' +
+          '`POLL_CEILING_REACHED` (`data.auction_id`: o lance de uma enquete chegou ao teto e o leilão espera validação) e ' +
+          '`BUYER_DATA_SUBMITTED` (`data.settlement_id` e `data.customer_id`: o comprador preencheu os dados do acerto). ' +
+          'Um `kind` novo pode surgir sem aviso; mostre um texto genérico para os que não conhece.',
         security,
         headers: storeHeader,
         querystring: {

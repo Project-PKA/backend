@@ -98,6 +98,7 @@ export function dashboardRoutes(app: FastifyInstance, deps: DashboardRouteDeps):
                     auction_id: { type: 'string', format: 'uuid' },
                     card: {
                       type: 'object',
+                      required: ['id', 'short_code', 'name'],
                       properties: {
                         id: { type: 'string', format: 'uuid' },
                         short_code: { type: 'string' },
@@ -109,6 +110,7 @@ export function dashboardRoutes(app: FastifyInstance, deps: DashboardRouteDeps):
                     provisional_winner: {
                       type: 'object',
                       nullable: true,
+                      required: ['id', 'name'],
                       properties: {
                         id: { type: 'string', format: 'uuid' },
                         name: { type: 'string' },
@@ -138,6 +140,7 @@ export function dashboardRoutes(app: FastifyInstance, deps: DashboardRouteDeps):
                 type: 'array',
                 items: {
                   type: 'object',
+                  required: ['id', 'short_code', 'name'],
                   properties: {
                     id: { type: 'string', format: 'uuid' },
                     short_code: { type: 'string' },
@@ -149,10 +152,12 @@ export function dashboardRoutes(app: FastifyInstance, deps: DashboardRouteDeps):
                 type: 'array',
                 items: {
                   type: 'object',
+                  required: ['id', 'customer', 'total_amount', 'items', 'created_at'],
                   properties: {
                     id: { type: 'string', format: 'uuid' },
                     customer: {
                       type: 'object',
+                      required: ['id', 'name'],
                       properties: {
                         id: { type: 'string', format: 'uuid' },
                         name: { type: 'string' },
