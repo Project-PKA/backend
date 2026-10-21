@@ -10,6 +10,8 @@
 # então troque o nome (ALTER DATABASE ... RENAME) ou aponte DB_NAME. Passo a passo em DEPLOY.md.
 #
 #   sh restore.sh arquivo.dump.enc --keep    # mantém o banco `restore_check` para inspeção
+#
+# Também confere a chave do CPF (`CPF_ENCRYPTION_KEY` do .env contra os CPFs do backup).
 # =============================================================================
 set -eu
 
@@ -54,6 +56,19 @@ if [ "$tables" -lt 20 ]; then
   echo 'restore: poucas tabelas, a restauração parece incompleta' >&2
   exit 1
 fi
+# A chave do CPF: backup restaurado com a chave errada (ou perdida) não serve. Abre todos os CPFs
+# cifrados do banco restaurado e confere a máscara e o hash do consignador (nada é escrito).
+if [ -n "${CPF_ENCRYPTION_KEY:-}" ]; then
+  : "${DB_OWNER_PASSWORD:?defina DB_OWNER_PASSWORD no .env}"
+  # shellcheck disable=SC2086
+  if ! $COMPOSE run --rm -T -e CPF_ENCRYPTION_KEY     -e MIGRATION_DATABASE_URL="postgresql://$DB_OWNER_USER:$DB_OWNER_PASSWORD@db:5432/$scratch"     api node dist/db/rotate-cpf-key.js --check; then
+    echo 'restore: ATENCAO, algum CPF nao abre com a CPF_ENCRYPTION_KEY do .env (chave errada ou perdida)' >&2
+    exit 1
+  fi
+else
+  echo 'restore: CPF_ENCRYPTION_KEY nao esta no .env, a chave do CPF nao foi conferida' >&2
+fi
+
 if [ "$keep" != '--keep' ]; then
   psql_admin -c "DROP DATABASE $scratch" >/dev/null
   echo 'restore: ok (banco de teste apagado)'
