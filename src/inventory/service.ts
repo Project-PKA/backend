@@ -91,6 +91,7 @@ export interface ListQuery {
   status?: CardStatus;
   origin?: Ownership;
   consignorId?: string;
+  language?: string;
   q?: string;
   /** Só cartas que nunca foram a leilão. */
   noAuction?: boolean;
@@ -274,6 +275,7 @@ export class InventoryService {
       query.consignorId === undefined
         ? undefined
         : eq(cardsInventory.consignorId, query.consignorId),
+      query.language === undefined ? undefined : eq(cardsInventory.language, query.language),
       query.noAuction === true
         ? notExists(
             this.db

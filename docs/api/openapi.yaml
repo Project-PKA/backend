@@ -3373,6 +3373,14 @@ paths:
           required: false
         - schema:
             type: string
+            pattern: ^[A-Z]{2}$
+          in: query
+          name: language
+          required: false
+          description: Idioma da carta física, 2 letras maiúsculas (PT, EN, JP, ES...), o
+            mesmo formato do cadastro
+        - schema:
+            type: string
             maxLength: 80
           in: query
           name: q
@@ -18422,6 +18430,21 @@ paths:
             participa dela
       security: *a6
       responses:
+        "200":
+          description: A imagem, no tipo detectado pelo conteúdo no envio
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
         "401":
           description: Default Response
           content:

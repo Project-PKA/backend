@@ -321,6 +321,36 @@ describe('lista (GET /v1/cards)', () => {
     expect(codes).toContain('A12');
   });
 
+  it('filtra por idioma, só na loja ativa, e recusa formato inválido', async () => {
+    const server = await start();
+    const staff = await login(server, STAFF);
+    const owner = await login(server, OWNER);
+    type Items = { items: { id: string; language: string }[] };
+    const list = async (query: string, session = staff, store = A) =>
+      (await call(server, 'GET', `/v1/cards?limit=100&${query}`, session, store)).json<Items>()
+        .items;
+
+    const all = await list('');
+    const languages = [...new Set(all.map((i) => i.language))];
+    expect(languages.length).toBeGreaterThan(1);
+    for (const language of languages) {
+      const found = await list(`language=${language}`);
+      expect(found).toHaveLength(all.filter((i) => i.language === language).length);
+      expect(found.every((i) => i.language === language)).toBe(true);
+    }
+    expect(await list('language=ZZ')).toEqual([]);
+
+    // acesso cruzado: o filtro nunca traz carta de outra loja
+    const idsA = new Set(all.map((i) => i.id));
+    const inB = await list(`language=${languages[0] ?? 'PT'}`, owner, B);
+    expect(inB.some((i) => idsA.has(i.id))).toBe(false);
+
+    for (const bad of ['pt', 'POR', 'P']) {
+      const response = await call(server, 'GET', `/v1/cards?language=${bad}`, staff, A);
+      expect(response.statusCode).toBe(400);
+    }
+  });
+
   it('busca por nome sem acento e pelo ID curto', async () => {
     const server = await start();
     const staff = await login(server, STAFF);
