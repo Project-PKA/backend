@@ -17,6 +17,7 @@ export interface PurgeSummary {
   public_links: number;
   invitations: number;
   catalog_runs: number;
+  whatsapp_pairing: number;
 }
 
 /**

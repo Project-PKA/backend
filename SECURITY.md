@@ -74,6 +74,7 @@ tarefa que o toca não está pronta sem ele.
 | Validação de CPF (dígitos verificadores), telefone e CEP na entrada; guardados só com dígitos | **feito** (com teste) |
 | CPF nunca devolvido inteiro (só `•••.•••.•••-NN`), nunca em log; o log de atividades guarda só os nomes dos campos alterados | **feito** (com teste) |
 | CPF, telefone, nascimento e endereço do **usuário** (perfil, `PATCH /v1/me`; o dono decidiu guardar): CPF cifrado com o mesmo `CpfVault` do cliente (ADR 0019), só a máscara na saída; só a própria pessoa lê e edita; não aparece no painel do administrador nem na equipe; nunca em log | **feito** (migration 0027, com teste). A rotação da chave do CPF precisa cobrir também `users.cpf` (ver Backend#118) |
+| Pareamento do WhatsApp pelo painel (`whatsapp_pairing`, migration 0028): o QR liga a conta de quem o escaneia ao bot, então só o **proprietário** da loja do contexto o lê (política `owner_only` no banco, mais a rota), com 60 s de vida, `Cache-Control: no-store`, fora do alcance do administrador da plataforma e apagado pela limpeza diária se o bot cair. O bot só vê quem pediu e não lê o QR de volta | **feito** (com teste). Falta incluir o QR no teste de log quando o PR do log (#119) entrar |
 | Seed usa só dados fictícios e **recusa rodar** fora de `local`/`dev`/`test` | **feito** |
 
 ### Sessão do WhatsApp e bot (ADR 0007)

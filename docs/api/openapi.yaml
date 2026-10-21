@@ -1370,6 +1370,13 @@ paths:
                 acknowledge_public_group_link:
                   type: boolean
                   description: Confirma que o link do grupo ficará público na vitrine
+                whatsapp_group_id:
+                  type: string
+                  nullable: true
+                  maxLength: 80
+                  description: "Grupo do WhatsApp da loja: precisa ser um `id` de `GET
+                    /v1/store/whatsapp/groups` (`422 WHATSAPP_GROUP_UNKNOWN`).
+                    `null` desfaz a escolha"
       parameters:
         - schema:
             type: string
@@ -2890,6 +2897,351 @@ paths:
                     type: string
                   code:
                     type: string
+  /v1/store/whatsapp/pair:
+    post:
+      operationId: requestWhatsappPairing
+      summary: Pede o QR para parear o WhatsApp da loja (só o proprietário)
+      tags:
+        - whatsapp
+      description: Grava o pedido; o bot o atende e publica o QR, que se lê em `GET
+        /v1/store/whatsapp`. Repetir em menos de 30 s devolve o estado sem
+        renovar.
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: &a5
+        - bearerAuth: []
+      responses:
+        "202":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - state
+                  - requested_at
+                  - qr
+                  - group_id
+                  - groups_updated_at
+                properties:
+                  state:
+                    type: string
+                    enum:
+                      - IDLE
+                      - REQUESTED
+                      - QR_READY
+                      - ONLINE
+                      - OFFLINE
+                    description: "`IDLE`: nunca conectou. `REQUESTED`: pedido feito, o bot ainda não
+                      gerou o QR. `QR_READY`: há um QR válido. `ONLINE`:
+                      conectado. `OFFLINE`: já houve sessão pareada e a conexão
+                      caiu."
+                  requested_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  qr:
+                    type: object
+                    nullable: true
+                    required:
+                      - code
+                      - expires_at
+                    description: "O QR atual, só enquanto vale (60 s). Quem o escaneia liga a conta
+                      de WhatsApp dele ao bot: mostre só ao proprietário, não
+                      guarde nem registre."
+                    properties:
+                      code:
+                        type: string
+                      expires_at:
+                        type: string
+                        format: date-time
+                  group_id:
+                    type: string
+                    nullable: true
+                    description: Grupo escolhido da loja
+                  groups_updated_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/store/whatsapp:
+    get:
+      operationId: getWhatsappPairing
+      summary: Estado do WhatsApp da loja e o QR atual (só o proprietário)
+      tags:
+        - whatsapp
+      description: Consulte a cada poucos segundos enquanto o estado for `REQUESTED`
+        ou `QR_READY`. A resposta nunca é guardada em cache.
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a5
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - state
+                  - requested_at
+                  - qr
+                  - group_id
+                  - groups_updated_at
+                properties:
+                  state:
+                    type: string
+                    enum:
+                      - IDLE
+                      - REQUESTED
+                      - QR_READY
+                      - ONLINE
+                      - OFFLINE
+                    description: "`IDLE`: nunca conectou. `REQUESTED`: pedido feito, o bot ainda não
+                      gerou o QR. `QR_READY`: há um QR válido. `ONLINE`:
+                      conectado. `OFFLINE`: já houve sessão pareada e a conexão
+                      caiu."
+                  requested_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  qr:
+                    type: object
+                    nullable: true
+                    required:
+                      - code
+                      - expires_at
+                    description: "O QR atual, só enquanto vale (60 s). Quem o escaneia liga a conta
+                      de WhatsApp dele ao bot: mostre só ao proprietário, não
+                      guarde nem registre."
+                    properties:
+                      code:
+                        type: string
+                      expires_at:
+                        type: string
+                        format: date-time
+                  group_id:
+                    type: string
+                    nullable: true
+                    description: Grupo escolhido da loja
+                  groups_updated_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/store/whatsapp/groups:
+    get:
+      operationId: listWhatsappGroups
+      summary: Grupos da conta conectada, como o bot os publicou (só o proprietário)
+      tags:
+        - whatsapp
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a5
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - updated_at
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - name
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                  updated_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
   /v1/activity-log:
     get:
       operationId: listActivityLog
@@ -3067,7 +3419,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: &a5
+      security: &a6
         - bearerAuth: []
       responses:
         "200":
@@ -3211,7 +3563,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a5
+      security: *a6
       responses:
         "200":
           description: Default Response
@@ -3394,7 +3746,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: &a6
+      security: &a7
         - bearerAuth: []
       responses:
         "201":
@@ -3698,7 +4050,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a6
+      security: *a7
       responses:
         "200":
           description: Default Response
@@ -3922,7 +4274,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a6
+      security: *a7
       responses:
         "200":
           description: Default Response
@@ -4217,7 +4569,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a6
+      security: *a7
       responses:
         "200":
           description: Default Response
@@ -4498,7 +4850,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a6
+      security: *a7
       responses:
         "204":
           description: Default Response
@@ -4652,7 +5004,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: &a7
+      security: &a8
         - bearerAuth: []
       responses:
         "201":
@@ -4968,7 +5320,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a7
+      security: *a8
       responses:
         "200":
           description: Default Response
@@ -5272,7 +5624,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a7
+      security: *a8
       responses:
         "200":
           description: Default Response
@@ -5590,7 +5942,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a7
+      security: *a8
       responses:
         "200":
           description: Default Response
@@ -5764,7 +6116,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a7
+      security: *a8
       responses:
         "200":
           description: Default Response
@@ -6134,7 +6486,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a7
+      security: *a8
       responses:
         "200":
           description: Default Response
@@ -6432,7 +6784,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a7
+      security: *a8
       responses:
         "200":
           description: Default Response
@@ -6745,7 +7097,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a7
+      security: *a8
       responses:
         "200":
           description: Default Response
@@ -7055,7 +7407,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a7
+      security: *a8
       responses:
         "200":
           description: Default Response
@@ -7372,7 +7724,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a7
+      security: *a8
       responses:
         "201":
           description: Default Response
@@ -7618,7 +7970,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: &a8
+      security: &a9
         - bearerAuth: []
       responses:
         "201":
@@ -7923,7 +8275,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a8
+      security: *a9
       responses:
         "200":
           description: Default Response
@@ -8199,7 +8551,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a8
+      security: *a9
       responses:
         "200":
           description: Default Response
@@ -8522,7 +8874,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a8
+      security: *a9
       responses:
         "200":
           description: Default Response
@@ -8792,7 +9144,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a8
+      security: *a9
       responses:
         "200":
           description: Default Response
@@ -9069,7 +9421,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a8
+      security: *a9
       responses:
         "200":
           description: Default Response
@@ -9333,7 +9685,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a8
+      security: *a9
       responses:
         "200":
           description: Default Response
@@ -9620,7 +9972,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a8
+      security: *a9
       responses:
         "200":
           description: Default Response
@@ -9838,7 +10190,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a8
+      security: *a9
       responses:
         "200":
           description: Default Response
@@ -10070,7 +10422,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a8
+      security: *a9
       responses:
         "200":
           description: Default Response
@@ -10292,7 +10644,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: &a9
+      security: &a10
         - bearerAuth: []
       responses:
         "200":
@@ -10540,7 +10892,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a9
+      security: *a10
       responses:
         "201":
           description: Default Response
@@ -10817,7 +11169,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a9
+      security: *a10
       responses:
         "200":
           description: Default Response
@@ -11084,7 +11436,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a9
+      security: *a10
       responses:
         "200":
           description: Default Response
@@ -11339,7 +11691,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a9
+      security: *a10
       responses:
         "204":
           description: Default Response
@@ -11501,7 +11853,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a9
+      security: *a10
       responses:
         "401":
           description: Default Response
@@ -11594,7 +11946,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a9
+      security: *a10
       responses:
         "200":
           description: Default Response
@@ -11863,7 +12215,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: &a10
+      security: &a11
         - bearerAuth: []
       responses:
         "201":
@@ -12074,7 +12426,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a10
+      security: *a11
       responses:
         "201":
           description: Default Response
@@ -12293,7 +12645,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a10
+      security: *a11
       responses:
         "200":
           description: Default Response
@@ -12489,7 +12841,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a10
+      security: *a11
       responses:
         "200":
           description: Default Response
@@ -12660,7 +13012,7 @@ paths:
       summary: "Preferências do perfil: idioma, tema, fuso, moeda e notificações"
       tags:
         - me
-      security: &a11
+      security: &a12
         - bearerAuth: []
       responses:
         "200":
@@ -12884,7 +13236,7 @@ paths:
                       type: boolean
                     email:
                       type: boolean
-      security: *a11
+      security: *a12
       responses:
         "200":
           description: Default Response
@@ -13099,7 +13451,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a11
+      security: *a12
       responses:
         "200":
           description: Default Response
@@ -13290,7 +13642,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a11
+      security: *a12
       responses:
         "200":
           description: Default Response
@@ -13455,7 +13807,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a11
+      security: *a12
       responses:
         "200":
           description: Default Response
@@ -13626,7 +13978,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a11
+      security: *a12
       responses:
         "204":
           description: Default Response
@@ -13784,7 +14136,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a11
+      security: *a12
       responses:
         "200":
           description: Default Response
@@ -14068,7 +14420,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a11
+      security: *a12
       responses:
         "201":
           description: Default Response
@@ -14286,7 +14638,7 @@ paths:
           in: query
           name: can_create_stores
           required: false
-      security: &a12
+      security: &a13
         - bearerAuth: []
       responses:
         "200":
@@ -14516,7 +14868,7 @@ paths:
                   minimum: 0
                   maximum: 1000
                   default: 0
-      security: *a12
+      security: *a13
       responses:
         "201":
           description: Default Response
@@ -14717,7 +15069,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -14953,7 +15305,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -15153,7 +15505,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -15353,7 +15705,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -15567,7 +15919,7 @@ paths:
           in: query
           name: q
           required: false
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -15828,7 +16180,7 @@ paths:
                 access_request_id:
                   type: string
                   format: uuid
-      security: *a12
+      security: *a13
       responses:
         "201":
           description: Default Response
@@ -16067,7 +16419,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -16303,7 +16655,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -16534,7 +16886,7 @@ paths:
           in: query
           name: status
           required: false
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -16778,7 +17130,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "204":
           description: Default Response
@@ -16960,7 +17312,7 @@ paths:
           in: query
           name: kind
           required: false
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -17175,7 +17527,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -17363,7 +17715,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "204":
           description: Default Response
@@ -17535,7 +17887,7 @@ paths:
           in: query
           name: status
           required: false
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -17750,7 +18102,7 @@ paths:
           in: path
           name: id
           required: true
-      security: *a12
+      security: *a13
       responses:
         "204":
           description: Default Response
@@ -17898,7 +18250,7 @@ paths:
       summary: KPIs da plataforma e lojas com WhatsApp desconectado (só acompanhamento)
       tags:
         - admin
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -18106,7 +18458,7 @@ paths:
           in: query
           name: limit
           required: false
-      security: *a12
+      security: *a13
       responses:
         "200":
           description: Default Response
@@ -18303,7 +18655,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: &a13
+      security: &a14
         - bearerAuth: []
       responses:
         "200":
@@ -18525,7 +18877,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a13
+      security: *a14
       responses:
         "200":
           description: Default Response
@@ -18746,7 +19098,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a13
+      security: *a14
       responses:
         "200":
           description: Default Response
@@ -18871,7 +19223,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a13
+      security: *a14
       responses:
         "200":
           description: Default Response
@@ -18994,7 +19346,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a6
+      security: *a7
       responses:
         "201":
           description: Default Response
@@ -19223,7 +19575,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a6
+      security: *a7
       responses:
         "401":
           description: Default Response
@@ -19319,7 +19671,7 @@ paths:
           required: false
           description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
             participa dela
-      security: *a6
+      security: *a7
       responses:
         "204":
           description: Default Response

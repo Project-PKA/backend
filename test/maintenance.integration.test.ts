@@ -191,6 +191,7 @@ describe('purge_expired', () => {
       public_links: 0,
       invitations: 0,
       catalog_runs: 0,
+      whatsapp_pairing: 0,
     });
   });
 

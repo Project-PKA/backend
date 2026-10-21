@@ -148,6 +148,23 @@ export const whatsappSessions = pgTable('whatsapp_sessions', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Canal painel <-> bot para parear o WhatsApp (0028, shared#36). Uma linha por loja. A API grava o pedido;
+ * o bot grava o QR de 60 s e a lista de grupos. Só o proprietário lê (RLS `owner_only`).
+ */
+export const whatsappPairing = pgTable('whatsapp_pairing', {
+  storeId: uuid('store_id')
+    .primaryKey()
+    .references(() => stores.id, { onDelete: 'cascade' }),
+  requestedAt: timestamp('requested_at', { withTimezone: true }),
+  requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+  qrCode: text('qr_code'),
+  qrExpiresAt: timestamp('qr_expires_at', { withTimezone: true }),
+  groups: jsonb('groups').$type<{ id: string; name: string }[]>(),
+  groupsUpdatedAt: timestamp('groups_updated_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Modelos de mensagem do bot por loja (0023). Sem linha, vale o padrão. */
 export const storeMessageTemplates = pgTable(
   'store_message_templates',

@@ -45,6 +45,8 @@ import { auctionRoutes } from './routes/auctions.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { meRoutes } from './routes/me.js';
+import { whatsappRoutes } from './routes/whatsapp.js';
+import { WhatsappPairingService } from './whatsapp/pairing.js';
 import { messageRoutes } from './routes/messages.js';
 import { storeRoutes } from './routes/store.js';
 import { teamRoutes } from './routes/team.js';
@@ -236,6 +238,7 @@ export async function buildApp(deps: AppDeps): Promise<BuiltApp> {
   storeRoutes(app, { db: deps.db, hooks, storesService });
   messageRoutes(app, { hooks, templates: new MessageTemplateService(deps.db) });
   teamRoutes(app, { hooks, team, invitations });
+  whatsappRoutes(app, { hooks, pairing: new WhatsappPairingService(deps.db) });
   activityRoutes(app, { db: deps.db, hooks });
   const catalog = new CatalogService(deps.db, deps.tcgdex ?? createTcgdexClient(), {
     warn: (object, message) => {

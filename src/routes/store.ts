@@ -200,6 +200,13 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
               type: 'boolean',
               description: 'Confirma que o link do grupo ficará público na vitrine',
             },
+            whatsapp_group_id: {
+              type: 'string',
+              nullable: true,
+              maxLength: 80,
+              description:
+                'Grupo do WhatsApp da loja: precisa ser um `id` de `GET /v1/store/whatsapp/groups` (`422 WHATSAPP_GROUP_UNKNOWN`). `null` desfaz a escolha',
+            },
           },
         },
         response: {
@@ -221,6 +228,7 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
         whatsapp_invite_url?: string | null;
         showcase_enabled?: boolean;
         acknowledge_public_group_link?: boolean;
+        whatsapp_group_id?: string | null;
       };
       const updated = await storesService.update(
         { storeId: tenant.storeId, userId: auth.userId },
@@ -239,10 +247,23 @@ export function storeRoutes(app: FastifyInstance, deps: StoreRouteDeps): void {
           ...(body.acknowledge_public_group_link === undefined
             ? {}
             : { acknowledgePublicGroupLink: body.acknowledge_public_group_link }),
+          ...(body.whatsapp_group_id === undefined
+            ? {}
+            : { whatsappGroupId: body.whatsapp_group_id }),
         },
       );
       if (!updated.ok) {
         if (updated.reason === 'NOT_FOUND') throw new Error('loja do contexto não encontrada');
+        if (updated.reason === 'GROUP_UNKNOWN') {
+          return sendProblem(
+            reply,
+            buildProblem(
+              422,
+              'Escolha um grupo da lista publicada pelo WhatsApp da loja',
+              'WHATSAPP_GROUP_UNKNOWN',
+            ),
+          );
+        }
         return updated.reason === 'INVITE_URL_REQUIRED'
           ? sendProblem(
               reply,
