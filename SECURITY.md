@@ -69,7 +69,7 @@ tarefa que o toca não está pronta sem ele.
 | Requisito | Status |
 | --- | --- |
 | Nenhum telefone, e-mail, CPF, token, cookie, header `Authorization` ou texto de lance em log | **parcial**: `Authorization`, `Cookie` e `Set-Cookie` são redigidos e um teste manual confirmou que o token não aparece. O provedor `log` de e-mail imprime o código (só em desenvolvimento; recusado em homolog e prod). Falta revisar os logs de cada rota nova |
-| `bids.raw_whatsapp_message` e dados de visitante tratados como pessoais: política de retenção e exclusão | pendente (decisão de negócio) |
+| `bids.raw_whatsapp_message` e dados de visitante tratados como pessoais: exclusão sob pedido | **feito** (anonimização, `POST /v1/customers/{id}/anonymize`, migration 0026: apaga nome, telefone, e-mail, CPF, endereço, a mensagem original dos lances, o IP do consentimento e o comprovante; mantém o id e os valores; revoga os links públicos; com teste que procura o dado em todas as tabelas). **Retenção por prazo** segue pendente (decisão de negócio, só com loja real) |
 | Base legal do tratamento, atendimento a direitos do titular (acesso, correção, exclusão) e papel de controlador/operador entre SaaS e loja | pendente (decisão de negócio) |
 | Validação de CPF (dígitos verificadores), telefone e CEP na entrada; guardados só com dígitos | **feito** (com teste) |
 | CPF nunca devolvido inteiro (só `•••.•••.•••-NN`), nunca em log; o log de atividades guarda só os nomes dos campos alterados | **feito** (com teste) |
@@ -157,8 +157,9 @@ tarefa que o toca não está pronta sem ele.
 
 1. **Criptografia do CPF em repouso: feita** (migration 0024, ADR 0019 do shared): AES-256-GCM com
    `CPF_ENCRYPTION_KEY` (guarde a chave à parte; sem ela o CPF não volta). O telefone continua
-   em texto, porque identifica o cliente no grupo. Falta decidir com a revisão de LGPD: retenção,
-   exclusão e rotação da chave.
+   em texto, porque identifica o cliente no grupo. A exclusão sob pedido está feita
+   (anonimização, migration 0026). Falta decidir com a revisão de LGPD: retenção por prazo e
+   rotação da chave.
 2. **Segundo fator para o administrador da plataforma:** a conta mais
    valiosa do sistema. Avaliar antes de produção.
 3. **Provedor de e-mail do OTP** (entregabilidade e, por ser porta de entrada,

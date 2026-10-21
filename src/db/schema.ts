@@ -239,6 +239,8 @@ export const customers = pgTable(
     blacklistReason: text('blacklist_reason'),
     /** Quando entrou na blacklist; vazio se nunca entrou (ou se entrou antes da migration 0025). */
     blacklistedAt: timestamp('blacklisted_at', { withTimezone: true }),
+    /** Quando o cliente foi anonimizado (LGPD). Anonimizado fica na blacklist e não se edita mais. */
+    anonymizedAt: timestamp('anonymized_at', { withTimezone: true }),
     lastInteractionAt: timestamp('last_interaction_at', { withTimezone: true }),
     addressZip: text('address_zip'),
     addressStreet: text('address_street'),

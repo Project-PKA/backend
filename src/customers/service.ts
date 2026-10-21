@@ -2,12 +2,22 @@ import { and, desc, eq, exists, ilike, isNull, lt, or, sql, type SQL } from 'dri
 
 import { recordActivity } from '../audit/activity.js';
 import { withContext, type Db, type Tx } from '../db/context.js';
+import type { ReceiptService } from '../settlements/receipt.js';
 import * as schema from '../db/schema.js';
 import { decodeCursor, toPage, type Page } from '../http/pagination.js';
 import type { CpfVault } from '../security/cpf-vault.js';
 import { maskCpfLast2, normalizeCep, normalizeCpf, normalizePhone } from './validation.js';
 
-const { customers, cardsInventory, stores, bids, auctions, settlements } = schema;
+const {
+  customers,
+  cardsInventory,
+  stores,
+  bids,
+  auctions,
+  settlements,
+  lgpdConsents,
+  publicLinks,
+} = schema;
 
 interface Context {
   storeId: string;
@@ -40,6 +50,8 @@ export interface CustomerView {
   purchasesCount: number;
   /** Tem ou já teve carta consignada nesta loja. */
   isConsignor: boolean;
+  /** Quando foi anonimizado (LGPD); `null` se não foi. */
+  anonymizedAt: Date | null;
   lastInteractionAt: Date | null;
   address: Address;
   createdAt: Date;
@@ -59,7 +71,8 @@ export type CustomerFailure =
   | 'PHONE_TAKEN'
   | 'CPF_INVALID'
   | 'CEP_INVALID'
-  | 'INACTIVITY_NOT_SET';
+  | 'INACTIVITY_NOT_SET'
+  | 'ANONYMIZED';
 
 export type CustomerResult =
   { ok: true; customer: CustomerView } | { ok: false; reason: CustomerFailure };
@@ -110,6 +123,10 @@ export interface ConsignmentWallet {
   totals: { inStock: number; pendingNet: string; soldNet: string; commission: string };
 }
 
+const ANONYMIZED_NAME = 'Cliente anonimizado';
+const ANONYMIZED_REASON = 'Anonimizado (LGPD)';
+const REMOVED_MESSAGE = '[removido]';
+
 interface ViewExtras {
   purchasesCount: number;
   isConsignor: boolean;
@@ -141,6 +158,7 @@ function toView(row: typeof customers.$inferSelect, extras: ViewExtras): Custome
     blacklistedAt: row.blacklistedAt,
     purchasesCount: extras.purchasesCount,
     isConsignor: extras.isConsignor,
+    anonymizedAt: row.anonymizedAt,
     lastInteractionAt: row.lastInteractionAt,
     address: {
       zip: row.addressZip,
@@ -220,6 +238,7 @@ export class CustomerService {
   constructor(
     private readonly db: Db,
     private readonly vault: CpfVault,
+    private readonly receipts: ReceiptService,
   ) {}
 
   /** Troca o CPF legível pelo cifrado e pelas colunas derivadas (ADR 0019). */
@@ -287,6 +306,7 @@ export class CustomerService {
         .for('update')
         .limit(1);
       if (current === undefined) return { ok: false, reason: 'NOT_FOUND' } as const;
+      if (current.anonymizedAt !== null) return { ok: false, reason: 'ANONYMIZED' } as const;
 
       const next = { ...current, ...values };
       const [updated] = await tx
@@ -389,6 +409,105 @@ export class CustomerService {
     });
   }
 
+  /**
+   * Anonimiza o cliente ou visitante (LGPD, ADR 0019): apaga nome, telefone, e-mail, CPF (e as colunas
+   * derivadas), endereço, a mensagem original dos lances, o IP do consentimento e o comprovante, e
+   * revoga os links públicos. O id, os valores e as ligações ficam, então leilões, lances e acertos
+   * continuam consistentes e somáveis. O cliente entra na blacklist (o `place_bid` recusa lance) e não
+   * se edita mais. Repetir é inofensivo. O log guarda só o id.
+   */
+  async anonymize(context: Context, id: string): Promise<CustomerResult> {
+    const outcome = await withContext(this.db, context, async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(customers)
+        .where(and(eq(customers.id, id), eq(customers.storeId, context.storeId)))
+        .for('update')
+        .limit(1);
+      if (current === undefined) return { ok: false, reason: 'NOT_FOUND' } as const;
+      if (current.anonymizedAt !== null) {
+        return {
+          ok: true,
+          row: current,
+          extras: await this.extrasOf(tx, id),
+          receiptFiles: [] as string[],
+        } as const;
+      }
+
+      const owned = eq(settlements.customerId, id);
+      const withReceipt = await tx
+        .select({ file: settlements.receiptFile })
+        .from(settlements)
+        .where(and(eq(settlements.storeId, context.storeId), owned));
+      const receiptFiles = withReceipt.flatMap((r) => (r.file === null ? [] : [r.file]));
+
+      const [row] = await tx
+        .update(customers)
+        .set({
+          name: ANONYMIZED_NAME,
+          // O telefone é único por loja; o id garante um valor neutro e sem repetição.
+          phone: `anon-${id}`,
+          email: null,
+          cpf: null,
+          cpfLast2: null,
+          cpfKeyHash: null,
+          addressZip: null,
+          addressStreet: null,
+          addressNumber: null,
+          addressComp: null,
+          addressNeighborhood: null,
+          addressCity: null,
+          addressState: null,
+          isVisitor: true,
+          isBlacklisted: true,
+          blacklistReason: ANONYMIZED_REASON,
+          blacklistedAt: sql`COALESCE(${customers.blacklistedAt}, now())`,
+          anonymizedAt: sql`now()`,
+          updatedAt: new Date(),
+        })
+        .where(eq(customers.id, id))
+        .returning();
+      if (row === undefined) throw new Error('o cliente não foi anonimizado');
+
+      await tx
+        .update(bids)
+        .set({ rawWhatsappMessage: REMOVED_MESSAGE })
+        .where(and(eq(bids.storeId, context.storeId), eq(bids.customerId, id)));
+      await tx
+        .update(lgpdConsents)
+        .set({ ip: null })
+        .where(and(eq(lgpdConsents.storeId, context.storeId), eq(lgpdConsents.customerId, id)));
+      await tx
+        .update(settlements)
+        .set({ receiptFile: null })
+        .where(and(eq(settlements.storeId, context.storeId), owned));
+      await tx
+        .update(publicLinks)
+        .set({ revokedAt: sql`COALESCE(${publicLinks.revokedAt}, now())` })
+        .where(
+          and(
+            eq(publicLinks.storeId, context.storeId),
+            or(
+              eq(publicLinks.customerId, id),
+              sql`${publicLinks.settlementId} IN (SELECT s.id FROM settlements s WHERE s.customer_id = ${id}::uuid AND s.store_id = ${context.storeId}::uuid)`,
+            ),
+          ),
+        );
+      await recordActivity(tx, {
+        storeId: context.storeId,
+        actorUserId: context.userId,
+        action: 'customer.anonymized',
+        targetType: 'customer',
+        targetId: id,
+      });
+      return { ok: true, row, extras: await this.extrasOf(tx, id), receiptFiles } as const;
+    });
+    if (!outcome.ok) return outcome;
+    // Os arquivos saem depois de o banco confirmar; falha ao apagar não desfaz a anonimização.
+    for (const file of outcome.receiptFiles) await this.receipts.discard(file);
+    return { ok: true, customer: toView(outcome.row, outcome.extras) };
+  }
+
   /** Marca na blacklist. O bot passa a ignorar os lances dessa pessoa (e `place_bid` já os recusa). */
   async blacklist(context: Context, id: string, reason: string | null): Promise<CustomerResult> {
     return this.setBlacklist(context, id, true, reason);
@@ -414,9 +533,22 @@ export class CustomerService {
           blacklistedAt: flag ? sql`COALESCE(${customers.blacklistedAt}, now())` : null,
           updatedAt: new Date(),
         })
-        .where(and(eq(customers.id, id), eq(customers.storeId, context.storeId)))
+        .where(
+          and(
+            eq(customers.id, id),
+            eq(customers.storeId, context.storeId),
+            isNull(customers.anonymizedAt),
+          ),
+        )
         .returning();
-      if (updated === undefined) return { ok: false, reason: 'NOT_FOUND' } as const;
+      if (updated === undefined) {
+        // Distingue "não existe" de "anonimizado": só o segundo é conflito.
+        const [found] = await tx
+          .select({ id: customers.id })
+          .from(customers)
+          .where(and(eq(customers.id, id), eq(customers.storeId, context.storeId)));
+        return { ok: false, reason: found === undefined ? 'NOT_FOUND' : 'ANONYMIZED' } as const;
+      }
       await recordActivity(tx, {
         storeId: context.storeId,
         actorUserId: context.userId,

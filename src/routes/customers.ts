@@ -69,6 +69,7 @@ const customerResponse = {
     'blacklisted_at',
     'purchases_count',
     'is_consignor',
+    'anonymized_at',
     'last_interaction_at',
     'address',
     'created_at',
@@ -94,6 +95,12 @@ const customerResponse = {
       type: 'boolean',
       description:
         'Tem ou já teve carta consignada nesta loja (o mesmo critério do filtro `consignor`)',
+    },
+    anonymized_at: {
+      type: 'string',
+      format: 'date-time',
+      nullable: true,
+      description: 'Quando foi anonimizado (LGPD). Anonimizado fica na blacklist e não se edita.',
     },
     last_interaction_at: { type: 'string', format: 'date-time', nullable: true },
     address: {
@@ -135,6 +142,7 @@ const toCustomerJson = (view: CustomerView) => ({
   blacklisted_at: view.blacklistedAt?.toISOString() ?? null,
   purchases_count: view.purchasesCount,
   is_consignor: view.isConsignor,
+  anonymized_at: view.anonymizedAt?.toISOString() ?? null,
   last_interaction_at: view.lastInteractionAt?.toISOString() ?? null,
   address: view.address,
   created_at: view.createdAt.toISOString(),
@@ -147,6 +155,7 @@ const FAILURES: Record<CustomerFailure, [number, string]> = {
   CPF_INVALID: [422, 'CPF inválido'],
   CEP_INVALID: [422, 'CEP inválido'],
   INACTIVITY_NOT_SET: [409, 'Defina o limite de dias de inatividade da loja primeiro'],
+  ANONYMIZED: [409, 'Cliente anonimizado: os dados foram apagados e não podem mais ser alterados'],
 };
 
 const sendFailure = (reply: FastifyReply, reason: CustomerFailure) => {
@@ -324,6 +333,32 @@ export function customerRoutes(app: FastifyInstance, deps: CustomerRouteDeps): v
         id,
         toInput(request.body as Record<string, unknown>),
       );
+      if (!result.ok) return sendFailure(reply, result.reason);
+      return toCustomerJson(result.customer);
+    },
+  );
+
+  app.post(
+    '/v1/customers/:id/anonymize',
+    {
+      preValidation: manage,
+      schema: {
+        operationId: 'anonymizeCustomer',
+        tags: ['customers'],
+        summary: 'Anonimiza o cliente ou visitante (LGPD). Não tem volta',
+        description:
+          'Apaga nome, telefone, e-mail, CPF, endereço, a mensagem original dos lances, o IP do consentimento e o comprovante, ' +
+          'e revoga os links públicos. O id, os valores e as ligações ficam: leilões, lances e acertos continuam somáveis. ' +
+          'O cliente vai para a blacklist e não pode mais ser editado nem ter link de consignador. Repetir é inofensivo.',
+        security,
+        headers: storeHeader,
+        params: uuidParams,
+        response: { 200: customerResponse, ...failures },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const result = await customers.anonymize(contextOf(request), id);
       if (!result.ok) return sendFailure(reply, result.reason);
       return toCustomerJson(result.customer);
     },

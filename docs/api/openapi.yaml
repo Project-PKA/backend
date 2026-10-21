@@ -7332,6 +7332,7 @@ paths:
                   - blacklisted_at
                   - purchases_count
                   - is_consignor
+                  - anonymized_at
                   - last_interaction_at
                   - address
                   - created_at
@@ -7373,6 +7374,12 @@ paths:
                     type: boolean
                     description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
                       filtro `consignor`)
+                  anonymized_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Quando foi anonimizado (LGPD). Anonimizado fica na blacklist e não
+                      se edita.
                   last_interaction_at:
                     type: string
                     format: date-time
@@ -7637,6 +7644,7 @@ paths:
                         - blacklisted_at
                         - purchases_count
                         - is_consignor
+                        - anonymized_at
                         - last_interaction_at
                         - address
                         - created_at
@@ -7678,6 +7686,12 @@ paths:
                           type: boolean
                           description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
                             filtro `consignor`)
+                        anonymized_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                          description: Quando foi anonimizado (LGPD). Anonimizado fica na blacklist e não
+                            se edita.
                         last_interaction_at:
                           type: string
                           format: date-time
@@ -7898,6 +7912,7 @@ paths:
                   - blacklisted_at
                   - purchases_count
                   - is_consignor
+                  - anonymized_at
                   - last_interaction_at
                   - address
                   - created_at
@@ -7939,6 +7954,12 @@ paths:
                     type: boolean
                     description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
                       filtro `consignor`)
+                  anonymized_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Quando foi anonimizado (LGPD). Anonimizado fica na blacklist e não
+                      se edita.
                   last_interaction_at:
                     type: string
                     format: date-time
@@ -8214,6 +8235,7 @@ paths:
                   - blacklisted_at
                   - purchases_count
                   - is_consignor
+                  - anonymized_at
                   - last_interaction_at
                   - address
                   - created_at
@@ -8255,6 +8277,282 @@ paths:
                     type: boolean
                     description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
                       filtro `consignor`)
+                  anonymized_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Quando foi anonimizado (LGPD). Anonimizado fica na blacklist e não
+                      se edita.
+                  last_interaction_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  address:
+                    type: object
+                    required:
+                      - zip
+                      - street
+                      - number
+                      - comp
+                      - neighborhood
+                      - city
+                      - state
+                    properties:
+                      zip:
+                        type: string
+                        nullable: true
+                      street:
+                        type: string
+                        nullable: true
+                      number:
+                        type: string
+                        nullable: true
+                      comp:
+                        type: string
+                        nullable: true
+                      neighborhood:
+                        type: string
+                        nullable: true
+                      city:
+                        type: string
+                        nullable: true
+                      state:
+                        type: string
+                        nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  code:
+                    type: string
+  /v1/customers/{id}/anonymize:
+    post:
+      operationId: anonymizeCustomer
+      summary: Anonimiza o cliente ou visitante (LGPD). Não tem volta
+      tags:
+        - customers
+      description: "Apaga nome, telefone, e-mail, CPF, endereço, a mensagem original
+        dos lances, o IP do consentimento e o comprovante, e revoga os links
+        públicos. O id, os valores e as ligações ficam: leilões, lances e
+        acertos continuam somáveis. O cliente vai para a blacklist e não pode
+        mais ser editado nem ter link de consignador. Repetir é inofensivo."
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+        - schema:
+            type: string
+          in: header
+          name: x-store-id
+          required: false
+          description: Id da loja. Obrigatório nas rotas de uma loja; só vale se a pessoa
+            participa dela
+      security: *a8
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - phone
+                  - name
+                  - email
+                  - cpf_masked
+                  - kind
+                  - is_blacklisted
+                  - blacklist_reason
+                  - blacklisted_at
+                  - purchases_count
+                  - is_consignor
+                  - anonymized_at
+                  - last_interaction_at
+                  - address
+                  - created_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  phone:
+                    type: string
+                    description: Só dígitos, com código do país
+                  name:
+                    type: string
+                  email:
+                    type: string
+                    nullable: true
+                  cpf_masked:
+                    type: string
+                    nullable: true
+                  kind:
+                    type: string
+                    enum:
+                      - VISITOR
+                      - CUSTOMER
+                  is_blacklisted:
+                    type: boolean
+                  blacklist_reason:
+                    type: string
+                    nullable: true
+                  blacklisted_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Desde quando está na blacklist. Nulo se não está, ou se entrou
+                      antes de a data ser guardada.
+                  purchases_count:
+                    type: integer
+                    description: Acertos pagos do cliente nesta loja
+                  is_consignor:
+                    type: boolean
+                    description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
+                      filtro `consignor`)
+                  anonymized_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Quando foi anonimizado (LGPD). Anonimizado fica na blacklist e não
+                      se edita.
                   last_interaction_at:
                     type: string
                     format: date-time
@@ -8484,6 +8782,7 @@ paths:
                   - blacklisted_at
                   - purchases_count
                   - is_consignor
+                  - anonymized_at
                   - last_interaction_at
                   - address
                   - created_at
@@ -8525,6 +8824,12 @@ paths:
                     type: boolean
                     description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
                       filtro `consignor`)
+                  anonymized_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Quando foi anonimizado (LGPD). Anonimizado fica na blacklist e não
+                      se edita.
                   last_interaction_at:
                     type: string
                     format: date-time
@@ -8741,6 +9046,7 @@ paths:
                   - blacklisted_at
                   - purchases_count
                   - is_consignor
+                  - anonymized_at
                   - last_interaction_at
                   - address
                   - created_at
@@ -8782,6 +9088,12 @@ paths:
                     type: boolean
                     description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
                       filtro `consignor`)
+                  anonymized_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Quando foi anonimizado (LGPD). Anonimizado fica na blacklist e não
+                      se edita.
                   last_interaction_at:
                     type: string
                     format: date-time
