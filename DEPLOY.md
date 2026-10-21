@@ -117,7 +117,7 @@ A API **não recebe** a senha do dono do schema nem a do backup: o compose lista
    `17 3 * * *  cd /srv/pokemon-auction/prod && sh backup.sh >> backup.log 2>&1`.
    **Guarde a `BACKUP_PASSPHRASE` num gerenciador de senhas**: sem ela o backup não abre.
 9. **Teste a restauração** antes de depender dela: `sh restore.sh backups/<arquivo>.dump.enc` restaura
-   num banco descartável (`restore_check`), confere tabelas e usuários e apaga o banco de teste.
+   num banco descartável (`restore_check`), confere tabelas e usuários e apaga o banco de teste; com a `CPF_ENCRYPTION_KEY` no `.env`, confere que os CPFs do backup abrem com ela. A guarda e a rotação dessa chave estão em [`docs/secrets.md`](docs/secrets.md).
 
 ### Restaurar de verdade (desastre)
 
