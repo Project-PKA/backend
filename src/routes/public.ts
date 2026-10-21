@@ -574,6 +574,12 @@ export function publicLinkRoutes(app: FastifyInstance, deps: PublicLinkRouteDeps
           properties: {
             ...pageQuerySchema.properties,
             kind: { type: 'string', enum: ['SETTLEMENT', 'CONSIGNOR'] },
+            customer_id: {
+              type: 'string',
+              format: 'uuid',
+              description:
+                'Só os links deste cliente (o link do consignador é por cliente). Para revogar, use `DELETE /v1/public-links/{id}` em cada um.',
+            },
           },
         },
         response: {
@@ -590,11 +596,17 @@ export function publicLinkRoutes(app: FastifyInstance, deps: PublicLinkRouteDeps
       },
     },
     async (request, reply) => {
-      const q = request.query as { cursor?: string; limit?: number; kind?: LinkKind };
+      const q = request.query as {
+        cursor?: string;
+        limit?: number;
+        kind?: LinkKind;
+        customer_id?: string;
+      };
       const result = await links.list(contextOf(request), {
         limit: q.limit ?? DEFAULT_LIMIT,
         ...(q.cursor === undefined ? {} : { cursor: q.cursor }),
         ...(q.kind === undefined ? {} : { kind: q.kind }),
+        ...(q.customer_id === undefined ? {} : { customerId: q.customer_id }),
       });
       if (result === 'INVALID_CURSOR') {
         return sendProblem(reply, buildProblem(400, 'Cursor inválido', 'INVALID_CURSOR'));

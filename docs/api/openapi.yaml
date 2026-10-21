@@ -7272,6 +7272,8 @@ paths:
                 address:
                   type: object
                   additionalProperties: false
+                  description: "Mescla com o endereço atual: só os campos enviados mudam, `null`
+                    limpa o campo e o que não vem fica como está."
                   properties:
                     zip:
                       type: string
@@ -7288,6 +7290,10 @@ paths:
                     comp:
                       type: string
                       maxLength: 60
+                      nullable: true
+                    neighborhood:
+                      type: string
+                      maxLength: 80
                       nullable: true
                     city:
                       type: string
@@ -7323,6 +7329,9 @@ paths:
                   - kind
                   - is_blacklisted
                   - blacklist_reason
+                  - blacklisted_at
+                  - purchases_count
+                  - is_consignor
                   - last_interaction_at
                   - address
                   - created_at
@@ -7351,12 +7360,33 @@ paths:
                   blacklist_reason:
                     type: string
                     nullable: true
+                  blacklisted_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Desde quando está na blacklist. Nulo se não está, ou se entrou
+                      antes de a data ser guardada.
+                  purchases_count:
+                    type: integer
+                    description: Acertos pagos do cliente nesta loja
+                  is_consignor:
+                    type: boolean
+                    description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
+                      filtro `consignor`)
                   last_interaction_at:
                     type: string
                     format: date-time
                     nullable: true
                   address:
                     type: object
+                    required:
+                      - zip
+                      - street
+                      - number
+                      - comp
+                      - neighborhood
+                      - city
+                      - state
                     properties:
                       zip:
                         type: string
@@ -7368,6 +7398,9 @@ paths:
                         type: string
                         nullable: true
                       comp:
+                        type: string
+                        nullable: true
+                      neighborhood:
                         type: string
                         nullable: true
                       city:
@@ -7601,6 +7634,9 @@ paths:
                         - kind
                         - is_blacklisted
                         - blacklist_reason
+                        - blacklisted_at
+                        - purchases_count
+                        - is_consignor
                         - last_interaction_at
                         - address
                         - created_at
@@ -7629,12 +7665,33 @@ paths:
                         blacklist_reason:
                           type: string
                           nullable: true
+                        blacklisted_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                          description: Desde quando está na blacklist. Nulo se não está, ou se entrou
+                            antes de a data ser guardada.
+                        purchases_count:
+                          type: integer
+                          description: Acertos pagos do cliente nesta loja
+                        is_consignor:
+                          type: boolean
+                          description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
+                            filtro `consignor`)
                         last_interaction_at:
                           type: string
                           format: date-time
                           nullable: true
                         address:
                           type: object
+                          required:
+                            - zip
+                            - street
+                            - number
+                            - comp
+                            - neighborhood
+                            - city
+                            - state
                           properties:
                             zip:
                               type: string
@@ -7646,6 +7703,9 @@ paths:
                               type: string
                               nullable: true
                             comp:
+                              type: string
+                              nullable: true
+                            neighborhood:
                               type: string
                               nullable: true
                             city:
@@ -7835,6 +7895,9 @@ paths:
                   - kind
                   - is_blacklisted
                   - blacklist_reason
+                  - blacklisted_at
+                  - purchases_count
+                  - is_consignor
                   - last_interaction_at
                   - address
                   - created_at
@@ -7863,12 +7926,33 @@ paths:
                   blacklist_reason:
                     type: string
                     nullable: true
+                  blacklisted_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Desde quando está na blacklist. Nulo se não está, ou se entrou
+                      antes de a data ser guardada.
+                  purchases_count:
+                    type: integer
+                    description: Acertos pagos do cliente nesta loja
+                  is_consignor:
+                    type: boolean
+                    description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
+                      filtro `consignor`)
                   last_interaction_at:
                     type: string
                     format: date-time
                     nullable: true
                   address:
                     type: object
+                    required:
+                      - zip
+                      - street
+                      - number
+                      - comp
+                      - neighborhood
+                      - city
+                      - state
                     properties:
                       zip:
                         type: string
@@ -7880,6 +7964,9 @@ paths:
                         type: string
                         nullable: true
                       comp:
+                        type: string
+                        nullable: true
+                      neighborhood:
                         type: string
                         nullable: true
                       city:
@@ -8034,6 +8121,8 @@ paths:
       summary: Edita os dados do cliente (o telefone não muda)
       tags:
         - customers
+      description: "Só os campos enviados mudam. Em `address` vale o mesmo: o endereço
+        é mesclado, não substituído, e `null` limpa o campo."
       requestBody:
         required: true
         content:
@@ -8060,6 +8149,8 @@ paths:
                 address:
                   type: object
                   additionalProperties: false
+                  description: "Mescla com o endereço atual: só os campos enviados mudam, `null`
+                    limpa o campo e o que não vem fica como está."
                   properties:
                     zip:
                       type: string
@@ -8076,6 +8167,10 @@ paths:
                     comp:
                       type: string
                       maxLength: 60
+                      nullable: true
+                    neighborhood:
+                      type: string
+                      maxLength: 80
                       nullable: true
                     city:
                       type: string
@@ -8116,6 +8211,9 @@ paths:
                   - kind
                   - is_blacklisted
                   - blacklist_reason
+                  - blacklisted_at
+                  - purchases_count
+                  - is_consignor
                   - last_interaction_at
                   - address
                   - created_at
@@ -8144,12 +8242,33 @@ paths:
                   blacklist_reason:
                     type: string
                     nullable: true
+                  blacklisted_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Desde quando está na blacklist. Nulo se não está, ou se entrou
+                      antes de a data ser guardada.
+                  purchases_count:
+                    type: integer
+                    description: Acertos pagos do cliente nesta loja
+                  is_consignor:
+                    type: boolean
+                    description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
+                      filtro `consignor`)
                   last_interaction_at:
                     type: string
                     format: date-time
                     nullable: true
                   address:
                     type: object
+                    required:
+                      - zip
+                      - street
+                      - number
+                      - comp
+                      - neighborhood
+                      - city
+                      - state
                     properties:
                       zip:
                         type: string
@@ -8161,6 +8280,9 @@ paths:
                         type: string
                         nullable: true
                       comp:
+                        type: string
+                        nullable: true
+                      neighborhood:
                         type: string
                         nullable: true
                       city:
@@ -8359,6 +8481,9 @@ paths:
                   - kind
                   - is_blacklisted
                   - blacklist_reason
+                  - blacklisted_at
+                  - purchases_count
+                  - is_consignor
                   - last_interaction_at
                   - address
                   - created_at
@@ -8387,12 +8512,33 @@ paths:
                   blacklist_reason:
                     type: string
                     nullable: true
+                  blacklisted_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Desde quando está na blacklist. Nulo se não está, ou se entrou
+                      antes de a data ser guardada.
+                  purchases_count:
+                    type: integer
+                    description: Acertos pagos do cliente nesta loja
+                  is_consignor:
+                    type: boolean
+                    description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
+                      filtro `consignor`)
                   last_interaction_at:
                     type: string
                     format: date-time
                     nullable: true
                   address:
                     type: object
+                    required:
+                      - zip
+                      - street
+                      - number
+                      - comp
+                      - neighborhood
+                      - city
+                      - state
                     properties:
                       zip:
                         type: string
@@ -8404,6 +8550,9 @@ paths:
                         type: string
                         nullable: true
                       comp:
+                        type: string
+                        nullable: true
+                      neighborhood:
                         type: string
                         nullable: true
                       city:
@@ -8589,6 +8738,9 @@ paths:
                   - kind
                   - is_blacklisted
                   - blacklist_reason
+                  - blacklisted_at
+                  - purchases_count
+                  - is_consignor
                   - last_interaction_at
                   - address
                   - created_at
@@ -8617,12 +8769,33 @@ paths:
                   blacklist_reason:
                     type: string
                     nullable: true
+                  blacklisted_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Desde quando está na blacklist. Nulo se não está, ou se entrou
+                      antes de a data ser guardada.
+                  purchases_count:
+                    type: integer
+                    description: Acertos pagos do cliente nesta loja
+                  is_consignor:
+                    type: boolean
+                    description: Tem ou já teve carta consignada nesta loja (o mesmo critério do
+                      filtro `consignor`)
                   last_interaction_at:
                     type: string
                     format: date-time
                     nullable: true
                   address:
                     type: object
+                    required:
+                      - zip
+                      - street
+                      - number
+                      - comp
+                      - neighborhood
+                      - city
+                      - state
                     properties:
                       zip:
                         type: string
@@ -8634,6 +8807,9 @@ paths:
                         type: string
                         nullable: true
                       comp:
+                        type: string
+                        nullable: true
+                      neighborhood:
                         type: string
                         nullable: true
                       city:
@@ -11483,6 +11659,14 @@ paths:
           in: query
           name: kind
           required: false
+        - schema:
+            type: string
+            format: uuid
+          in: query
+          name: customer_id
+          required: false
+          description: Só os links deste cliente (o link do consignador é por cliente).
+            Para revogar, use `DELETE /v1/public-links/{id}` em cada um.
         - schema:
             type: string
           in: header

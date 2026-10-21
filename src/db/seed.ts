@@ -145,6 +145,7 @@ function storeACustomer(n: number, vault: CpfVault): CustomerRow {
     isVisitor,
     isBlacklisted,
     blacklistReason: isBlacklisted ? 'Calote em leilão anterior' : null,
+    blacklistedAt: isBlacklisted ? at(`2026-09-${pad(n - 20, 2)}T12:00:00Z`) : null,
     // Visitante de número par nunca interagiu depois do primeiro lance.
     lastInteractionAt:
       isVisitor && n % 2 === 0 ? null : at(`2026-10-${pad((n % 28) + 1, 2)}T15:00:00Z`),
@@ -159,6 +160,7 @@ function storeACustomer(n: number, vault: CpfVault): CustomerRow {
     addressStreet: 'Avenida Paulista',
     addressNumber: String(n * 10),
     addressComp: n % 3 === 0 ? 'Apto 12' : null,
+    addressNeighborhood: 'Bela Vista',
     addressCity: 'São Paulo',
     addressState: 'SP',
   };

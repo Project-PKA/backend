@@ -137,7 +137,7 @@ export class PublicLinkService {
 
   async list(
     context: Context,
-    query: { limit: number; cursor?: string; kind?: LinkKind },
+    query: { limit: number; cursor?: string; kind?: LinkKind; customerId?: string },
   ): Promise<Page<LinkView> | 'INVALID_CURSOR'> {
     const position = query.cursor === undefined ? null : decodeCursor(query.cursor);
     if (query.cursor !== undefined && position === null) return 'INVALID_CURSOR';
@@ -149,6 +149,9 @@ export class PublicLinkService {
           and(
             eq(publicLinks.storeId, context.storeId),
             query.kind === undefined ? undefined : eq(publicLinks.kind, query.kind),
+            query.customerId === undefined
+              ? undefined
+              : eq(publicLinks.customerId, query.customerId),
             position === null
               ? undefined
               : sql`(${publicLinks.createdAt}, ${publicLinks.id}) < (${position.createdAt.toISOString()}::timestamptz, ${position.id}::uuid)`,
