@@ -16,7 +16,7 @@
 ##############################
 # Dependências de produção
 ##############################
-FROM node:22.23.3-alpine AS deps
+FROM node:22.23.4-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/root/.npm \
 ##############################
 # Build
 ##############################
-FROM node:22.23.3-alpine AS build
+FROM node:22.23.4-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
@@ -37,7 +37,7 @@ RUN npm run build
 ##############################
 # Runtime
 ##############################
-FROM node:22.23.3-alpine AS runtime
+FROM node:22.23.4-alpine AS runtime
 ENV NODE_ENV=production \
     PORT=8080
 WORKDIR /app
